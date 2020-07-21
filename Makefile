@@ -11,7 +11,7 @@ run: all_tests.inc test
 	./test
 
 all_tests.inc:
-	awk -f all_tests_awk test_*.c
+	awk -f discover_tests.awk test_*.c
 
 test: test.c klib.c test_example.c
 
