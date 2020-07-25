@@ -1,26 +1,26 @@
 
 CC = clang
-CWARNFLAGS = -Wall -Wextra \
-			 -Werror=return-type \
+CWARNFLAGS = -Wall -Wextra -Werror \
 			 -Wno-missing-field-initializers \
 			 -Wno-missing-braces
 CFLAGS = -g -D DEBUG $(CWARNFLAGS)
 #CFLAGS = -std=c11 -g -D DEBUG -I/mingw64/include/SDL2  -MMD $(CWARNFLAGS)
 
-run: all_tests.inc test
+run: test
 	./test
 
-all_tests.inc:
+test: test.o klib.o test_*.o
+
+testcases.inc testcases.h:
 	awk -f discover_tests.awk test_*.c
 
-test: test.c klib.c test_example.c
+depfile.mk: testcases.inc
+	clang -MM *.c > depfile.mk
 
-klib.c: klib.h
+include depfile.mk
 
 clean:
-	rm -f test *.o all_tests.h all_tests.inc
+	rm -f test *.o depfile.mk testcases.*
 
-
-#.PHONY: all clean run run-test
-.PHONY: run 
+.PHONY: run clean
 
