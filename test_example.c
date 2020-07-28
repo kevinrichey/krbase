@@ -2,14 +2,16 @@
 
 TEST_CASE(pass_example_0)
 {
-	test(true);
+	UNUSED(test_counter);
+	TEST(true);
 }
 
 TEST_CASE(fail_example_1)
 {
+	UNUSED(test_counter);
 	int x = 0;
 
-	test(x == 0);
-	test(x == 1);
+	TEST(x == 0);
+	TEST(x == 1);
 }
 

@@ -1,37 +1,53 @@
 #include <stdio.h>
 #include "klib.h"
 
-const char *ErrorCode_String(ErrorCode error)
+const char *Status_string(Status stat)
 {
-	if (error < ErrorCode_First && error > ErrorCode_Last) 
-		return "Unknown ErrorCode";
+	if (stat < Status_First && stat > Status_Last) 
+		return "Unknown Status";
 
-#define X(EnumName)  [ErrorCode_##EnumName] = #EnumName,
-	return (const char*[]) { ERROR_CODE_X_TABLE } [error];
+#define X(EnumName)  [Status_##EnumName] = #EnumName,
+	return (const char*[]) { STATUS_X_TABLE } [stat];
 #undef X
 }
 
-const char *DebugCategory_String(DebugCategory category)
-{
-	if (category < ErrorCode_First && category > ErrorCode_Last) 
-		return "Unknown DebugCategory";
 
-#define X(EnumName)  [DebugCategory_##EnumName] = #EnumName,
-	return (const char*[]) { DEBUG_CATEGORY_X_TABLE } [category];
-#undef X
+void Error_printf(FILE *out, ErrorInfo *e, const char *fmt, ...)
+{
+	fprintf(out, "%s:%d: %s: %s", 
+	        e->filename, 
+			e->fileline, 
+			Status_string(e->stat), 
+			e->message);
+
+	if (fmt && fmt[0]) {
+		va_list args;
+		va_start(args, fmt);
+		vfprintf(out, fmt, args);
+		va_end(args);
+	}
+
+	putc('\n', out);
 }
 
-void error_fprint(FILE *out, const char *file, int line, DebugCategory category, ErrorCode errcode, const char *msg, const char *func)
+void Error_print(FILE *out, ErrorInfo *e)
 {
-	fprintf(out, "%s:%d: %s %s: %s in %s()\n", file, line, DebugCategory_String(category), ErrorCode_String(errcode), msg, func);
+	Error_printf(out, e, "");
 }
 
-void test_assert(TestCounter *counter, bool test_condition, const char *file, int line, const char *msg, const char * func)
+void Test_assert(TestCounter *counter, bool test_condition, const char *file, int line, const char *msg)
 {
-	counter->test_count++;
+	++counter->test_count;
 
-	if (test_condition) {} else {
-		error_fprint(stdout, file, line, DebugCategory_Test, ErrorCode_Failure, msg, func);
+	if (!test_condition) {
+		ErrorInfo err = {
+			.stat = Status_Test_Failure,
+			.filename = file,
+			.fileline = line,
+			.funcname = NULL,
+			.message  = msg,
+		};
+		Error_printf(stdout, &err, " in test %s()", counter->test_name);
 		counter->failure_count++;
 	}
 }
