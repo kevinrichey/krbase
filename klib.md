@@ -6,42 +6,47 @@
 
 ## Utility Macros
 
-### `UNUSED(var)`
+### UNUSED(var)
 
-Suppress "unused parameter" warnings for variable *var*.
+Suppress unused parameter warnings for variable *var*.
 
 ### STANDARD_ENUM_VALUES(EnumName_)
-Add useful enum values, prefixed with *EnumName_*:
 
-- *EnumName_*First - equals 0.
-- *EnumName_*Last - equals last enum value.
-- *EnumName_*End - equals last enum value + 1.
+Insert the standard enumerators to an enum, prefixed with *EnumName_*:
+
+- *EnumName_*First == 0.
+- *EnumName_*Last == last enum value.
+- *EnumName_*End == last enum value + 1.
 
 ----------------------------------------
 
 ## Debugging & Error Checking
 
-### `const char *ErrorCode_String(ErrorCode error);`
+### Status_String
 
-Return string rep of *error* code.
+	const char *Status_string(Status stat);
 
-### `const char *DebugCategory_String(DebugCategory category);`
+Convert *stat* code to string.
 
-Return string rep of *category*.
+Returns
+:  Pointer to static constant global string. Do not modify or free().
 
-### `void error_fprint(FILE *out, const char *file, int line, DebugCategory category, ErrorCode errcode, const char *msg, const char *func);`
 
-Print error info to file stream *out*. 
+### Error_print
+
+	void Error_print(FILE *out, ErrorInfo *e);
+
+Print error to file stream *out*. 
 
 ----------------------------------------
 
 ## Unit Testing
 
-### `TEST_CASE(test_name_)`
+### TEST_CASE(test_name_)
 
 Define new test case *test_name_*. 
 
-### `test(condition_)`
+### test(condition_)
 
-Test that the *condition_* is true. If it is false, the test fails.
+If boolean expression *condition_* is false, the test fails.
 
