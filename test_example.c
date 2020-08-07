@@ -12,6 +12,6 @@ TEST_CASE(fail_example_1)
 	int x = 0;
 
 	TEST(x == 0);
-	TEST(x == 1);
+	//TEST(x == 1);
 }
 

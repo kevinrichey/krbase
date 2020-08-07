@@ -13,7 +13,7 @@ run: test
 
 test: test.o klib.o $(TESTCASES_O)
 
-testcases.inc testcases.h:
+testcases.inc testcases.h: $(TESTCASES_C)
 	awk -f discover_tests.awk $(TESTCASES_C)
 
 depfile.mk: testcases.h
