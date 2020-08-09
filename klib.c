@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include "klib.h"
 
@@ -50,5 +51,25 @@ void Test_assert(TestCounter *counter, bool test_condition, const char *file, in
 		Error_printf(stdout, &err, " in test %s()", counter->test_name);
 		counter->failure_count++;
 	}
+}
+
+
+
+void *list_resize_f(list_header *a, int sizeof_base, int sizeof_item, int capacity)
+{
+	list_header *b = a;
+	if ((b = realloc(a, sizeof_base + sizeof_item * capacity))) {
+		b->size = capacity;
+		if (!a)
+			b->length = 0;
+		if (b->length > b->size)
+			b->length = b->size;
+	}
+	return b; 
+}
+
+void list_dispose(void *list)
+{
+	free(list);
 }
 

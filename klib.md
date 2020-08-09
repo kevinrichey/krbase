@@ -50,3 +50,66 @@ Define new test case *test_name_*.
 
 If boolean expression *condition_* is false, the test fails.
 
+----------------------------------------
+
+## list - Dynamic Resizeable Arrays
+
+### list(type)
+
+Declare a new list of *type* objects.
+
+Example - declare list if int
+: `list(int) *numbers = NULL;`
+
+Example - define new list of doubles type
+: `typedef list(double)  list_doubles;`
+
+### list_resize(list, s)
+
+Resize *list* to store at least *s* elements.
+
+Side Effects
+: Pointer *list* may be modified. 
+
+### list_size(list)
+
+	static inline int list_size(void *list)
+
+
+Returns
+:  int size (max capacity) of *list*.
+
+
+### list_length(list)
+
+	static inline int list_length(void *list)
+
+
+Returns
+:  int number of elements in *list*.
+
+
+### list_is_full(list)
+
+	static inline bool list_is_full(void *list)
+
+
+Returns
+:  *true* if *list* is full (cannot add more elemnets).
+
+
+### list_is_empty(list)
+
+	static inline bool list_is_empty(void *list)
+
+
+Returns
+:  *true* if *list* is empty (no elements in list)
+
+
+### list_dispose(list)
+
+	void list_dispose(void *list);
+
+Free *list* when it's not longer used.
+

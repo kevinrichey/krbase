@@ -59,15 +59,15 @@ Modules
 - Size:    number of bytes in an object, as in sizeof().
 - Cap:     max number of elements a sequence may contain.
 
-### Matching Verb Pairs
+### Matching Pairs
 
+- create, destroy
 - init, dispose
 - start, stop
 - begin, end
 - put, get
 - set, unset
 - add, remove
-- create, destroy
 - enable, disable
 - insert, delete
 - load, save

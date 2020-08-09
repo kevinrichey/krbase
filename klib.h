@@ -74,9 +74,72 @@ void Test_assert(TestCounter *counter, bool test_condition, const char *file, in
 */
 
 #define TEST(condition_)  Test_assert(test_counter, (condition_), __FILE__, __LINE__, #condition_)
-
 /*@doc test(condition_)
   If boolean expression *condition_* is false, the test fails.
 */
 
+
+//@module list - Dynamic Resizeable Arrays
+
+typedef struct { int size, length; } list_header;
+
+#define list(EL_TYPE)  struct { list_header head; EL_TYPE begin[]; }
+/*@doc list(type) 
+ Declare a new list of *type* objects.
+
+ Example - declare list if int
+ : `list(int) *numbers = NULL;`
+
+ Example - define new list of doubles type
+ : `typedef list(double)  list_doubles;`
+*/
+
+void *list_resize_f(list_header *a, int sizeof_base, int sizeof_item, int capacity);
+
+#define list_resize(L_, NEW_SIZE)   do{ (L_) = list_resize_f((list_header*)(L_), sizeof(*(L_)), sizeof(*(L_)->begin), (NEW_SIZE)); }while(0)
+/*@doc list_resize(list, s)
+ Resize *list* to store at least *s* elements.
+
+ Side Effects
+ : Pointer *list* may be modified. 
+*/
+
+static inline int list_size(void *list)
+/*@func list_size(list)
+ @returns int size (max capacity) of *list*.
+*/
+{
+	return list? ((list_header*)list)->size: 0;
+}
+
+static inline int list_length(void *list)
+/*@func list_length(list)
+ @returns int number of elements in *list*.
+*/
+{
+	return list? ((list_header*)list)->length: 0;
+}
+
+static inline bool list_is_full(void *list)
+/*@func list_is_full(list)
+ @returns *true* if *list* is full (cannot add more elemnets).
+*/
+{
+	// assert list -> actual list
+	return list_length(list) >= list_size(list);
+}
+
+static inline bool list_is_empty(void *list)
+/*@func list_is_empty(list)
+ @returns *true* if *list* is empty (no elements in list)
+*/
+{
+	// assert list is actual list
+	return list_length(list) == 0;
+}
+
+void list_dispose(void *list);
+/*@func list_dispose(list)
+ Free *list* when it's not longer used.
+*/
 
