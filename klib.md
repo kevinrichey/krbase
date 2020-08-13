@@ -18,6 +18,21 @@ Insert the standard enumerators to an enum, prefixed with *EnumName_*:
 - *EnumName_*Last == last enum value.
 - *EnumName_*End == last enum value + 1.
 
+### VA_NARGS(...)
+
+
+Returns
+:  number of arguments passed.
+
+
+### ARRAY_LENGTH(a)
+
+
+Returns
+:  length of statically sized array *a*.
+
+Undefined behavior if *a* is dynamically allocated array.
+
 ----------------------------------------
 
 ## Debugging & Error Checking
@@ -49,6 +64,32 @@ Define new test case *test_name_*.
 ### test(condition_)
 
 If boolean expression *condition_* is false, the test fails.
+
+----------------------------------------
+
+## vector - tuple with named and random access
+
+### vector(TYPE, members...)
+
+Declare a new vector of *TYPE* with *members*.
+Access elements through the named members or by random access
+through the *at[]* array member.
+
+Example - declare an x,y point
+: `vector(int, x, y)  point;`
+: `point.x = 100;`
+: `point.at[1] = 200;   // at[1] is random access to member y`
+
+
+Example - declare an RGB color type
+: `typedef vector(unsigned, red, green, blue)  rgb;`
+
+### vec_length(v)
+
+
+Returns
+:  length (number of members) in vector *v*.
+
 
 ----------------------------------------
 

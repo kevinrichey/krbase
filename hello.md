@@ -3,16 +3,16 @@
 
 # To Do
 
-- Dev environment (editor, compiler warnings, optimizations, debug info, debugger, sanitizers, continuous integration)
+- Use sanitizers
 - Unit testing (isolate tests, fixture setup/teardown, auto-discovery, data alignment)
 - Assertions
 - Error detection & handling (error codes, handlers, "exceptions", runtime file:line debug info)
 - Tracing & Logging
 - Memory integrity (leak detection, memory pools, auto-release pools, convenience functions).
 - Signal handling
-- Security (avoiding security flaws in code)
 - Localization & language support
-- Configuration (command-line args, config file, env vars, defaults)
+- Security (avoiding security flaws in code)
+- Configuration (command-line, config file, env vars, defaults)
 - Data structures (string, dyn array, hash, list, span)
 - Data de/serialization 
 - Data file storage
@@ -21,6 +21,14 @@
 - Encryption, authentication
 - Code generation & meta-programming tools
 - Source & API documentation
+
+## Five things to improve software quality
+
+- Unit testing
+- Assertions
+- Error handling 
+- Tracing & Logging
+- Configuration
 
 # Coding Style
 

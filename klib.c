@@ -12,7 +12,6 @@ const char *Status_string(Status stat)
 #undef X
 }
 
-
 void Error_printf(FILE *out, ErrorInfo *e, const char *fmt, ...)
 {
 	fprintf(out, "%s:%d: %s: %s", 
@@ -59,17 +58,17 @@ void *list_resize_f(list_header *a, int sizeof_base, int sizeof_item, int capaci
 {
 	list_header *b = a;
 	if ((b = realloc(a, sizeof_base + sizeof_item * capacity))) {
-		b->size = capacity;
+		b->cap = capacity;
 		if (!a)
 			b->length = 0;
-		if (b->length > b->size)
-			b->length = b->size;
+		if (b->length > b->cap)
+			b->length = b->cap;
 	}
 	return b; 
 }
 
-void list_dispose(void *list)
+void list_dispose(void *l)
 {
-	free(list);
+	free(l);
 }
 
