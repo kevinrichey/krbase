@@ -45,7 +45,8 @@ Suppress unused parameter warnings for variable *var*.
 #define STATUS_X_TABLE \
   X(OK) \
   X(Test_Failure) \
-  X(Error) 
+  X(Error)  \
+  X(Alloc_Error) \
 
 #define X(EnumName_)  Status_##EnumName_,
 typedef enum {

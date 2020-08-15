@@ -65,13 +65,31 @@ TEST_CASE(list)
 	TEST(s->head.cap == 3);
 
 	x.id = 404;
-	if (list_is_full(s))
-		s = list_resize_f((list_header*)s, sizeof(*s), sizeof(*s->begin), s->head.cap * 2); 
-		// check resize failure...
+	Status stat = Status_OK;
+	if (list_is_full(s)) {
+		void *s2 = list_resize_f((list_header*)s, sizeof(*s), sizeof(*s->begin), list_capacity(s) * 2); 
+		if (s2)
+			s = s2;
+		else
+			stat = Status_Alloc_Error;
+	}
 	s->begin[s->head.length++] = x;
 	TEST(s->head.length == 4);
 	TEST(s->head.cap == 6);
 
 	list_dispose(s);
+}
+
+TEST_CASE(vector)
+{
+	vector(int, x, y, z) point = {10,20,30};
+
+	TEST(point.x == 10);
+	TEST(point.y == 20);
+	TEST(point.z == 30);
+	TEST(point.at[0] == 10);
+	TEST(point.at[1] == 20);
+	TEST(point.at[2] == 30);
+	TEST(vec_length(point) == 3);
 }
 
