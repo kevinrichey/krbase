@@ -40,6 +40,9 @@ Suppress unused parameter warnings for variable *var*.
  Undefined behavior if *a* is dynamically allocated array.
 */
 
+typedef unsigned char byte;
+
+
 //@module Debugging & Error Checking
 
 #define STATUS_X_TABLE \

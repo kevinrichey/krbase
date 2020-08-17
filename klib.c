@@ -56,8 +56,8 @@ void Test_assert(TestCounter *counter, bool test_condition, const char *file, in
 
 void *list_resize_f(list_header *a, int sizeof_base, int sizeof_item, int capacity)
 {
-	list_header *b = a;
-	if ((b = realloc(a, sizeof_base + sizeof_item * capacity))) {
+	list_header *b = NULL;
+	if ( (b = realloc(a, sizeof_base + sizeof_item * capacity)) ) {
 		b->cap = capacity;
 		if (!a)
 			b->length = 0;

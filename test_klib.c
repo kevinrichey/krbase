@@ -25,6 +25,19 @@ TEST_CASE(requires_assertion)
 	//requires(x == 1);
 }
 
+TEST_CASE(vector)
+{
+	vector(int, x, y, z) point = {10,20,30};
+
+	TEST(point.x == 10);
+	TEST(point.y == 20);
+	TEST(point.z == 30);
+	TEST(point.at[0] == 10);
+	TEST(point.at[1] == 20);
+	TEST(point.at[2] == 30);
+	TEST(vec_length(point) == 3);
+}
+
 TEST_CASE(list)
 {
 	typedef struct { char name[5]; int id; } data;
@@ -80,16 +93,83 @@ TEST_CASE(list)
 	list_dispose(s);
 }
 
-TEST_CASE(vector)
-{
-	vector(int, x, y, z) point = {10,20,30};
 
-	TEST(point.x == 10);
-	TEST(point.y == 20);
-	TEST(point.z == 30);
-	TEST(point.at[0] == 10);
-	TEST(point.at[1] == 20);
-	TEST(point.at[2] == 30);
-	TEST(vec_length(point) == 3);
+#include <stdlib.h>
+#include <stddef.h>
+
+TEST_CASE(memory_tracker)
+{
+	typedef struct {
+		char c;
+		double d;
+		int i;
+	} test_object;
+
+	typedef struct object_head_struct {
+		struct object_head_struct *next;
+		const char *filename;
+		int fileline;
+		size_t size;
+	} object_head;
+
+	typedef struct {
+		object_head head;
+		test_object object;
+	} object;
+
+
+	object_head *top = NULL;
+
+	object_head *old_top = top;
+	object *o1 = malloc(sizeof(*o1));
+	if (o1) {
+		o1->head.next = top;
+		top = (object_head*)o1;
+	}
+	TEST(o1 != NULL);
+	TEST(o1->head.next == old_top);
+	TEST((void*)top == (void*)o1);
+
+
+	old_top = top;
+	object *o2 = malloc(sizeof(*o2));
+	if (o2) {
+		o2->head.next = top;
+		o2->head.size = sizeof(*o2);
+		top = (object_head*)o2;
+	}
+	TEST(o2 != NULL);
+	TEST(o2->head.next == old_top);
+	TEST((void*)top == (void*)o2);
+
+	old_top = top;
+	object *o3 = malloc(sizeof(*o3));
+	if (o3) {
+		o3->head.next = top;
+		o3->head.size = sizeof(*o3);
+		top = (object_head*)o3;
+	}
+	TEST(o3 != NULL);
+	TEST(o3->head.next == old_top);
+	TEST((void*)top == (void*)o3);
+
+	object_head *o_ = (object_head*)o2;
+	object_head **h;
+	for (h = &top; *h != o_ && *h; h = &(*h)->next) 
+		;
+	if (*h == o_) {
+		*h = (*h)->next;
+	}
+	free(o_);
+	TEST((void*)top == (void*)o3);
+	TEST((void*)top->next == (void*)o1);
+
+
+	free(o1);
+
+
+	free(o3);
 }
+
+
 
