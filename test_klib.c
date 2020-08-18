@@ -96,79 +96,109 @@ TEST_CASE(list)
 
 #include <stdlib.h>
 #include <stddef.h>
+#include <string.h>
+
+typedef struct {
+	const char *filename;
+	int         fileline;
+} debug_info;
+
+#define DEBUG_HERE   (debug_info){ .filename = __FILE__, .fileline = __LINE__ }
+
+typedef struct object_struct {
+	struct object_struct *next;
+	debug_info  where_created;
+} object;
+
+void *object_create(size_t size, object **top, debug_info where)
+{
+	object *o = malloc(size);
+	if (o) {
+		o->next     = *top;
+		o->where_created = where;
+		*top = o;
+	}
+	return o;
+}
+
+#define create(NAME_, TOP_)   object_create(sizeof(*NAME_), &TOP_, DEBUG_HERE)
+
+void object_destroy(object **o, object **top)
+{
+	object **h;
+	for (h = top; *h != *o && *h; h = &(*h)->next) 
+		;
+	if (*h == *o)
+		*h = (*h)->next;
+	free(*o);
+	*o = NULL;
+}
+
+#define destroy(OBJ_, TOP_)   object_destroy((object**)&OBJ_, &TOP_)
+
+void object_print_leaks(object *top)
+{
+	for ( ; top; top = top->next)
+		printf("%s:%d: object leaked.\n", top->where_created.filename, top->where_created.fileline);
+}
 
 TEST_CASE(memory_tracker)
 {
 	typedef struct {
+		object base;
 		char c;
 		double d;
 		int i;
 	} test_object;
 
-	typedef struct object_head_struct {
-		struct object_head_struct *next;
-		const char *filename;
-		int fileline;
-		size_t size;
-	} object_head;
+	object *top = NULL;
 
-	typedef struct {
-		object_head head;
-		test_object object;
-	} object;
-
-
-	object_head *top = NULL;
-
-	object_head *old_top = top;
-	object *o1 = malloc(sizeof(*o1));
-	if (o1) {
-		o1->head.next = top;
-		top = (object_head*)o1;
-	}
+	object *old_top = top;
+	test_object *o1 = create(o1, top);
 	TEST(o1 != NULL);
-	TEST(o1->head.next == old_top);
+	TEST(o1->base.next == old_top);
 	TEST((void*)top == (void*)o1);
-
+	TEST( !strcmp(o1->base.where_created.filename, __FILE__) );
+	TEST(o1->base.where_created.fileline == __LINE__-5);
 
 	old_top = top;
-	object *o2 = malloc(sizeof(*o2));
-	if (o2) {
-		o2->head.next = top;
-		o2->head.size = sizeof(*o2);
-		top = (object_head*)o2;
-	}
+	test_object *o2 = create(o2, top);
 	TEST(o2 != NULL);
-	TEST(o2->head.next == old_top);
+	TEST(o2->base.next == old_top);
 	TEST((void*)top == (void*)o2);
+	TEST( !strcmp(o2->base.where_created.filename, __FILE__) );
+	TEST(o2->base.where_created.fileline == __LINE__-5);
 
 	old_top = top;
-	object *o3 = malloc(sizeof(*o3));
-	if (o3) {
-		o3->head.next = top;
-		o3->head.size = sizeof(*o3);
-		top = (object_head*)o3;
-	}
+	test_object *o3 = create(o3, top);
 	TEST(o3 != NULL);
-	TEST(o3->head.next == old_top);
+	TEST(o3->base.next == old_top);
 	TEST((void*)top == (void*)o3);
+	TEST( !strcmp(o3->base.where_created.filename, __FILE__) );
+	TEST(o3->base.where_created.fileline == __LINE__-5);
 
-	object_head *o_ = (object_head*)o2;
-	object_head **h;
-	for (h = &top; *h != o_ && *h; h = &(*h)->next) 
-		;
-	if (*h == o_) {
-		*h = (*h)->next;
-	}
-	free(o_);
+	object_print_leaks(top);
+
+	puts("Delete o2");
+	destroy(o2, top);
+	TEST(o2 == NULL);
 	TEST((void*)top == (void*)o3);
 	TEST((void*)top->next == (void*)o1);
+	object_print_leaks(top);
 
+	puts("Delete o3");
+	destroy(o3, top);
+	TEST(o3 == NULL);
+	TEST((void*)top == (void*)o1);
+	TEST((void*)top->next == NULL);
+	object_print_leaks(top);
 
-	free(o1);
+	puts("Delete o1");
+	destroy(o1, top);
+	TEST(o1 == NULL);
+	TEST(top == NULL);
+	object_print_leaks(top);
 
-
-	free(o3);
 }
 
 
