@@ -93,6 +93,132 @@ TEST_CASE(list)
 	list_dispose(s);
 }
 
+typedef struct Unode_struct {
+	struct Unode_struct *next;
+} Unode;
+
+void Unode_link(Unode *a, Unode *b)
+{
+	if (a) {
+		if (b)
+			b->next = a->next;
+		a->next = b;
+	}
+}
+
+_Bool Unode_has_next(Unode *n)
+{
+	return n && n->next;
+}
+
+void *Unode_next(Unode *n)
+{
+	return n? n->next: NULL;
+}
+
+TEST_CASE(Unode_link)
+{
+	struct {
+		Unode link;
+		char q;
+	} a = { .q = 'a' }, 
+	  b = { .q = 'b' },
+	  c = { .q = 'c' },
+	  *p;
+
+	TEST(a.link.next == NULL);
+	TEST(b.link.next == NULL);
+	TEST(c.link.next == NULL);
+
+	// Link two unlinked nodes a and b
+	Unode_link(&a.link, &b.link); 
+	TEST(a.link.next == &b.link);
+	p = Unode_next(&a.link);
+	TEST(p && p->q == 'b');
+	
+	// Link node c between a and b
+	Unode_link(&a.link, &c.link);
+	p = Unode_next(&a.link);
+	TEST(p && p->q == 'c');
+	p = Unode_next(&p->link);
+	TEST(p && p->q == 'b');
+
+	// Link node a to NULL
+	Unode_link(&a.link, NULL);
+	p = Unode_next(&a.link);
+	TEST(p == NULL);
+}
+
+void *Unode_unlink_next(Unode *n)
+{
+	Unode *p = Unode_next(n);
+	if (p) {
+		Unode_link(n, Unode_next(p));
+		Unode_link(p, NULL);
+	}
+	return p;
+}
+
+void *Unode_unlink_self(Unode *n)
+{
+	Unode *p = Unode_next(n);
+	Unode_link(n, NULL);
+	return p;
+}
+
+TEST_CASE(Unode_unlink)
+{
+	struct {
+		Unode link;
+		char q;
+	} a = { .q = 'a' }, 
+	  b = { .q = 'b' },
+	  c = { .q = 'c' },
+	  d = { .q = 'd' },
+	  e = { .q = 'e' },
+	  f = { .q = 'f' },
+	  g = { .q = 'g' },
+	  *p;
+
+	Unode_link(&a.link, &b.link);
+	Unode_link(&b.link, &c.link);
+	Unode_link(&c.link, &d.link);
+	Unode_link(&d.link, &e.link);
+	Unode_link(&e.link, &f.link);
+
+	// Unlink first node
+	p = Unode_unlink_self(&a.link);
+	TEST(p->q == 'b');
+	TEST(!Unode_has_next(&a.link));
+
+	// Unlink middle node
+	p = Unode_unlink_next(&b.link);
+	TEST(p->q == 'c');
+	TEST(!Unode_has_next(&p->link));
+	TEST(Unode_next(&b.link) == &d.link);
+
+	// Unlink last node
+	p = Unode_unlink_next(&e.link);
+	TEST(p->q == 'f');
+	TEST(!Unode_has_next(&e.link));
+	TEST(!Unode_has_next(&p->link));
+
+	// Unlink sole node
+	p = Unode_unlink_self(&g.link);
+	TEST(p == NULL);
+	TEST(!Unode_has_next(&g.link));
+
+	p = Unode_unlink_next(&g.link);
+	TEST(p == NULL);
+	TEST(!Unode_has_next(&g.link));
+
+	// Unlink no node
+	p = Unode_unlink_self(NULL);
+	TEST(p == NULL);
+
+	p = Unode_unlink_next(NULL);
+	TEST(p == NULL);
+}
 
 #include <stdlib.h>
 #include <stddef.h>
@@ -121,7 +247,7 @@ void *object_create(size_t size, object **top, debug_info where)
 	return o;
 }
 
-#define create(NAME_, TOP_)   object_create(sizeof(*NAME_), &TOP_, DEBUG_HERE)
+#define CREATE(TYPE_, TOP_)   object_create(sizeof(TYPE_), &TOP_, DEBUG_HERE)
 
 void object_destroy(object **o, object **top)
 {
@@ -134,7 +260,7 @@ void object_destroy(object **o, object **top)
 	*o = NULL;
 }
 
-#define destroy(OBJ_, TOP_)   object_destroy((object**)&OBJ_, &TOP_)
+#define DESTROY(OBJ_, TOP_)   object_destroy((object**)&OBJ_, &TOP_)
 
 void object_print_leaks(object *top)
 {
@@ -154,7 +280,7 @@ TEST_CASE(memory_tracker)
 	object *top = NULL;
 
 	object *old_top = top;
-	test_object *o1 = create(o1, top);
+	test_object *o1 = CREATE(*o1, top);
 	TEST(o1 != NULL);
 	TEST(o1->base.next == old_top);
 	TEST((void*)top == (void*)o1);
@@ -162,7 +288,7 @@ TEST_CASE(memory_tracker)
 	TEST(o1->base.where_created.fileline == __LINE__-5);
 
 	old_top = top;
-	test_object *o2 = create(o2, top);
+	test_object *o2 = CREATE(*o2, top);
 	TEST(o2 != NULL);
 	TEST(o2->base.next == old_top);
 	TEST((void*)top == (void*)o2);
@@ -170,34 +296,36 @@ TEST_CASE(memory_tracker)
 	TEST(o2->base.where_created.fileline == __LINE__-5);
 
 	old_top = top;
-	test_object *o3 = create(o3, top);
+	test_object *o3 = CREATE(*o3, top);
 	TEST(o3 != NULL);
 	TEST(o3->base.next == old_top);
 	TEST((void*)top == (void*)o3);
 	TEST( !strcmp(o3->base.where_created.filename, __FILE__) );
 	TEST(o3->base.where_created.fileline == __LINE__-5);
 
-	object_print_leaks(top);
+	//object_print_leaks(top);
 
 	puts("Delete o2");
-	destroy(o2, top);
+	DESTROY(o2, top);
 	TEST(o2 == NULL);
 	TEST((void*)top == (void*)o3);
 	TEST((void*)top->next == (void*)o1);
-	object_print_leaks(top);
+
+	//object_print_leaks(top);
 
 	puts("Delete o3");
-	destroy(o3, top);
+	DESTROY(o3, top);
 	TEST(o3 == NULL);
 	TEST((void*)top == (void*)o1);
 	TEST((void*)top->next == NULL);
-	object_print_leaks(top);
+
+	//object_print_leaks(top);
 
 	puts("Delete o1");
-	destroy(o1, top);
+	DESTROY(o1, top);
 	TEST(o1 == NULL);
 	TEST(top == NULL);
-	object_print_leaks(top);
+	//object_print_leaks(top);
 
 }
 

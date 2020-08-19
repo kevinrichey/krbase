@@ -95,7 +95,7 @@ void Test_assert(TestCounter *counter, bool test_condition, const char *file, in
 */
 
 #define TEST(condition_)  Test_assert(test_counter, (condition_), __FILE__, __LINE__, #condition_)
-/*@doc test(condition_)
+/*@doc TEST(condition_)
   If boolean expression *condition_* is false, the test fails.
 */
 
