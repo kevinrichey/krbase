@@ -124,24 +124,31 @@ TEST_CASE(Unode_link)
 	} a = { .q = 'a' }, 
 	  b = { .q = 'b' },
 	  c = { .q = 'c' },
+	  d = { .q = 'd' },
 	  *p;
 
 	TEST(a.link.next == NULL);
 	TEST(b.link.next == NULL);
 	TEST(c.link.next == NULL);
+	TEST(d.link.next == NULL);
 
-	// Link two unlinked nodes a and b
-	Unode_link(&a.link, &b.link); 
-	TEST(a.link.next == &b.link);
-	p = Unode_next(&a.link);
-	TEST(p && p->q == 'b');
-	
-	// Link node c between a and b
-	Unode_link(&a.link, &c.link);
+	// Link two unlinked nodes a and c
+	Unode_link(&a.link, &c.link); 
+	TEST(a.link.next == &c.link);
 	p = Unode_next(&a.link);
 	TEST(p && p->q == 'c');
-	p = Unode_next(&p->link);
+	
+	// Link node b between a and c
+	Unode_link(&a.link, &b.link);
+	p = Unode_next(&a.link);
 	TEST(p && p->q == 'b');
+	p = Unode_next(&p->link);
+	TEST(p && p->q == 'c');
+
+	// Link node d to end after c
+	Unode_link(&c.link, &d.link);
+	TEST( Unode_next(&c.link) == &d.link );
+	TEST( Unode_next(&d.link) == NULL);
 
 	// Link node a to NULL
 	Unode_link(&a.link, NULL);
@@ -180,13 +187,14 @@ TEST_CASE(Unode_unlink)
 	  g = { .q = 'g' },
 	  *p;
 
+	// Chain nodes a:b:c:d:e:f
 	Unode_link(&a.link, &b.link);
 	Unode_link(&b.link, &c.link);
 	Unode_link(&c.link, &d.link);
 	Unode_link(&d.link, &e.link);
 	Unode_link(&e.link, &f.link);
 
-	// Unlink first node
+	// Unlink first node a
 	p = Unode_unlink_self(&a.link);
 	TEST(p->q == 'b');
 	TEST(!Unode_has_next(&a.link));
@@ -219,6 +227,50 @@ TEST_CASE(Unode_unlink)
 	p = Unode_unlink_next(NULL);
 	TEST(p == NULL);
 }
+
+void sum_ints(void *total, void *next_i)
+{
+	*(int*)total += *(int*)next_i;
+}
+
+typedef void (*closure_fn)(void*, void*);
+
+void *Unode_foreach(Unode *node, closure_fn fn, void *closure, int offset)
+{
+	for ( ; node != NULL; node = Unode_next(node))
+		fn(closure, (byte*)node + offset);
+	return closure;
+}
+
+TEST_CASE(Unode_foreach)
+{
+	struct test_node {
+		Unode link;
+		int i;
+	} a = { .i = 1 }, 
+	  b = { .i = 2 },
+	  c = { .i = 3 },
+	  d = { .i = 4 },
+	  e = { .i = 5 },
+	  f = { .i = 6 };
+
+	// Chain nodes a:b:c:d:e:f
+	Unode_link(&a.link, &b.link);
+	Unode_link(&b.link, &c.link);
+	Unode_link(&c.link, &d.link);
+	Unode_link(&d.link, &e.link);
+	Unode_link(&e.link, &f.link);
+
+	// Traverse the chain and sum all values
+	int total = 0;
+
+	int i_offset = offsetof(struct test_node,i);
+	Unode_foreach(&a.link, sum_ints, &total, i_offset);
+	TEST(total == 21);
+
+}
+
+
 
 #include <stdlib.h>
 #include <stddef.h>
