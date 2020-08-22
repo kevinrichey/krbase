@@ -93,159 +93,141 @@ TEST_CASE(list)
 	list_dispose(s);
 }
 
-typedef struct Unode_struct {
-	struct Unode_struct *next;
-} Unode;
 
-void Unode_link(Unode *a, Unode *b)
-{
-	if (a) {
-		if (b)
-			b->next = a->next;
-		a->next = b;
-	}
-}
 
-_Bool Unode_has_next(Unode *n)
-{
-	return n && n->next;
-}
-
-void *Unode_next(Unode *n)
-{
-	return n? n->next: NULL;
-}
-
-TEST_CASE(Unode_link)
+TEST_CASE(Binode_link_2_solo_nodes)
 {
 	struct {
-		Unode link;
+		Binode link;
 		char q;
 	} a = { .q = 'a' }, 
 	  b = { .q = 'b' },
-	  c = { .q = 'c' },
-	  d = { .q = 'd' },
 	  *p;
 
-	TEST(a.link.next == NULL);
-	TEST(b.link.next == NULL);
-	TEST(c.link.next == NULL);
-	TEST(d.link.next == NULL);
-
-	// Link two unlinked nodes a and c
-	Unode_link(&a.link, &c.link); 
-	TEST(a.link.next == &c.link);
-	p = Unode_next(&a.link);
-	TEST(p && p->q == 'c');
+	// Given two unlinked nodes
+	TEST(a.link.right == NULL);
+	TEST(a.link.left  == NULL);
+	TEST(Binode_not_linked(&a.link));
+	TEST(Binode_not_linked(&b.link));
 	
-	// Link node b between a and c
-	Unode_link(&a.link, &b.link);
-	p = Unode_next(&a.link);
-	TEST(p && p->q == 'b');
-	p = Unode_next(&p->link);
-	TEST(p && p->q == 'c');
+	// When they're linked
+	Binode_link(&a.link, &b.link);
 
-	// Link node d to end after c
-	Unode_link(&c.link, &d.link);
-	TEST( Unode_next(&c.link) == &d.link );
-	TEST( Unode_next(&d.link) == NULL);
+	// Then a.right == b and b is still unlinked
+	TEST(Binodes_are_linked(&a.link, &b.link));
+	TEST(Binode_next(&a.link) == (void*)&b);
+	TEST(Binode_next(&b.link) == NULL);
+	TEST(Binode_is_linked(&a.link));
+	TEST(Binode_is_linked(&b.link));
 
-	// Link node a to NULL
-	Unode_link(&a.link, NULL);
-	p = Unode_next(&a.link);
-	TEST(p == NULL);
+	// and advancing to a right is b
+	p = &a;
+	TEST(p->q == 'a');
+	p = Binode_next((Binode*)p);
+	TEST(p->q == 'b');
 }
 
-void *Unode_unlink_next(Unode *n)
-{
-	Unode *p = Unode_next(n);
-	if (p) {
-		Unode_link(n, Unode_next(p));
-		Unode_link(p, NULL);
-	}
-	return p;
-}
-
-void *Unode_unlink_self(Unode *n)
-{
-	Unode *p = Unode_next(n);
-	Unode_link(n, NULL);
-	return p;
-}
-
-TEST_CASE(Unode_unlink)
+TEST_CASE(Binode_insert_between_2_links)
 {
 	struct {
-		Unode link;
+		Binode link;
 		char q;
 	} a = { .q = 'a' }, 
 	  b = { .q = 'b' },
 	  c = { .q = 'c' },
-	  d = { .q = 'd' },
-	  e = { .q = 'e' },
-	  f = { .q = 'f' },
-	  g = { .q = 'g' },
 	  *p;
 
-	// Chain nodes a:b:c:d:e:f
-	Unode_link(&a.link, &b.link);
-	Unode_link(&b.link, &c.link);
-	Unode_link(&c.link, &d.link);
-	Unode_link(&d.link, &e.link);
-	Unode_link(&e.link, &f.link);
+	// Given two linked and one solo nodes
+	Binode_link(&a.link, &b.link);
+	TEST( Binodes_are_linked(&a.link, &b.link) );
+	TEST( Binode_not_linked(&c.link) );
+	p = NULL;
 
-	// Unlink first node a
-	p = Unode_unlink_self(&a.link);
-	TEST(p->q == 'b');
-	TEST(!Unode_has_next(&a.link));
+	// When solo node c inserted after a
+	Binode_insert(&a.link, &c.link);
 
-	// Unlink middle node
-	p = Unode_unlink_next(&b.link);
+	// Then a.right is c and c.right is b
+	p = &a;
+	TEST(p->q == 'a');
+	p = Binode_next(&p->link);
 	TEST(p->q == 'c');
-	TEST(!Unode_has_next(&p->link));
-	TEST(Unode_next(&b.link) == &d.link);
-
-	// Unlink last node
-	p = Unode_unlink_next(&e.link);
-	TEST(p->q == 'f');
-	TEST(!Unode_has_next(&e.link));
-	TEST(!Unode_has_next(&p->link));
-
-	// Unlink sole node
-	p = Unode_unlink_self(&g.link);
-	TEST(p == NULL);
-	TEST(!Unode_has_next(&g.link));
-
-	p = Unode_unlink_next(&g.link);
-	TEST(p == NULL);
-	TEST(!Unode_has_next(&g.link));
-
-	// Unlink no node
-	p = Unode_unlink_self(NULL);
-	TEST(p == NULL);
-
-	p = Unode_unlink_next(NULL);
-	TEST(p == NULL);
+	p = Binode_next(&p->link);
+	TEST(p->q == 'b');
 }
 
-void sum_ints(void *total, void *next_i)
+TEST_CASE(Binode_link_to_null)
 {
-	*(int*)total += *(int*)next_i;
+	struct {
+		Binode link;
+		char q;
+	} a = { .q = 'a' }, 
+	  b = { .q = 'b' },
+	  *p;
+
+	p = NULL;
+
+	// Given a and b are linked
+	Binode_link(&a.link, &b.link);
+	TEST( Binodes_are_linked(&a.link, &b.link) );
+	
+	// When a is linked to NULL
+	Binode_link(&a.link, NULL);
+
+	// Then a is no longer linked to b
+	// and b is still linked to a
+	TEST( !Binodes_are_linked(&a.link, &b.link) );
+	TEST( Binode_not_linked(&a.link) );
+	TEST( Binode_next(&a.link) != &b.link );
+	TEST( Binode_prev(&b.link) == &a.link );
 }
 
-typedef void (*closure_fn)(void*, void*);
-
-void *Unode_foreach(Unode *node, closure_fn fn, void *closure, int offset)
+TEST_CASE(Binode_remove_node)
 {
-	for ( ; node != NULL; node = Unode_next(node))
-		fn(closure, (byte*)node + offset);
-	return closure;
+	struct {
+		Binode link;
+		char q;
+	} a = { .q = 'a' }, 
+	  b = { .q = 'b' },
+	  c = { .q = 'c' };
+
+	// Given chain a:b:c
+	Binode_link(&a.link, &b.link);
+	Binode_link(&b.link, &c.link);
+
+	// When b is removed
+	 Binode_remove(&b.link);
+
+	// Then a is linked to c and b is unlinked
+	TEST(Binode_not_linked(&b.link));
+	TEST(Binodes_are_linked(&a.link, &c.link));
 }
 
-TEST_CASE(Unode_foreach)
+TEST_CASE(Binode_remove_last_node)
+{
+	struct {
+		Binode link;
+		char q;
+	} a = { .q = 'a' }, 
+	  b = { .q = 'b' },
+	  c = { .q = 'c' };
+
+	// Given chain a:b:c
+	Binode_link(&a.link, &b.link);
+	Binode_link(&b.link, &c.link);
+
+	// When c is removed
+	Binode_remove(&c.link);
+
+	// Then a is linked to b and c is unlinked
+	TEST(Binode_not_linked(&c.link));
+	TEST(Binodes_are_linked(&a.link, &b.link));
+	TEST(!Binodes_are_linked(&b.link, &c.link));
+}
+
+TEST_CASE(Binode_foreach)
 {
 	struct test_node {
-		Unode link;
+		Binode link;
 		int i;
 	} a = { .i = 1 }, 
 	  b = { .i = 2 },
@@ -254,21 +236,57 @@ TEST_CASE(Unode_foreach)
 	  e = { .i = 5 },
 	  f = { .i = 6 };
 
-	// Chain nodes a:b:c:d:e:f
-	Unode_link(&a.link, &b.link);
-	Unode_link(&b.link, &c.link);
-	Unode_link(&c.link, &d.link);
-	Unode_link(&d.link, &e.link);
-	Unode_link(&e.link, &f.link);
+	// Given chain a:b:c:d:e:f
+	Binode_link(&a.link, &b.link);
+	Binode_link(&b.link, &c.link);
+	Binode_link(&c.link, &d.link);
+	Binode_link(&d.link, &e.link);
+	Binode_link(&e.link, &f.link);
 
-	// Traverse the chain and sum all values
+	// When we sum all node values with foreach
 	int total = 0;
-
 	int i_offset = offsetof(struct test_node,i);
-	Unode_foreach(&a.link, sum_ints, &total, i_offset);
-	TEST(total == 21);
+	Binode_foreach(&a.link, sum_ints, &total, i_offset);
 
+	// Then we get a total
+	TEST(total == 21);
 }
+
+TEST_CASE(Binode_make_chain)
+{
+	struct test_node {
+		Binode link;
+		int i;
+	} a = { .i = 1 }, 
+	  b = { .i = 2 },
+	  c = { .i = 3 },
+	  d = { .i = 4 },
+	  e = { .i = 5 },
+	  f = { .i = 6 };
+
+	// Given several unlinked nodes
+	TEST(Binode_not_linked(&a.link));
+	TEST(Binode_not_linked(&b.link));
+	TEST(Binode_not_linked(&c.link));
+	TEST(Binode_not_linked(&d.link));
+	TEST(Binode_not_linked(&e.link));
+	TEST(Binode_not_linked(&f.link));
+
+	// When chained together
+	Chain x = BINODE_CHAIN(&a, &b, &c, &d, &e, &f);
+
+	// Then they're all linked
+	TEST(x.head == (Binode*)&a);
+	TEST(x.tail == (Binode*)&f);
+	TEST(Binode_prev(x.head) == NULL);
+	TEST(Binode_next(x.tail) == NULL);
+	TEST(Binodes_are_linked(&a.link, &b.link));
+	TEST(Binodes_are_linked(&b.link, &c.link));
+	TEST(Binodes_are_linked(&c.link, &d.link));
+	TEST(Binodes_are_linked(&d.link, &e.link));
+	TEST(Binodes_are_linked(&e.link, &f.link));
+}
+
 
 
 

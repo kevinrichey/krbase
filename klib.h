@@ -189,3 +189,37 @@ void list_dispose(void *l);
  Free *list* when it's not longer used.
 */
 
+
+typedef void (*closure_fn)(void*, void*);
+
+void sum_ints(void *total, void *next_i);
+
+
+//@module Binode - Double linked list
+
+
+typedef struct Binode_struct {
+	struct Binode_struct *right, *left;
+} Binode;
+
+
+void *Binode_next(Binode *n);
+void *Binode_prev(Binode *b);
+_Bool Binode_is_linked(Binode *n);
+_Bool Binode_not_linked(Binode *n);
+_Bool Binodes_are_linked(Binode *a, Binode *b);
+
+void Binode_link(Binode *a, Binode *b);
+void Binode_insert(Binode *l, Binode *n);
+void Binode_remove(Binode *n);
+void *Binode_foreach(Binode *node, closure_fn fn, void *closure, int offset);
+
+typedef struct {
+	Binode *head, *tail;
+} Chain;
+
+Chain Binode_chain_va(void *first, ...);
+
+#define BINODE_CHAIN(...)   Binode_chain_va(__VA_ARGS__, NULL)
+
+

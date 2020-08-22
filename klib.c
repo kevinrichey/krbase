@@ -72,3 +72,83 @@ void list_dispose(void *l)
 	free(l);
 }
 
+
+
+void sum_ints(void *total, void *next_i)
+{
+	*(int*)total += *(int*)next_i;
+}
+
+
+
+void *Binode_next(Binode *n)
+{
+	return n? n->right: NULL;
+}
+
+void *Binode_prev(Binode *n)
+{
+	return n? n->left: NULL;
+}
+
+_Bool Binode_is_linked(Binode *n)
+{
+	return n && (n->right || n->left);
+}
+
+_Bool Binode_not_linked(Binode *n)
+{
+	return n && !n->right && !n->left;
+}
+
+_Bool Binodes_are_linked(Binode *l, Binode *r)
+{
+	return l && l->right == r && r && r->left == l;
+}
+
+void Binode_link(Binode *a, Binode *b)
+{
+	if (a)  a->right = b;
+	if (b)  b->left  = a;
+}
+
+void Binode_insert(Binode *l, Binode *n)
+{
+	Binode_link(n, Binode_next(l));
+	Binode_link(l, n);
+}
+
+void Binode_remove(Binode *n)
+{
+	Binode_link(Binode_prev(n), Binode_next(n));
+	Binode_link(n, NULL);
+	Binode_link(NULL, n);
+}
+
+
+void *Binode_foreach(Binode *node, closure_fn fn, void *closure, int offset)
+{
+	for ( ; node != NULL; node = Binode_next(node))
+		fn(closure, (byte*)node + offset);
+	return closure;
+}
+
+Chain Binode_chain_va(void *first, ...)
+{
+	Chain c = { .head = first, .tail = first };
+
+	va_list args;
+	va_start(args, first);
+	Binode *n = NULL;
+	while ( (n = va_arg(args, Binode*)) ) {
+		Binode_link(c.tail, n);
+		c.tail = n;
+	}
+	va_end(args);
+
+	Binode_link(NULL, c.head);
+	Binode_link(c.tail, NULL);
+
+	return c;
+}
+
