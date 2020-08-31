@@ -45,11 +45,23 @@ typedef unsigned char byte;
 
 //@module Debugging & Error Checking
 
+#define ERROR_CAT_X_TABLE \
+  X(Runtime_Error) \
+
+#define X(NAME_)  ErrorCat_##NAME_,
+typedef enum {
+	ERROR_CAT_X_TABLE
+	STANDARD_ENUM_VALUES(ErrorCat)
+} ErrorCat;
+#undef X
+
+
 #define STATUS_X_TABLE \
   X(OK) \
   X(Test_Failure) \
   X(Error)  \
   X(Alloc_Error) \
+  X(Assert_Failure) \
 
 #define X(EnumName_)  Status_##EnumName_,
 typedef enum {
@@ -69,7 +81,6 @@ typedef struct Error_struct {
 	Status         stat;
 	const char    *filename;
 	int            fileline;
-	const char    *funcname;
 	const char    *message;
 } ErrorInfo;
 
@@ -77,6 +88,23 @@ void Error_print(FILE *out, ErrorInfo *e);
 /*@func Error_print
   Print error to file stream *out*. 
 */
+
+#define ERROR_INIT(STAT_, MSG_)  { .stat=(STAT_), .filename=__FILE__, .fileline=__LINE__, .message=(#MSG_) }
+#define ERROR_LITERAL(STAT_, MSG_)  (ErrorInfo)ERROR_INIT(STAT_, MSG_)
+
+
+typedef Status (*ErrorHandler_fn)(ErrorInfo*, void*);
+
+typedef struct {
+	ErrorHandler_fn handler;
+	void *param;
+} ErrorHandler;
+
+typedef struct ErrorStat_struct {
+	ErrorInfo   error;
+	ErrorHandler *handlers;
+	int num_handlers;
+} ErrorStat;
 
 //@module Unit Testing
 

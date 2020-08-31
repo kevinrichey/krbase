@@ -4,7 +4,7 @@
 
 const char *Status_string(Status stat)
 {
-	if (stat < Status_First && stat > Status_Last) 
+	if (stat < Status_First || stat > Status_Last) 
 		return "Unknown Status";
 
 #define X(EnumName)  [Status_##EnumName] = #EnumName,
@@ -44,7 +44,6 @@ void Test_assert(TestCounter *counter, bool test_condition, const char *file, in
 			.stat = Status_Test_Failure,
 			.filename = file,
 			.fileline = line,
-			.funcname = NULL,
 			.message  = msg,
 		};
 		Error_printf(stdout, &err, " in test %s()", counter->test_name);

@@ -1,28 +1,117 @@
 #include "klib.h"
 #include <stddef.h>
+#include <string.h>
 
-void assertion(bool condition, const char *file, int line, const char *func, const char *msg)
+TEST_CASE(StatusCode_to_string)
 {
-	if (!condition) {
-		ErrorInfo err = {
-			.stat     = Status_Test_Failure,
-			.filename = file,
-			.fileline = line,
-			.funcname = func,
-			.message  = msg,
-		};
-		Error_print(stdout, &err);
-	}
+	TEST( !strcmp(Status_string(Status_First), "OK") );
+	TEST( !strcmp(Status_string(Status_OK), "OK") );
+	TEST( !strcmp(Status_string(Status_Error), "Error") );
+	TEST( !strcmp(Status_string(Status_End), "Unknown Status") );
 }
 
-#define requires(cond_)   assertion((cond_), __FILE__, __LINE__, __func__, #cond_)
+TEST_CASE(Error_declare_literal)
+{
+	int error_line = __LINE__ + 1;
+	ErrorInfo e = {0};
+	e = ERROR_LITERAL(Status_Error, "Oops!");
+
+	TEST(e.stat == Status_Error);
+	TEST(!strcmp(e.filename, "test_klib.c"));
+	TEST(e.fileline == error_line);
+	TEST(!strcmp(e.message, "\"Oops!\""));
+}
+
+TEST_CASE(Error_init)
+{
+	int error_line = __LINE__ + 1;
+	ErrorInfo e = ERROR_INIT(Status_Error, "Uh-oh!!");
+
+	TEST(e.stat == Status_Error);
+	TEST(!strcmp(e.filename, "test_klib.c"));
+	TEST(e.fileline == error_line);
+	TEST(!strcmp(e.message, "\"Uh-oh!!\""));
+}
+
+void Error_init(ErrorStat *err)
+{
+	err->error = (ErrorInfo){ .stat=Status_OK };
+	err->handlers = NULL;
+	err->num_handlers = 0;
+}
+
+TEST_CASE(ErrorStat_init_default)
+{
+	ErrorStat err;
+	Error_init(&err);
+	TEST(err.error.stat == Status_OK);
+	TEST(err.handlers == NULL);
+	TEST(err.num_handlers == 0);
+}
+
+Status Error_handle(ErrorStat *err, ErrorCat category, ErrorInfo *error)
+{
+	err->error = *error;
+	if (err->handlers && (int)category < err->num_handlers) {
+		ErrorHandler_fn fn = err->handlers[category].handler;
+		void *param        = err->handlers[category].param;
+		if (fn)  fn(error, param);
+	}
+
+	return error->stat;
+}
+
+TEST_CASE(ErrorStat_handle_new_error)
+{
+	ErrorStat err;
+	Error_init(&err);
+
+	Status stat = Error_handle(&err, ErrorCat_Runtime_Error, &ERROR_LITERAL(Status_Error, "Error testing"));
+
+	TEST(stat == Status_Error);
+	TEST(err.error.stat == Status_Error);
+}
+
+Status Error_report(ErrorInfo *err, void *none)
+{
+	if (err) {
+		FILE *out = none? none: stderr;
+		Error_print(out, err);
+		return err->stat;
+	}
+	else
+		return Status_OK;
+}
+
+TEST_CASE(ErrorStat_handle_report)
+{
+	ErrorStat err;
+	Error_init(&err);
+
+	ErrorHandler handlers[] = {
+		[ErrorCat_Runtime_Error] = (ErrorHandler){ .handler = Error_report, .param = stderr }
+	};
+
+	err.handlers = handlers;
+	err.num_handlers = ARRAY_LENGTH(handlers);
+
+	Status stat = Error_handle(&err, ErrorCat_Runtime_Error, &ERROR_LITERAL(Status_Error, "Test error 2"));
+
+	TEST(stat == Status_Error);
+	TEST(err.error.stat == Status_Error);
+
+}
 
 TEST_CASE(requires_assertion)
 {
 	UNUSED(test_counter);
+
 	int x = 0;
-	requires(x == 0);
-	//requires(x == 1);
+
+	FILE *out = stderr;
+	if ( !(x > 0) ) do {
+		Error_print(out, &ERROR_LITERAL(Status_Assert_Failure, "x > 0" ));
+	} while(0);
 }
 
 TEST_CASE(vector)
