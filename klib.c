@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "klib.h"
 
-const char *Status_string(Status stat)
+const char *Status_string(StatusCode stat)
 {
 	if (stat < Status_First || stat > Status_Last) 
 		return "Unknown Status";
@@ -12,12 +12,17 @@ const char *Status_string(Status stat)
 #undef X
 }
 
+StatusCode Error_status(ErrorInfo *e)
+{
+	return e? e->status: Status_Unknown_Error;
+}
+
 void Error_printf(FILE *out, ErrorInfo *e, const char *fmt, ...)
 {
 	fprintf(out, "%s:%d: %s: %s", 
 	        e->filename, 
 			e->fileline, 
-			Status_string(e->stat), 
+			Status_string(e->status), 
 			e->message);
 
 	if (fmt && fmt[0]) {
@@ -28,11 +33,20 @@ void Error_printf(FILE *out, ErrorInfo *e, const char *fmt, ...)
 	}
 
 	putc('\n', out);
+	fflush(out);
 }
 
-void Error_print(FILE *out, ErrorInfo *e)
+void Error_print(ErrorInfo *e, FILE *out)
 {
 	Error_printf(out, e, "");
+}
+
+StatusCode Error_fail(ErrorInfo *e)
+{
+	Error_print(e, stderr);
+	fflush(stderr);
+	abort();
+	return Error_status(e);
 }
 
 void Test_assert(TestCounter *counter, bool test_condition, const char *file, int line, const char *msg)
@@ -41,7 +55,7 @@ void Test_assert(TestCounter *counter, bool test_condition, const char *file, in
 
 	if (!test_condition) {
 		ErrorInfo err = {
-			.stat = Status_Test_Failure,
+			.status = Status_Test_Failure,
 			.filename = file,
 			.fileline = line,
 			.message  = msg,
@@ -52,8 +66,7 @@ void Test_assert(TestCounter *counter, bool test_condition, const char *file, in
 }
 
 
-
-void *list_resize_f(list_header *a, int sizeof_base, int sizeof_item, int capacity)
+void *List_resize_f(list_header *a, int sizeof_base, int sizeof_item, int capacity)
 {
 	list_header *b = NULL;
 	if ( (b = realloc(a, sizeof_base + sizeof_item * capacity)) ) {
@@ -66,7 +79,7 @@ void *list_resize_f(list_header *a, int sizeof_base, int sizeof_item, int capaci
 	return b; 
 }
 
-void list_dispose(void *l)
+void List_dispose(void *l)
 {
 	free(l);
 }

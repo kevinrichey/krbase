@@ -1,8 +1,9 @@
 #include "klib.h"
 #include <stddef.h>
 #include <string.h>
+#include <stdlib.h>
 
-TEST_CASE(StatusCode_to_string)
+TEST_CASE(Status_to_string)
 {
 	TEST( !strcmp(Status_string(Status_First), "OK") );
 	TEST( !strcmp(Status_string(Status_OK), "OK") );
@@ -12,14 +13,14 @@ TEST_CASE(StatusCode_to_string)
 
 TEST_CASE(Error_declare_literal)
 {
-	int error_line = __LINE__ + 1;
 	ErrorInfo e = {0};
+	int error_line = __LINE__ + 1;
 	e = ERROR_LITERAL(Status_Error, "Oops!");
 
-	TEST(e.stat == Status_Error);
+	TEST(Error_status(&e) == Status_Error);
 	TEST(!strcmp(e.filename, "test_klib.c"));
 	TEST(e.fileline == error_line);
-	TEST(!strcmp(e.message, "\"Oops!\""));
+	TEST(!strcmp(e.message, "Oops!"));
 }
 
 TEST_CASE(Error_init)
@@ -27,96 +28,40 @@ TEST_CASE(Error_init)
 	int error_line = __LINE__ + 1;
 	ErrorInfo e = ERROR_INIT(Status_Error, "Uh-oh!!");
 
-	TEST(e.stat == Status_Error);
+	TEST(Error_status(&e) == Status_Error);
 	TEST(!strcmp(e.filename, "test_klib.c"));
 	TEST(e.fileline == error_line);
-	TEST(!strcmp(e.message, "\"Uh-oh!!\""));
+	TEST(!strcmp(e.message, "Uh-oh!!"));
 }
 
-void Error_init(ErrorStat *err)
+static StatusCode test_error_return_code(ErrorInfo *err)
 {
-	err->error = (ErrorInfo){ .stat=Status_OK };
-	err->handlers = NULL;
-	err->num_handlers = 0;
+	return ERROR(*err, Status_Error, "DOH!");
 }
 
-TEST_CASE(ErrorStat_init_default)
+TEST_CASE(Error_return_value)
 {
-	ErrorStat err;
-	Error_init(&err);
-	TEST(err.error.stat == Status_OK);
-	TEST(err.handlers == NULL);
-	TEST(err.num_handlers == 0);
+	ErrorInfo e = {0};
+
+	StatusCode ret_stat = test_error_return_code(&e);
+
+	TEST(ret_stat == Status_Error);
+	TEST(Error_status(&e) == Status_Error);
+	TEST(!strcmp(e.filename, "test_klib.c"));
+	TEST(!strcmp(e.message, "DOH!"));
 }
 
-Status Error_handle(ErrorStat *err, ErrorCat category, ErrorInfo *error)
-{
-	err->error = *error;
-	if (err->handlers && (int)category < err->num_handlers) {
-		ErrorHandler_fn fn = err->handlers[category].handler;
-		void *param        = err->handlers[category].param;
-		if (fn)  fn(error, param);
-	}
-
-	return error->stat;
-}
-
-TEST_CASE(ErrorStat_handle_new_error)
-{
-	ErrorStat err;
-	Error_init(&err);
-
-	Status stat = Error_handle(&err, ErrorCat_Runtime_Error, &ERROR_LITERAL(Status_Error, "Error testing"));
-
-	TEST(stat == Status_Error);
-	TEST(err.error.stat == Status_Error);
-}
-
-Status Error_report(ErrorInfo *err, void *none)
-{
-	if (err) {
-		FILE *out = none? none: stderr;
-		Error_print(out, err);
-		return err->stat;
-	}
-	else
-		return Status_OK;
-}
-
-TEST_CASE(ErrorStat_handle_report)
-{
-	ErrorStat err;
-	Error_init(&err);
-
-	ErrorHandler handlers[] = {
-		[ErrorCat_Runtime_Error] = (ErrorHandler){ .handler = Error_report, .param = stderr }
-	};
-
-	err.handlers = handlers;
-	err.num_handlers = ARRAY_LENGTH(handlers);
-
-	Status stat = Error_handle(&err, ErrorCat_Runtime_Error, &ERROR_LITERAL(Status_Error, "Test error 2"));
-
-	TEST(stat == Status_Error);
-	TEST(err.error.stat == Status_Error);
-
-}
-
-TEST_CASE(requires_assertion)
+TEST_CASE(Error_check_bad_param)
 {
 	UNUSED(test_counter);
 
-	int x = 0;
-
-	FILE *out = stderr;
-	if ( !(x > 0) ) do {
-		Error_print(out, &ERROR_LITERAL(Status_Assert_Failure, "x > 0" ));
-	} while(0);
+	//int param = 1;
+	//CHECK(param == 0);
 }
 
-TEST_CASE(vector)
+TEST_CASE(VECTOR_init)
 {
-	vector(int, x, y, z) point = {10,20,30};
+	VECTOR(int, x, y, z) point = {10,20,30};
 
 	TEST(point.x == 10);
 	TEST(point.y == 20);
@@ -124,35 +69,71 @@ TEST_CASE(vector)
 	TEST(point.at[0] == 10);
 	TEST(point.at[1] == 20);
 	TEST(point.at[2] == 30);
-	TEST(vec_length(point) == 3);
+	TEST(Vec_length(point) == 3);
 }
 
-TEST_CASE(list)
+TEST_CASE(null_list_is_empty)
+{
+	// Given a null list
+	LIST(int) *l = NULL;
+
+	// List has no capacity
+	TEST_M(List_capacity(l) == 0, "NULL lists have no size");
+	TEST_M(List_length(l) == 0,   "Null lists have no length");
+	TEST_M(List_is_empty(l),      "Null lists are empty.");
+	TEST_M(List_is_full(l),       "You can't add more elements to NULL list.");
+}
+
+TEST_CASE(resize_null_list)
+{
+	// Given a null list
+	LIST(int) *s = NULL;
+	list_header old = { .cap = List_capacity(s), .length = List_length(s) };
+
+	// When null list is resized
+	int new_size = 3;
+	LIST_RESIZE(s, new_size);
+
+	// Then list is not NULL, larger, same length, still empty
+	TEST_M(s != NULL, "Resized list is not NULL");
+	TEST_M(List_capacity(s) == new_size, "Resized list has new capacity");
+	TEST_M(List_length(s) == old.length, "Resized list length is unchanged");
+	TEST_M(List_is_empty(s), "Resized list is still empty");
+	TEST_M(!List_is_full(s), "Resized list is no longer full");
+}
+
+TEST_CASE(add_item_to_empty_list)
+{
+	// Given an empty list
+	LIST(int) *l = NULL;
+	LIST_RESIZE(l, 3);
+	list_header old = l->head;
+
+	// When an element is added to the list
+	if (!List_is_full(l))
+		l->begin[l->head.length++] = 101;
+	
+	TEST(l->begin[old.length] == 101);
+	TEST(List_length(l) == old.length + 1);
+	TEST(!List_is_full(&old) || List_capacity(l) > old.cap);
+	TEST(!List_is_empty(l));
+
+}
+
+TEST_CASE(LIST_init)
 {
 	typedef struct { char name[5]; int id; } data;
 
-	list(data) *s = NULL;
-	TEST(list_capacity(s) == 0);     // NULL lists have no size
-	TEST(list_length(s) == 0);   // Null lists have no length
-	TEST(list_is_empty(s));      // Null lists are empty (they have no elements);
-	TEST(list_is_full(s));       // Null lists are full (you can't add more elements);
+	LIST(data) *s = NULL;
 
-	list_header old_head = { .cap = list_capacity(s), .length = list_length(s) };
+	list_header old_head = { .cap = List_capacity(s), .length = List_length(s) };
 	int new_size = 3;
-	list_resize(s, new_size);
-	TEST(list_capacity(s) == new_size);
-	TEST(list_length(s) == old_head.length);
-	TEST(list_is_empty(s));
-	TEST(!list_is_full(s));
+	LIST_RESIZE(s, new_size);
 
 	old_head = s->head;
 	data x = {"one",101};
 	if (s->head.length < s->head.cap)
 		s->begin[s->head.length++] = x;
-	TEST(s->begin[old_head.length].id == 101);
-	TEST(s->head.length == old_head.length + 1);
-	TEST(!list_is_full(&old_head) || s->head.cap > old_head.cap);
-	TEST(!list_is_empty(s));
 
 	x.id = 202;
 	if (s->head.length < s->head.cap)
@@ -167,9 +148,10 @@ TEST_CASE(list)
 	TEST(s->head.cap == 3);
 
 	x.id = 404;
-	Status stat = Status_OK;
-	if (list_is_full(s)) {
-		void *s2 = list_resize_f((list_header*)s, sizeof(*s), sizeof(*s->begin), list_capacity(s) * 2); 
+	StatusCode stat = Status_OK;
+	if (List_is_full(s)) {
+		void *s2 = List_resize_f((list_header*)s, sizeof(*s), sizeof(*s->begin),
+								 List_capacity(s) * 2); 
 		if (s2)
 			s = s2;
 		else
@@ -179,10 +161,8 @@ TEST_CASE(list)
 	TEST(s->head.length == 4);
 	TEST(s->head.cap == 6);
 
-	list_dispose(s);
+	List_dispose(s);
 }
-
-
 
 TEST_CASE(Binode_link_2_solo_nodes)
 {
@@ -365,8 +345,8 @@ TEST_CASE(Binode_make_chain)
 	Chain x = BINODE_CHAIN(&a, &b, &c, &d, &e, &f);
 
 	// Then they're all linked
-	TEST(x.head == (Binode*)&a);
-	TEST(x.tail == (Binode*)&f);
+	TEST(Chain_head(&x) == (Binode*)&a);
+	TEST(Chain_tail(&x) == (Binode*)&f);
 	TEST(Binode_prev(x.head) == NULL);
 	TEST(Binode_next(x.tail) == NULL);
 	TEST(Binodes_are_linked(&a.link, &b.link));
