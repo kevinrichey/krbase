@@ -61,7 +61,7 @@ TEST_CASE(Error_check_bad_param)
 
 TEST_CASE(VECTOR_init)
 {
-	VECTOR(int, x, y, z) point = {10,20,30};
+	VECTOR(int, x, y, z) point = { 10, 20, 30 };
 
 	TEST(point.x == 10);
 	TEST(point.y == 20);
@@ -69,7 +69,7 @@ TEST_CASE(VECTOR_init)
 	TEST(point.at[0] == 10);
 	TEST(point.at[1] == 20);
 	TEST(point.at[2] == 30);
-	TEST(Vec_length(point) == 3);
+	TEST(VECT_LENGTH(point) == 3);
 }
 
 TEST_CASE(null_list_is_empty)
@@ -77,91 +77,96 @@ TEST_CASE(null_list_is_empty)
 	// Given a null list
 	LIST(int) *l = NULL;
 
-	// List has no capacity
+	// List has no capacity, no length, is empty, and is full
 	TEST_M(List_capacity(l) == 0, "NULL lists have no size");
 	TEST_M(List_length(l) == 0,   "Null lists have no length");
 	TEST_M(List_is_empty(l),      "Null lists are empty.");
 	TEST_M(List_is_full(l),       "You can't add more elements to NULL list.");
+	TEST_M(!List_in_bounds(l, 0),  "0 is not in range.");
 }
 
 TEST_CASE(resize_null_list)
 {
 	// Given a null list
 	LIST(int) *s = NULL;
-	list_header old = { .cap = List_capacity(s), .length = List_length(s) };
 
 	// When null list is resized
 	int new_size = 3;
-	LIST_RESIZE(s, new_size);
+	LIST_ADD(s, new_size);
 
-	// Then list is not NULL, larger, same length, still empty
-	TEST_M(s != NULL, "Resized list is not NULL");
-	TEST_M(List_capacity(s) == new_size, "Resized list has new capacity");
-	TEST_M(List_length(s) == old.length, "Resized list length is unchanged");
-	TEST_M(List_is_empty(s), "Resized list is still empty");
-	TEST_M(!List_is_full(s), "Resized list is no longer full");
+	// Then list has three un-initialized items
+	TEST(s != NULL);
+	TEST(List_capacity(s) >= List_length(s));
+	TEST(List_length(s) == new_size);
+	TEST(!List_is_empty(s));
+	TEST(List_in_bounds(s, 0));
+	TEST(List_in_bounds(s, 1));
+	TEST(List_in_bounds(s, 2));
+	TEST(!List_in_bounds(s, 3));
+	
+	List_dispose(s);
+}
+
+TEST_CASE(reserve_space_null_list)
+{
+	// Given a null list
+	LIST(int) *s = NULL;
+
+	// When null list is reserved space
+	int new_cap = 5;
+	LIST_RESERVE(s, new_cap);
+
+	// Then at least that much space is allocated,
+	// and list is still empty
+	TEST(s != NULL);
+	TEST(List_capacity(s) >= new_cap);
+	TEST(List_length(s) == 0);
+	TEST(List_is_empty(s));
+	TEST(!List_is_full(s));
+	TEST(!List_in_bounds(s, 0));
+
+	List_dispose(s);
+}
+
+TEST_CASE(add_item_to_null_list_grows)
+{
+	// Given a null list
+	LIST(int) *l = NULL;
+
+	// When an item is added to it
+	int value = 101;
+	LIST_PUSH(l, value);
+
+	// Then list grows to hold it.
+	TEST(l != NULL);
+	TEST(List_capacity(l) >= List_length(l));
+	TEST(List_length(l) == 1);
+	TEST(List_in_bounds(l, 0));
+	TEST(!List_in_bounds(l, 1));
+	TEST(LIST_LAST(l) == 101);
+	
+	List_dispose(l);
 }
 
 TEST_CASE(add_item_to_empty_list)
 {
 	// Given an empty list
 	LIST(int) *l = NULL;
-	LIST_RESIZE(l, 3);
-	list_header old = l->head;
+	LIST_RESERVE(l, 5);
+	TEST(List_is_empty(l));
+	ListDims old = l->head;
 
 	// When an element is added to the list
-	if (!List_is_full(l))
-		l->begin[l->head.length++] = 101;
+	LIST_PUSH(l, 202);
 	
-	TEST(l->begin[old.length] == 101);
-	TEST(List_length(l) == old.length + 1);
-	TEST(!List_is_full(&old) || List_capacity(l) > old.cap);
+	// Length increases but cap does not
+	TEST(l != NULL);
 	TEST(!List_is_empty(l));
+	TEST(List_length(l) == 1);
+	TEST(LIST_LAST(l) == 202);
+	TEST(!List_is_full(&old) || List_capacity(l) > old.cap);
 
-}
-
-TEST_CASE(LIST_init)
-{
-	typedef struct { char name[5]; int id; } data;
-
-	LIST(data) *s = NULL;
-
-	list_header old_head = { .cap = List_capacity(s), .length = List_length(s) };
-	int new_size = 3;
-	LIST_RESIZE(s, new_size);
-
-	old_head = s->head;
-	data x = {"one",101};
-	if (s->head.length < s->head.cap)
-		s->begin[s->head.length++] = x;
-
-	x.id = 202;
-	if (s->head.length < s->head.cap)
-		s->begin[s->head.length++] = x;
-	TEST(s->head.length == 2);
-	TEST(s->head.cap == 3);
-
-	x.id = 303;
-	if (s->head.length < s->head.cap)
-		s->begin[s->head.length++] = x;
-	TEST(s->head.length == 3);
-	TEST(s->head.cap == 3);
-
-	x.id = 404;
-	StatusCode stat = Status_OK;
-	if (List_is_full(s)) {
-		void *s2 = List_resize_f((list_header*)s, sizeof(*s), sizeof(*s->begin),
-								 List_capacity(s) * 2); 
-		if (s2)
-			s = s2;
-		else
-			stat = Status_Alloc_Error;
-	}
-	s->begin[s->head.length++] = x;
-	TEST(s->head.length == 4);
-	TEST(s->head.cap == 6);
-
-	List_dispose(s);
+	List_dispose(l);
 }
 
 TEST_CASE(Binode_link_2_solo_nodes)
@@ -354,118 +359,6 @@ TEST_CASE(Binode_make_chain)
 	TEST(Binodes_are_linked(&c.link, &d.link));
 	TEST(Binodes_are_linked(&d.link, &e.link));
 	TEST(Binodes_are_linked(&e.link, &f.link));
-}
-
-
-
-
-#include <stdlib.h>
-#include <stddef.h>
-#include <string.h>
-
-typedef struct {
-	const char *filename;
-	int         fileline;
-} debug_info;
-
-#define DEBUG_HERE   (debug_info){ .filename = __FILE__, .fileline = __LINE__ }
-
-typedef struct object_struct {
-	struct object_struct *next;
-	debug_info  where_created;
-} object;
-
-void *object_create(size_t size, object **top, debug_info where)
-{
-	object *o = malloc(size);
-	if (o) {
-		o->next     = *top;
-		o->where_created = where;
-		*top = o;
-	}
-	return o;
-}
-
-#define CREATE(TYPE_, TOP_)   object_create(sizeof(TYPE_), &TOP_, DEBUG_HERE)
-
-void object_destroy(object **o, object **top)
-{
-	object **h;
-	for (h = top; *h != *o && *h; h = &(*h)->next) 
-		;
-	if (*h == *o)
-		*h = (*h)->next;
-	free(*o);
-	*o = NULL;
-}
-
-#define DESTROY(OBJ_, TOP_)   object_destroy((object**)&OBJ_, &TOP_)
-
-void object_print_leaks(object *top)
-{
-	for ( ; top; top = top->next)
-		printf("%s:%d: object leaked.\n", top->where_created.filename, top->where_created.fileline);
-}
-
-TEST_CASE(memory_tracker)
-{
-	typedef struct {
-		object base;
-		char c;
-		double d;
-		int i;
-	} test_object;
-
-	object *top = NULL;
-
-	object *old_top = top;
-	test_object *o1 = CREATE(*o1, top);
-	TEST(o1 != NULL);
-	TEST(o1->base.next == old_top);
-	TEST((void*)top == (void*)o1);
-	TEST( !strcmp(o1->base.where_created.filename, __FILE__) );
-	TEST(o1->base.where_created.fileline == __LINE__-5);
-
-	old_top = top;
-	test_object *o2 = CREATE(*o2, top);
-	TEST(o2 != NULL);
-	TEST(o2->base.next == old_top);
-	TEST((void*)top == (void*)o2);
-	TEST( !strcmp(o2->base.where_created.filename, __FILE__) );
-	TEST(o2->base.where_created.fileline == __LINE__-5);
-
-	old_top = top;
-	test_object *o3 = CREATE(*o3, top);
-	TEST(o3 != NULL);
-	TEST(o3->base.next == old_top);
-	TEST((void*)top == (void*)o3);
-	TEST( !strcmp(o3->base.where_created.filename, __FILE__) );
-	TEST(o3->base.where_created.fileline == __LINE__-5);
-
-	//object_print_leaks(top);
-
-	puts("Delete o2");
-	DESTROY(o2, top);
-	TEST(o2 == NULL);
-	TEST((void*)top == (void*)o3);
-	TEST((void*)top->next == (void*)o1);
-
-	//object_print_leaks(top);
-
-	puts("Delete o3");
-	DESTROY(o3, top);
-	TEST(o3 == NULL);
-	TEST((void*)top == (void*)o1);
-	TEST((void*)top->next == NULL);
-
-	//object_print_leaks(top);
-
-	puts("Delete o1");
-	DESTROY(o1, top);
-	TEST(o1 == NULL);
-	TEST(top == NULL);
-	//object_print_leaks(top);
-
 }
 
 

@@ -12,11 +12,6 @@ const char *Status_string(StatusCode stat)
 #undef X
 }
 
-StatusCode Error_status(ErrorInfo *e)
-{
-	return e? e->status: Status_Unknown_Error;
-}
-
 void Error_printf(FILE *out, ErrorInfo *e, const char *fmt, ...)
 {
 	fprintf(out, "%s:%d: %s: %s", 
@@ -65,18 +60,40 @@ void Test_assert(TestCounter *counter, bool test_condition, const char *file, in
 	}
 }
 
-
-void *List_resize_f(list_header *a, int sizeof_base, int sizeof_item, int capacity)
+int int_min_n(int n, ...)
 {
-	list_header *b = NULL;
-	if ( (b = realloc(a, sizeof_base + sizeof_item * capacity)) ) {
-		b->cap = capacity;
-		if (!a)
-			b->length = 0;
-		if (b->length > b->cap)
-			b->length = b->cap;
+	va_list args;
+	va_start(args, n);
+
+	int min = va_arg(args, int);
+	while (--n)
+		min = int_min(min, va_arg(args, int));
+
+	va_end(args);
+	return min;
+}
+
+#define LIST_MIN_CAPACITY 8
+
+void *List_grow(void *l, int sizeof_base, int sizeof_item, int min_cap, int add_length)
+{
+	CHECK(min_cap || add_length);
+
+	ListDims *b = l;
+
+	int new_length = List_length(l) + add_length;
+	min_cap = int_max(min_cap, new_length);
+
+	if (List_capacity(l) < min_cap) {
+		min_cap = int_max(min_cap, List_capacity(l) * 2);
+		min_cap = int_max(min_cap, LIST_MIN_CAPACITY);
+		b = realloc(l, sizeof_base + sizeof_item * min_cap);
+		b->cap = min_cap;
 	}
-	return b; 
+
+	if (b)  b->length = new_length;
+
+	return b;
 }
 
 void List_dispose(void *l)
@@ -136,7 +153,6 @@ void Binode_remove(Binode *n)
 	Binode_link(n, NULL);
 	Binode_link(NULL, n);
 }
-
 
 void *Binode_foreach(Binode *node, closure_fn fn, void *closure, int offset)
 {

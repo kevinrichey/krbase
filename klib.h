@@ -42,6 +42,15 @@ Suppress unused parameter warnings for variable *var*.
 
 typedef unsigned char byte;
 
+static inline int int_max(int a, int b)
+{
+	return (a > b)? a: b;
+}
+
+static inline int int_min(int a, int b)
+{
+	return (a < b)? a: b;
+}
 
 //@module Debugging & Error Checking
 
@@ -86,7 +95,10 @@ typedef struct Error_struct {
 #define ERROR(ERR_, STAT_, MSG_) \
   ((ERR_) = ERROR_LITERAL((STAT_), (MSG_))).status;
 
-StatusCode Error_status(ErrorInfo *e);
+static inline StatusCode Error_status(ErrorInfo *e)
+{
+	return e? e->status: Status_Unknown_Error;
+}
 
 void Error_print(ErrorInfo *e, FILE *out);
 /*@func Error_print
@@ -96,9 +108,9 @@ void Error_print(ErrorInfo *e, FILE *out);
 StatusCode Error_fail(ErrorInfo *e);
 
 #define CHECK_HERE(ASSERTION_, FILE_, LINE_, ...) \
-  do{ if(!(ASSERTION_)) \
+	do{ if(!(ASSERTION_)) \
 		Error_fail(&ERROR_LITERAL(Status_Assert_Failure, #ASSERTION_)); \
-  }while(0) \
+	}while(0) \
 
 #define CHECK(...) \
   CHECK_HERE(__VA_ARGS__, __FILE__, __LINE__)
@@ -131,6 +143,7 @@ void Test_assert(
 #define TEST(condition_) \
 	Test_assert(test_counter, (condition_), __FILE__, __LINE__, #condition_)
 
+
 //@module vector - tuple with named and random access
 
 #define VECTOR(TYPE_, ...)   \
@@ -152,16 +165,17 @@ void Test_assert(
  : `typedef VECTOR(unsigned, red, green, blue)  rgb;`
  */
 
-#define Vec_length(V_)    (int)(ARRAY_LENGTH((V_).at))
+#define VECT_LENGTH(V_)    (int)(ARRAY_LENGTH((V_).at))
 /*@doc Vec_length(v)
  @returns length (number of members) in vector *v*.
 */
 
+
 //@module list - Dynamic Resizeable Arrays
 
-typedef struct { int cap, length; } list_header;
+typedef struct { int cap, length; } ListDims;
 
-#define LIST(EL_TYPE)  struct { list_header head; EL_TYPE begin[]; }
+#define LIST(EL_TYPE)  struct { ListDims head; EL_TYPE begin[]; }
 /*@doc LIST(type) 
  Declare a new list of *type* objects.
 
@@ -172,14 +186,29 @@ typedef struct { int cap, length; } list_header;
  : `typedef LIST(double)  list_doubles;`
 */
 
-void *List_resize_f(list_header *a, int sizeof_base, int sizeof_item, int capacity);
+#define LIST_BASE(L_)  ((ListDims*)L_)
 
-#define LIST_RESIZE(L_, NEW_SIZE)     \
-	do{ (L_) = List_resize_f(         \
-				(list_header*)(L_),   \
+void *List_grow(void *a, int sizeof_base, int sizeof_item, int min_cap, int add_length);
+
+#define LIST_GROW(L_, CAP_, ADD_)     \
+	do{ (L_) = List_grow(             \
+				(L_),                 \
 				sizeof(*(L_)),        \
 				sizeof(*(L_)->begin), \
-				(NEW_SIZE));          \
+				(CAP_),               \
+				(ADD_));              \
+	}while(0)
+
+#define LIST_ADD(L_, ADD_SIZE_)       \
+	LIST_GROW(L_, 0, ADD_SIZE_)
+
+#define LIST_RESERVE(L_, NEW_CAP_)     \
+	LIST_GROW(L_, NEW_CAP_, 0)
+
+#define LIST_PUSH(L_, VAL_) \
+	do{ \
+		LIST_ADD(L_, 1); \
+		(L_)->begin[(L_)->head.length-1] = (VAL_); \
 	}while(0)
 
 static inline int List_capacity(void *l)
@@ -187,7 +216,7 @@ static inline int List_capacity(void *l)
  @returns int max capacity of list *l*; 0 if *l* is NULL.
 */
 {
-	return l? ((list_header*)l)->cap: 0;
+	return l? ((ListDims*)l)->cap: 0;
 }
 
 static inline int List_length(void *l)
@@ -195,7 +224,7 @@ static inline int List_length(void *l)
  @returns int, number of elements in list *l*; 0 if *l* is NULL.
 */
 {
-	return l? ((list_header*)l)->length: 0;
+	return l? ((ListDims*)l)->length: 0;
 }
 
 static inline bool List_is_full(void *l)
@@ -213,6 +242,22 @@ static inline bool List_is_empty(void *l)
 {
 	return List_length(l) == 0;
 }
+
+static inline bool List_in_bounds(void *l, int i)
+{
+	return l && LIST_BASE(l)->length > i;
+}
+
+static inline int List_check(void *l, int i)
+{
+	if (i < 0)
+		i = LIST_BASE(l)->length + i;
+	CHECK(l && List_in_bounds(l, i));
+	return i;
+}
+
+#define LIST_AT(L_, I_)   ((L_)->begin[List_check((L_), (I_))])
+#define LIST_LAST(L_)     LIST_AT(L_, -1)
 
 void List_dispose(void *l);
 /*@func List_dispose(list)
