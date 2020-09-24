@@ -167,11 +167,13 @@ Chain Binode_chain_va(void *first, ...)
 
 	va_list args;
 	va_start(args, first);
+
 	Binode *n = NULL;
 	while ( (n = va_arg(args, Binode*)) ) {
 		Binode_link(c.tail, n);
 		c.tail = n;
 	}
+
 	va_end(args);
 
 	Binode_link(NULL, c.head);
@@ -179,4 +181,35 @@ Chain Binode_chain_va(void *first, ...)
 
 	return c;
 }
+
+
+#define X(A,B,C)  {A,B,C},
+static const int XORSHIFT_PARAM_LIST[][3] = {
+	XORSHIFT_PARAMS
+};
+#undef X
+
+void Xorshift_init(Xorshifter *state, uint32_t seed, int params_num)
+{
+	params_num = params_num % ARRAY_LENGTH(XORSHIFT_PARAM_LIST);
+    const int *params = XORSHIFT_PARAM_LIST[params_num];
+
+    *state = (Xorshifter)
+    { 
+        .a = params[0], 
+        .b = params[1], 
+        .c = params[2], 
+        .x = seed
+    };
+}
+
+uint32_t Xorshift_rand(Xorshifter *state)
+{
+	uint32_t x = state->x;
+	x ^= x << state->a;
+	x ^= x >> state->b;
+	x ^= x << state->c;
+	return state->x = x;
+}
+
 

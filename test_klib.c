@@ -154,6 +154,7 @@ TEST_CASE(add_item_to_empty_list)
 	LIST(int) *l = NULL;
 	LIST_RESERVE(l, 5);
 	TEST(List_is_empty(l));
+	TEST(!List_is_full(l));
 	ListDims old = l->head;
 
 	// When an element is added to the list
@@ -361,5 +362,23 @@ TEST_CASE(Binode_make_chain)
 	TEST(Binodes_are_linked(&e.link, &f.link));
 }
 
+TEST_CASE(Xorshift_random_numbers)
+{
+	UNUSED(test_counter);
 
+	Xorshifter rng = { .x = 234, .a = 13, .b = 17, .c = 5 };
+
+	for (int i = 0; i < 20; ++i)
+		printf("xorshift: %u\n", Xorshift_rand(&rng));
+
+	puts("---");
+
+	uint32_t x = 234;
+	for (int i = 0; i < 20; ++i) {
+		x ^= x << 13;
+		x ^= x >> 17;
+		x ^= x <<  5;
+		printf("xorshift: %u\n", x);
+	}
+}
 

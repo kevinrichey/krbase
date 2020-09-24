@@ -1,5 +1,9 @@
+#ifndef KLIBC_H_INCLUDED
+#define KLIBC_H_INCLUDED
+
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 
 //@library klib - Core Library
 
@@ -33,6 +37,9 @@ Suppress unused parameter warnings for variable *var*.
 /*@doc VA_NARGS(...)
  @returns number of arguments passed.
 */
+
+#define VA_PARAM_0(_0, ...)      _0
+#define VA_PARAM_1(_0, _1, ...)  _1
 
 #define ARRAY_LENGTH(A_)  (sizeof(A_) / sizeof(*A_))
 /*@doc ARRAY_LENGTH(a)
@@ -74,7 +81,6 @@ const char *Status_string(StatusCode stat);
   Convert *stat* code to string.
   @returns Pointer to static constant global string. Do not modify or free().
 */
-
 
 typedef struct Error_struct {
 	StatusCode     status;
@@ -144,7 +150,7 @@ void Test_assert(
 	Test_assert(test_counter, (condition_), __FILE__, __LINE__, #condition_)
 
 
-//@module vector - tuple with named and random access
+//@module Vector - tuple with named and random access
 
 #define VECTOR(TYPE_, ...)   \
   union { \
@@ -171,7 +177,7 @@ void Test_assert(
 */
 
 
-//@module list - Dynamic Resizeable Arrays
+//@module List - Dynamic Resizeable Arrays
 
 typedef struct { int cap, length; } ListDims;
 
@@ -272,11 +278,9 @@ void sum_ints(void *total, void *next_i);
 
 //@module Binode - Double linked list
 
-
 typedef struct Binode_struct {
 	struct Binode_struct *right, *left;
 } Binode;
-
 
 void *Binode_next(Binode *n);
 void *Binode_prev(Binode *b);
@@ -307,3 +311,117 @@ static inline Binode *Chain_tail(Chain *c)
 	return c? c->tail: NULL;
 }
 
+//@module Pseudo-Random Number Generation
+
+#define XORSHIFT_TEMPLATE(X_, A_, B_, C_)  \
+			X_ ^= (X_ << A_),  \
+			X_ ^= (X_ >> B_),  \
+			X_ ^= (X_ << C_)
+
+
+typedef struct Xorshifter_struct {
+    int a, b, c;
+    uint32_t x;
+} Xorshifter;
+
+void Xorshift_init(Xorshifter *state, uint32_t seed, int params_num);
+uint32_t Xorshift_rand(Xorshifter *state);
+
+
+/* A, B, C values
+| 1, 3,10| 1, 5,16| 1, 5,19| 1, 9,29| 1,11, 6| 1,11,16| 1,19, 3| 1,21,20| 1,27,27|
+| 2, 5,15| 2, 5,21| 2, 7, 7| 2, 7, 9| 2, 7,25| 2, 9,15| 2,15,17| 2,15,25| 2,21, 9|
+| 3, 1,14| 3, 3,26| 3, 3,28| 3, 3,29| 3, 5,20| 3, 5,22| 3, 5,25| 3, 7,29| 3,13, 7|
+| 3,23,25| 3,25,24| 3,27,11| 4, 3,17| 4, 3,27| 4, 5,15| 5, 3,21| 5, 7,22| 5, 9,7 |
+| 5, 9,28| 5, 9,31| 5,13, 6| 5,15,17| 5,17,13| 5,21,12| 5,27, 8| 5,27,21| 5,27,25|
+| 5,27,28| 6, 1,11| 6, 3,17| 6,17, 9| 6,21, 7| 6,21,13| 7, 1, 9| 7, 1,18| 7, 1,25|
+| 7,13,25| 7,17,21| 7,25,12| 7,25,20| 8, 7,23| 8,9,23 | 9, 5,1 | 9, 5,25| 9,11,19|
+| 9,21,16|10, 9,21|10, 9,25|11, 7,12|11, 7,16|11,17,13|11,21,13|12, 9,23|13, 3,17|
+|13, 3,27|13, 5,19|13,17,15|14, 1,15|14,13,15|15, 1,29|17,15,20|17,15,23|17,15,26|
+*/
+
+#define XORSHIFT_PARAMS \
+	X( 1,  3, 10)  \
+	X( 1,  5, 16)  \
+	X( 1,  5, 19)  \
+	X( 1,  9, 29)  \
+	X( 1, 11,  6)  \
+	X( 1, 11, 16)  \
+	X( 1, 19,  3)  \
+	X( 1, 21, 20)  \
+	X( 1, 27, 27)  \
+	X( 2,  5, 15)  \
+	X( 2,  5, 21)  \
+	X( 2,  7,  7)  \
+	X( 2,  7,  9)  \
+	X( 2,  7, 25)  \
+	X( 2,  9, 15)  \
+	X( 2, 15, 17)  \
+	X( 2, 15, 25)  \
+	X( 2, 21,  9)  \
+	X( 3,  1, 14)  \
+	X( 3,  3, 26)  \
+	X( 3,  3, 28)  \
+	X( 3,  3, 29)  \
+	X( 3,  5, 20)  \
+	X( 3,  5, 22)  \
+	X( 3,  5, 25)  \
+	X( 3,  7, 29)  \
+	X( 3, 13,  7)  \
+	X( 3, 23, 25)  \
+	X( 3, 25, 24)  \
+	X( 3, 27, 11)  \
+	X( 4,  3, 17)  \
+	X( 4,  3, 27)  \
+	X( 4,  5, 15)  \
+	X( 5,  3, 21)  \
+	X( 5,  7, 22)  \
+	X( 5,  9, 7 )  \
+	X( 5,  9, 28)  \
+	X( 5,  9, 31)  \
+	X( 5, 13,  6)  \
+	X( 5, 15, 17)  \
+	X( 5, 17, 13)  \
+	X( 5, 21, 12)  \
+	X( 5, 27,  8)  \
+	X( 5, 27, 21)  \
+	X( 5, 27, 25)  \
+	X( 5, 27, 28)  \
+	X( 6,  1, 11)  \
+	X( 6,  3, 17)  \
+	X( 6, 17,  9)  \
+	X( 6, 21,  7)  \
+	X( 6, 21, 13)  \
+	X( 7,  1,  9)  \
+	X( 7,  1, 18)  \
+	X( 7,  1, 25)  \
+	X( 7, 13, 25)  \
+	X( 7, 17, 21)  \
+	X( 7, 25, 12)  \
+	X( 7, 25, 20)  \
+	X( 8,  7, 23)  \
+	X( 8, 9, 23 )  \
+	X( 9,  5, 1 )  \
+	X( 9,  5, 25)  \
+	X( 9, 11, 19)  \
+	X( 9, 21, 16)  \
+	X(10,  9, 21)  \
+	X(10,  9, 25)  \
+	X(11,  7, 12)  \
+	X(11,  7, 16)  \
+	X(11, 17, 13)  \
+	X(11, 21, 13)  \
+	X(12,  9, 23)  \
+	X(13,  3, 17)  \
+	X(13,  3, 27)  \
+	X(13,  5, 19)  \
+	X(13, 17, 15)  \
+	X(14,  1, 15)  \
+	X(14, 13, 15)  \
+	X(15,  1, 29)  \
+	X(17, 15, 20)  \
+	X(17, 15, 23)  \
+	X(17, 15, 26) 
+
+
+#endif
