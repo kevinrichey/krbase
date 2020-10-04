@@ -47,8 +47,6 @@ Suppress unused parameter warnings for variable *var*.
  Undefined behavior if *a* is dynamically allocated array.
 */
 
-typedef unsigned char byte;
-
 static inline int int_max(int a, int b)
 {
 	return (a > b)? a: b;
@@ -90,16 +88,16 @@ typedef struct Error_struct {
 } ErrorInfo;
 
 #define ERROR_INIT(STAT_, MSG_) {  \
-			.status=(STAT_), \
-			.filename=__FILE__, \
-			.fileline=__LINE__, \
-			.message=(MSG_) }
+			.status   = (STAT_),   \
+			.filename = __FILE__,  \
+			.fileline = __LINE__,  \
+			.message  = (MSG_) }
 
 #define ERROR_LITERAL(STAT_, MSG_)  \
-  (ErrorInfo)ERROR_INIT(STAT_, MSG_)
+			(ErrorInfo)ERROR_INIT(STAT_, MSG_)
 
 #define ERROR(ERR_, STAT_, MSG_) \
-  ((ERR_) = ERROR_LITERAL((STAT_), (MSG_))).status;
+			((ERR_) = ERROR_LITERAL((STAT_), (MSG_))).status;
 
 static inline StatusCode Error_status(ErrorInfo *e)
 {
@@ -175,6 +173,35 @@ void Test_assert(
 /*@doc Vec_length(v)
  @returns length (number of members) in vector *v*.
 */
+
+
+//@module Span
+
+#define Span(T_)        struct { T_ *begin, *end; }
+
+#define Span_length(S_)   ((S_).end - (S_).begin)
+
+#define Span_init_n(PTR_, LEN_) \
+			{ .begin = (PTR_), .end = (PTR_) + (LEN_) }
+
+#define Span_init_array(ARRAY_) \
+			Span_init_n((ARRAY_), ARRAY_LENGTH(ARRAY_))
+
+
+//@module Bytes
+
+typedef unsigned char Byte_t;
+
+typedef Span(Byte_t)  Bytes;
+
+#define Bytes_init_array(ARR_)  \
+			(Bytes)Span_init_n((Byte_t*)(ARR_), sizeof(ARR_))
+
+#define Bytes_init_var(VAR_)   \
+			(Bytes)Span_init_n((Byte_t*)&(VAR_), sizeof(VAR_))
+
+Bytes Bytes_init_str(char *s);
+
 
 
 //@module List - Dynamic Resizeable Arrays

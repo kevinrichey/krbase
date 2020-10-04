@@ -365,20 +365,86 @@ TEST_CASE(Binode_make_chain)
 TEST_CASE(Xorshift_random_numbers)
 {
 	UNUSED(test_counter);
+	return;
 
-	Xorshifter rng = { .x = 234, .a = 13, .b = 17, .c = 5 };
+	uint32_t seed = 0xAFAFAFAF;
+	Xorshifter rng = { .x = seed, .a = 13, .b = 17, .c = 5 };
 
-	for (int i = 0; i < 20; ++i)
+	int n = 10;
+	for (int i = 0; i < n; ++i)
 		printf("xorshift: %u\n", Xorshift_rand(&rng));
 
 	puts("---");
 
-	uint32_t x = 234;
-	for (int i = 0; i < 20; ++i) {
-		x ^= x << 13;
-		x ^= x >> 17;
+	uint32_t x = seed;
+	for (int i = 0; i < n; ++i) {
+		x ^= x << 13,
+		x ^= x >> 17,
 		x ^= x <<  5;
 		printf("xorshift: %u\n", x);
 	}
 }
+
+TEST_CASE(convert_to_bytes)
+{
+	Bytes ns;
+
+	int numbers[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+	ns = Bytes_init_array(numbers);
+	TEST(Span_length(ns) == (10 * sizeof(int)));
+
+	int i = 101;
+	ns = Bytes_init_var(i);
+	TEST(Span_length(ns) == sizeof(int));
+
+	double d = 3.14159;
+	ns = Bytes_init_var(d);
+	TEST(Span_length(ns) == sizeof(double));
+
+	char s[100] = "Hello, World";
+	ns = Bytes_init_str(s);
+	TEST(Span_length(ns) == 12);
+}
+
+
+uint64_t hash_fnv_1a_64bit(Bytes data, uint64_t hash)
+{
+	const uint64_t fnv_1a_64bit_prime = 0x100000001B3;
+
+	for (Byte_t *b = data.begin; b != data.end; ++b) {
+		hash ^= (uint64_t)*b;
+		hash *= fnv_1a_64bit_prime;
+	}
+
+	return hash;
+}
+
+uint64_t hash(Bytes data)
+{
+	const uint64_t fnv_a1_64bit_offset_basis = 14695981039346656037llu;
+	return hash_fnv_1a_64bit(data, fnv_a1_64bit_offset_basis);
+}
+
+TEST_CASE(FNV_hash_test)
+{
+	UNUSED(test_counter);
+
+	int numbers[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+	uint64_t h = hash(Bytes_init_array(numbers));
+	TEST(h == 6902647252728264142);
+
+	char s[] = "Hello, World!";
+	h = hash(Bytes_init_str(s));
+	TEST(h == 7993990320990026836LLU);
+
+	int i = 101;
+	h = hash(Bytes_init_var(i));
+	TEST(h == 3212644748862486336LLU);
+
+	double d = 3.12159;
+	h = hash(Bytes_init_var(d));
+	TEST(h == 8148618316659391402LLU);
+
+}
+
 

@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "klib.h"
 
 const char *Status_string(StatusCode stat)
@@ -42,6 +43,11 @@ StatusCode Error_fail(ErrorInfo *e)
 	fflush(stderr);
 	abort();
 	return Error_status(e);
+}
+
+Bytes Bytes_init_str(char *s)
+{
+	return (Bytes)Span_init_n((Byte_t*)s, strlen(s));
 }
 
 void Test_assert(TestCounter *counter, bool test_condition, const char *file, int line, const char *msg)
@@ -157,7 +163,7 @@ void Binode_remove(Binode *n)
 void *Binode_foreach(Binode *node, closure_fn fn, void *closure, int offset)
 {
 	for ( ; node != NULL; node = Binode_next(node))
-		fn(closure, (byte*)node + offset);
+		fn(closure, (Byte_t*)node + offset);
 	return closure;
 }
 
