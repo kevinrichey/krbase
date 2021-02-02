@@ -47,7 +47,7 @@ StatusCode Error_fail(ErrorInfo *e)
 
 Bytes Bytes_init_str(char *s)
 {
-	return (Bytes)Span_init_n((Byte_t*)s, strlen(s));
+	return (Bytes)Span_init((Byte_t*)s, strlen(s));
 }
 
 void Test_assert(TestCounter *counter, bool test_condition, const char *file, int line, const char *msg)
@@ -216,6 +216,25 @@ uint32_t Xorshift_rand(Xorshifter *state)
 	x ^= x >> state->b;
 	x ^= x << state->c;
 	return state->x = x;
+}
+
+uint64_t hash_fnv_1a_64bit(Bytes data, uint64_t hash)
+{
+	const uint64_t fnv_1a_64bit_prime = 0x100000001B3;
+
+	const Byte_t *end = data.begin + data.size;
+	for (const Byte_t *b = data.begin; b != end; ++b) {
+		hash ^= (uint64_t)*b;
+		hash *= fnv_1a_64bit_prime;
+	}
+
+	return hash;
+}
+
+uint64_t hash(Bytes data)
+{
+	const uint64_t fnv_1a_64bit_offset_basis = 14695981039346656037llu;
+	return hash_fnv_1a_64bit(data, fnv_1a_64bit_offset_basis);
 }
 
 

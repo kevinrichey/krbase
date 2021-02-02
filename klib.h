@@ -10,21 +10,11 @@
 //@module Utility Macros
 
 #define UNUSED(VAR_)  (void)(VAR_)
-/*@doc UNUSED(var)
-Suppress unused parameter warnings for variable *var*.
-*/
 
 #define STANDARD_ENUM_VALUES(EnumName_) \
   EnumName_##_End,  \
   EnumName_##_Last  = EnumName_##_End - 1, \
   EnumName_##_First = 0,
-/*@doc STANDARD_ENUM_VALUES(EnumName_)
-  Insert the standard enumerators to an enum, prefixed with *EnumName_*:
-
-  - *EnumName_*First == 0.
-  - *EnumName_*Last == last enum value.
-  - *EnumName_*End == last enum value + 1.
-*/
 
 #define STRINGIFY(x)            #x
 #define STRINGIFY_EXPAND(x)     STRINGIFY(x)
@@ -34,18 +24,11 @@ Suppress unused parameter warnings for variable *var*.
 
 #define VA_NARGS_N(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, PA, PB, PC, PD, PE, PF, PN, ...) PN
 #define VA_NARGS(...) VA_NARGS_N(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
-/*@doc VA_NARGS(...)
- @returns number of arguments passed.
-*/
 
 #define VA_PARAM_0(_0, ...)      _0
 #define VA_PARAM_1(_0, _1, ...)  _1
 
 #define ARRAY_LENGTH(A_)  (sizeof(A_) / sizeof(*A_))
-/*@doc ARRAY_LENGTH(a)
- @returns length of statically sized array *a*.  
- Undefined behavior if *a* is dynamically allocated array.
-*/
 
 static inline int int_max(int a, int b)
 {
@@ -75,10 +58,6 @@ typedef enum {
 #undef X
 
 const char *Status_string(StatusCode stat);
-/*@func Status_String
-  Convert *stat* code to string.
-  @returns Pointer to static constant global string. Do not modify or free().
-*/
 
 typedef struct Error_struct {
 	StatusCode     status;
@@ -105,9 +84,6 @@ static inline StatusCode Error_status(ErrorInfo *e)
 }
 
 void Error_print(ErrorInfo *e, FILE *out);
-/*@func Error_print
-  Print error to file stream *out*. 
-*/
 
 StatusCode Error_fail(ErrorInfo *e);
 
@@ -130,9 +106,6 @@ typedef struct TestCounter_struct {
 typedef void (*TestCase_fn)(TestCounter*);
 
 #define TEST_CASE(test_name_)  void TestCase_##test_name_(TestCounter *test_counter)
-/*@doc TEST_CASE(test_name_)
-  Define new test case *test_name_*. 
-*/
 
 void Test_assert(
 		TestCounter  *counter,
@@ -155,50 +128,33 @@ void Test_assert(
       struct { TYPE_ __VA_ARGS__; }; \
       TYPE_ at[VA_NARGS(__VA_ARGS__)]; \
   }
-/*@doc VECTOR(TYPE, members...)
- Declare a new vector of *TYPE* with *members*.
- Access elements through the named members or by random access
- through the *at[]* array member.
-
- Example - declare an x,y point
- : `VECTOR(int, x, y)  point;`
- : `point.x = 100;`
- : `point.at[1] = 200;   // at[1] is random access to member y`
-
- Example - declare an RGB color type
- : `typedef VECTOR(unsigned, red, green, blue)  rgb;`
- */
 
 #define VECT_LENGTH(V_)    (int)(ARRAY_LENGTH((V_).at))
-/*@doc Vec_length(v)
- @returns length (number of members) in vector *v*.
-*/
 
 
 //@module Span
 
-#define Span(T_)        struct { T_ *begin, *end; }
+#define Span_t(T_)        struct { T_ *begin; int size; }
 
-#define Span_length(S_)   ((S_).end - (S_).begin)
+#define Span_init_n(PTR_, LEN_, ...) \
+			{ .begin = (PTR_), .size = (LEN_) }
 
-#define Span_init_n(PTR_, LEN_) \
-			{ .begin = (PTR_), .end = (PTR_) + (LEN_) }
+#define Span_init(...) \
+			Span_init_n(__VA_ARGS__, ARRAY_LENGTH(VA_PARAM_0(__VA_ARGS__)))
 
-#define Span_init_array(ARRAY_) \
-			Span_init_n((ARRAY_), ARRAY_LENGTH(ARRAY_))
 
 
 //@module Bytes
 
 typedef unsigned char Byte_t;
 
-typedef Span(Byte_t)  Bytes;
+typedef Span_t(Byte_t)  Bytes;
 
 #define Bytes_init_array(ARR_)  \
-			(Bytes)Span_init_n((Byte_t*)(ARR_), sizeof(ARR_))
+			(Bytes)Span_init((Byte_t*)(ARR_), sizeof(ARR_))
 
 #define Bytes_init_var(VAR_)   \
-			(Bytes)Span_init_n((Byte_t*)&(VAR_), sizeof(VAR_))
+			(Bytes)Span_init((Byte_t*)&(VAR_), sizeof(VAR_))
 
 Bytes Bytes_init_str(char *s);
 
@@ -209,15 +165,6 @@ Bytes Bytes_init_str(char *s);
 typedef struct { int cap, length; } ListDims;
 
 #define LIST(EL_TYPE)  struct { ListDims head; EL_TYPE begin[]; }
-/*@doc LIST(type) 
- Declare a new list of *type* objects.
-
- Example - declare list if int
- : `LIST(int) *numbers = NULL;`
-
- Example - define new list of doubles type
- : `typedef LIST(double)  list_doubles;`
-*/
 
 #define LIST_BASE(L_)  ((ListDims*)L_)
 
@@ -245,33 +192,21 @@ void *List_grow(void *a, int sizeof_base, int sizeof_item, int min_cap, int add_
 	}while(0)
 
 static inline int List_capacity(void *l)
-/*@func List_capacity(l)
- @returns int max capacity of list *l*; 0 if *l* is NULL.
-*/
 {
 	return l? ((ListDims*)l)->cap: 0;
 }
 
 static inline int List_length(void *l)
-/*@func List_length(l)
- @returns int, number of elements in list *l*; 0 if *l* is NULL.
-*/
 {
 	return l? ((ListDims*)l)->length: 0;
 }
 
 static inline bool List_is_full(void *l)
-/*@func List_is_full(l)
- @returns *true* if list *l* is cannot hold more elements; *true* if *l* is NULL.
-*/
 {
 	return List_length(l) >= List_capacity(l);
 }
 
 static inline bool List_is_empty(void *l)
-/*@func List_is_empty(l)
- @returns *true* if list *l* is contains no elements; *true* if *l* is NULL.
-*/
 {
 	return List_length(l) == 0;
 }
@@ -293,9 +228,8 @@ static inline int List_check(void *l, int i)
 #define LIST_LAST(L_)     LIST_AT(L_, -1)
 
 void List_dispose(void *l);
-/*@func List_dispose(list)
- Free *list* when it's not longer used.
-*/
+
+
 
 
 typedef void (*closure_fn)(void*, void*);
@@ -450,5 +384,34 @@ uint32_t Xorshift_rand(Xorshifter *state);
 	X(17, 15, 23)  \
 	X(17, 15, 26) 
 
+
+//@module Hash Table
+
+uint64_t hash_fnv_1a_64bit(Bytes data, uint64_t hash);
+
+uint64_t hash(Bytes data);
+
+//@module Fibonacci Sequence Iterator
+
+typedef struct Fibonacci_struct {
+	int f0, f1;
+} Fibonacci;
+
+#define FIB_LITERAL   (Fibonacci){ .f0 = 0, .f1 = 1 }
+
+static inline Fibonacci Fib_begin()
+{
+	return FIB_LITERAL;
+}
+
+static inline int Fib_get(Fibonacci fib)
+{
+	return fib.f0;
+}
+
+static inline Fibonacci Fib_next(Fibonacci fib)
+{
+	return (Fibonacci){ .f0 = fib.f1, .f1 = fib.f0 + fib.f1 };
+}
 
 #endif

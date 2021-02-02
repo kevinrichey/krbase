@@ -1,12 +1,16 @@
-% Coding Style
+% My C Coding Style
 
-## C Naming Conventions
+# Naming Conventions
 
-Variables, parameters, struct & union members, enumerators
+Variables, parameters, struct & union members
 : Lower case with underscores: `variable_name`.
 
-Types (struct, union, enum)
+Types (struct, union, enum, typedef)
 : Capialize each word: `UpperCamelCase`
+
+Enumerations
+: Enum type name: `UpperCamelCase`.
+: Enumerators: lowercase with underscores, prefixed by enum type. `EnumName_enumerator`
 
 Functions
 : Lower case with underscores: `function_name()`
@@ -21,7 +25,6 @@ Preprocessor macros
 Global Constants
 : Upper case with underscores: `MODULE_CONSTANT_NAME`
 
-
 Modules
 : A collection of types and functions that work together. 
 : Module names are UpperCamelCase and used as a namespace prefix in the collection of types and functions.
@@ -29,19 +32,7 @@ Modules
 : Enums in a module are named as ModuleName_EnumName. 
 : Enum members are ModuleName_EnumName_MemberName.
 
-
-### Common Meanings & Abbreviations
-
-- Init:      Put object into to a valid usable starting state.
-- Make:      Return initialized object by value.
-- Create:    Return pointer to initialized object on heap.
-- Destroy:   Clean up object and free memory.
-
-- Length:  number of elements in a sequence (array, string, list, etc).
-- Size:    number of bytes in an object, as in sizeof().
-- Cap:     max number of elements a container may contain.
-
-### Function and Type Suffixes
+## Function and Type Suffixes
 
 - i - int
 - d - double
@@ -49,71 +40,81 @@ Modules
 - b - bool
 - a - array
 - n - number, length, count
+- s - string
 
-### Matching Verb Pairs
+## Matching Verb Pairs
 
 - init, dispose
+- create, destroy
 - start, stop
 - begin, end
+- first, last
+- front, back
+- head, tail
 - put, get
 - set, unset
 - add, remove
-- create, destroy
-- enable, disable
-- insert, delete
-- load, save
 - push, pop
-- first, last
+- insert, delete
+- enable, disable
+- load, save
 
+# Formatting
 
-## Formatting
-
-- Indent 4 spaces with tabs.
+- Indent with tabs.
+- Tab stop 4 spaces.
 - Align with spaces (after indentation tabs).
 - Function braces in column 0.
-- Control statements (if, for, do, while, switch, etc)
-	- Single space between keyword and open parens.
-	- Single-statemets on next line, indented, no braces.
-	- Block open brace on same line, once space after close parens.
-	- Close brace on separate line, same column as keyword.
 
+## Control Statement Formatting
 
-## C Guildelines & Tips
+if, for, do, while, switch, etc
 
-Preprocessor Guidelines
+- Single space between keyword and open parens.
+- Single statements on next line, indented, no braces.
+- Block open brace on same line, once space after close parens.
+- Close brace on separate line, same column as keyword.
+
+# C Idioms, Guildeline, Tips
+
+Prefer basic C primitives
+: int, double, char, bool
+: Use unsigned only for overflow & bit operations
+
+Classic C Idioms
+: - Push (stack): `*p++ = x`
+: - Pop  (stack): `x = *--p`
+
+Preprocessor Macros
 : - Wrap statement macros in `do{ ... }while(0)`.
 : - Wrap macro parameters in parens.
 : - Ensure variables declared within macros have unique names. Eg. use a prefix.
 : - Use `_Bool` inside macros so user doesn't need to include stdbool.h.
+: - [X Macros](https://www.drdobbs.com/the-new-c-x-macros/184401387)
+: - [Overloading Functions in C](http://locklessinc.com/articles/overloading/)
 
-Typedef Structs:
-: `typedef struct Name_struct { ... } Name;`
+Structs
+: Typedef struct types: `typedef struct Name_struct { ... } Name;`
+: Initialize struct objects: `struct_type var_name = { 0 };`
+: Use designated initializers: `struct_type var_name = { .m1 = x, .m2 = y };`
 
-Initialize empty struct objects:
-: `struct_type var_name = { 0 };`
-
-Prefer Designated Initializers for structs and arrays:
-: `struct_type var_name = { .m1 = x, .m2 = y };`
-: If the struct members are rearranged, the designated initializer still works regardless of order.
-
-Goto Guidelines
+Goto 
 : - `goto` is not evil.
 : - Use `goto` to exit early from compound statement blocks. Target label shall be in outer scope below the block.
 : - Jump to clean-up code for early exit from a function. Label for the clean-up code should be named "finally:".
 : - Avoid jumping to labels above the goto or in inaccesible scopes.
 : - Prefer using `break` from loops.
 
-Special Enum Members
-: - First: equal to first enum in range (usually 0).
-: - Last:  equal to last enum in range.
-: - End:   equal to last + 1.
-: - Count: number of enums, usually equal to End-First, can be used to allocate an array.
+Enumerations
+: Special Enum Members:
+:  - First: equal to first enum in range (usually 0).
+:  - Last:  equal to last enum in range.
+:  - End:   equal to last + 1.
+:  - Count: number of enums, usually equal to End-First, can be used to allocate an array.
 
-Use enum values to name designated array Initializers
+Arrays
+: Use enum values for designated array Initializers
 :   `type_name  array_name[] = { [enum_a] = value, [enum_b] = value };`
-: So initializers do not depend on position.
 
-- [X Macros](https://www.drdobbs.com/the-new-c-x-macros/184401387)
-- [Overloading Functions in C](http://locklessinc.com/articles/overloading/)
 
 

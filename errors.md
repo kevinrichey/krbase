@@ -153,13 +153,32 @@ Process returns 0 on all success, non-zero on any failures.
 
 # Tracing & Logging
 
-- Volume throttle (0 = always)
-- Category on/off (null handler)
 - Logging is tracing to a file
 - Delimited output for easy parsing
-- Rotation, archiving, cleanup
 - Thread-safe
 
+## What to Log
+
+- Date/time stamp
+- Category
+- Volume level
+- Thread ID
+- Message
+
+## How to Log
+
+- Application Start-up & shut-down
+- Config info (option name, value, source/origin)
+- Begin/end main loop, transactions, events, requests, etc
+- Errors
+- Assertion failures
+- Debugging, Watch variables
+
+## Log Management & Control
+
+- Volume throttle (0 = always)
+- Category on/off (null handler)
+- Rotation, archiving, cleanup
 - Test: tracing off
 - Debug: trace to console, throttled
 - Release: trace to log, throttled
