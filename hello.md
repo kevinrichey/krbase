@@ -4,7 +4,7 @@
 # Outline
 
 - Concurrency & Parallelism, multi-threading & forking
-- Inter-Process Communication
+- Networking, Inter-Process Communication
 - Security
 	- Vulnerability prevention
 	- Encryption
@@ -16,9 +16,16 @@
 
 # Software Engineering Quality
 
-- Unit testing
 - Signal handling
 - Tracing & Logging
+
+## Unit testing
+
+- Test case isolation
+- Fixture setup & teardown
+- Test discovery & execution
+- Testing for data alignment
+- Handle errors & assertions as test failures
 
 ## Assertions
 
@@ -55,19 +62,47 @@
 
 ## string
 
-- compatible with any string
+Requirements
+
+- compatible with any C string structure:
 	- constant literal
 	- char pointer
 	- local array
 	- dynamic allocation
 	- compound literal array
-- short string: strand? cord?
-	- small fixed-length
-	- can be passed/returned by value
-	- don't store length
 
-- copy:     create new copy of string
-- concat:   create new string from two
+Storage
+
+- User-supplied array/pointer/literal & size
+- internal short string
+- dynamic allocation, must be freed
+
+Operations
+
+- length
+- equals
+- compare
+
+- format string
+- copy
+- concat
+- substring(a,b) - slice; return substring from positions a to b.
+- left(n)  - substring n chars from 0
+- right(n)  - substr n chars from end
+
+- contains(sub)  - true if string contains substring
+- find(c|sub, start=0, dir=1, count=1) - search for character or sub-str
+
+- lowercase
+- uppercase
+- capitalize(n) - cap n words
+- reverse
+- trim whitespace 
+
+- split
+- join
+- replace (char/substr, from start/end, first/num/all)
+- delete (char/substr, from start/end, first/num/all)
 
 # Sequences
 
@@ -95,7 +130,7 @@ Enumerated, ordered objects.
 - create:    Bring new object into existence on heap.
 - destroy:   Put an end to an object's existence.
 - init:      Set existing object to a usable starting state.
-- copy:      Create a duplicate object.
+- copy:      Create a duplicate object (deep copy).
 
 ## Dimensions
 
@@ -136,20 +171,35 @@ Enumerated, ordered objects.
 - reverse
 - shuffle
 
-## Traversal
+## Iterator
 
-- begin:     Start itertion over range/sequence/container
+Properties
+
+- current position
+- step     - direction & number
+- count    - number of successful steps before stopping, 1/n/all
+
+State
+
+- done:      position equals stop, no more elements
 - get:       Current element, fails if done.
-- done:      position at the end, no more elements
-- end:       position beyond last element 
-- next:      advance n elements (default 1), fails if done.
-- stop:      stop iteration, done is *true*
+
+Operations
+
+- begin:     Start itertion 
+- start:     Beginning position
+- stop:      Ending position, past last element 
+- next(n)  - advance n elements (default 1), fails if done.
+
+- first(n):  start=0, step=1, count=n
+- last(n):   start=-1, step=-1, count=n
 
 # Configuration
 
 - Command line arguments
 - Environment variables
 - Config files
+- Default values
 
 # Files
 

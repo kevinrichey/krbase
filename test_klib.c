@@ -457,7 +457,7 @@ TEST_CASE(make_span_from_arrays)
 
 //typedef Span_t(char)  String;
 
-typedef struct { const char *begin; int size; } String;
+typedef struct { char *begin; int size; } String;
 
 static inline bool String_not_empty(String s)
 {
