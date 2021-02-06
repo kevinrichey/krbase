@@ -37,72 +37,128 @@
 
 ## Error handling 
 
-- Check for numeric overflow
-- Status return codes
-	- OK is 0
-	- Errors are negative (error is less than ok)
-	- Other status results are positive
-	- Compare with enum value, not numeric constant
+Failure
+: Function is unable to complete succesfully. 
+
+Status codes
+
+- Signed overflow
+- Array overflow
+- Null pointer
+- Un-init pointer
+- Out of memory
+- Not found
+
+Error Reporting
+
+- Set status code
+- Collect error & debug info
+- Call handler
+- Maybe return error code
+- Status failure(err, code, debug_info, message)
+- Status success(err, code)
+
+Error Handlers
+
+- Global array of handlers for each error code
+- Possible outcomes
+	- Return status code
+	- Terminate
+	- Long jump
+
+Error struct
+
+- Information about specific error occurrance 
+	- Status code
+	- Debug info: file & line
+	- Message
+
+Status struct
+
+- Information about current program status
+	- Error 
+	- jump location
+	- handlers
+	- log handle
 
 ## Memory Integrity
 
 - Check bad inputs (null/bad pointer, zero/negative size)
 - Initialize memory with special value
+- Init pointers with special value
 - Over-allocate and check for overflows
 - Track memory usage (pointer, size, file/line at allocation)
-- init unused pointers to special value
 
 # Basic Types 
 
 - span - pointer & length
 - range - start, stop, step
-- string
 - vector - fixed-length, named & random access
 - array  - size, flex array member
 
 ## string
 
-Requirements
+### String Requirements
 
-- compatible with any C string structure:
-	- constant literal
-	- char pointer
-	- local array
-	- dynamic allocation
-	- compound literal array
+- compatible with any C string storage method
+- immutable
+	- string value cannot be modified
+	- identifier can be re-assigned new string value 
+- does not rely on null-terminator
+- can be null/empty
+- function param & return by value
+- can be value member of arrays, lists, tables
+- I/O
 
-Storage
+### String Storage
 
-- User-supplied array/pointer/literal & size
-- internal short string
+- constant literal
+- char pointer
+- local array
+- compound literal array
+- internal short array
 - dynamic allocation, must be freed
 
-Operations
+### String Composition
+
+- printf format
+- concat
+- join
+- template
+- comprehension
+- fill
+- a-z range
+
+### String Operations
 
 - length
-- equals
+- not/equals
 - compare
-
-- format string
 - copy
-- concat
-- substring(a,b) - slice; return substring from positions a to b.
-- left(n)  - substring n chars from 0
-- right(n)  - substr n chars from end
 
-- contains(sub)  - true if string contains substring
-- find(c|sub, start=0, dir=1, count=1) - search for character or sub-str
+### Substring Operations
+
+- slice(a,b) - substring from positions a to b.
+- left(n)  - slice 0 to n
+- right(n)  - slice -n to -1
+- contains(sub)  - has; true if string contains substring
+- find(c|sub, iter) - search for position of character or sub-str
+- split(sub)   - list of sub-strings delimited by sub
+- iterate
+
+### String Modifiers 
+
+Returns new string.
 
 - lowercase
 - uppercase
-- capitalize(n) - cap n words
+- capitalize(n)
 - reverse
 - trim whitespace 
+- replace(char|substr, iter)
+- delete(char|substr, iter)
+- [Ordering]
 
-- split
-- join
-- replace (char/substr, from start/end, first/num/all)
-- delete (char/substr, from start/end, first/num/all)
 
 # Sequences
 
@@ -175,20 +231,20 @@ Enumerated, ordered objects.
 
 Properties
 
-- current position
+- start   -  Beginning position
+- stop    -  Ending position, past last element 
 - step     - direction & number
-- count    - number of successful steps before stopping, 1/n/all
+- count    - number of steps before stopping; 1/n/all
 
 State
 
-- done:      position equals stop, no more elements
+- position 
+- done:      true if position equals stop, no more elements
 - get:       Current element, fails if done.
 
 Operations
 
 - begin:     Start itertion 
-- start:     Beginning position
-- stop:      Ending position, past last element 
 - next(n)  - advance n elements (default 1), fails if done.
 
 - first(n):  start=0, step=1, count=n

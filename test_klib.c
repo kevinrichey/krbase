@@ -299,7 +299,7 @@ TEST_CASE(Binode_remove_node)
 	Binode_link(&b.link, &c.link);
 
 	// When b is removed
-	 Binode_remove(&b.link);
+	Binode_remove(&b.link);
 
 	// Then a is linked to c and b is unlinked
 	TEST(Binode_not_linked(&b.link));
