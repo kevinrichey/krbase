@@ -6,7 +6,7 @@ Variables, parameters, struct & union members
 : Lower case with underscores: `variable_name`.
 
 Types (struct, union, enum, typedef)
-: Capialize each word: `UpperCamelCase`
+: Capialized: `UpperCamelCase`
 
 Enumerations
 : Enum type name: `UpperCamelCase`.
@@ -20,17 +20,18 @@ Preprocessor symbols
 
 Preprocessor macros
 : Upper case with underscores: `MACRO_CASE()`
+: Macros made to look like functions may be `lowercase_underscore()`
 : Parameters are upper case with trailing underscore: `VAR_`
 
 Global Constants
 : Upper case with underscores: `MODULE_CONSTANT_NAME`
 
 Modules
-: A collection of types and functions that work together. 
-: Module names are UpperCamelCase and used as a namespace prefix in the collection of types and functions.
-: Functions in a module are named as ModuleName_function_name().
-: Enums in a module are named as ModuleName_EnumName. 
-: Enum members are ModuleName_EnumName_MemberName.
+: Types and functions that work together. 
+: Module names are UpperCamelCase and used as a namespace prefix for the types and functions.
+: Functions in a module are named as `ModuleName_function_name()`.
+: Module enums are named as `ModuleName_EnumName`.
+: Enum members are `ModuleName_EnumName_MemberName`.
 
 ## Function and Type Suffixes
 

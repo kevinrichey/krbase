@@ -29,6 +29,7 @@
 #define VA_PARAM_1(_0, _1, ...)  _1
 
 #define ARRAY_LENGTH(A_)  (sizeof(A_) / sizeof(*A_))
+#define ARRAY_SIZE(A_)    (sizeof(A_) / sizeof(*(A_)))
 
 static inline int int_max(int a, int b)
 {
