@@ -1,9 +1,9 @@
-
-#include "klib.h"
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdarg.h>
+#include "klib.h"
 
 TEST_CASE(Status_to_string)
 {
