@@ -22,18 +22,10 @@
 ## Unit testing
 
 - Test case isolation
-- Fixture setup & teardown
 - Test discovery & execution
+- Fixture setup & teardown
 - Testing for data alignment
 - Handle errors & assertions as test failures
-
-## Assertions
-
-- check bool conditions
-- on failure, condition is false:
-	- collect error info: file, line #, expression, message
-	- call assert handler
-- configure assert handler on app init
 
 ## Error handling 
 
@@ -81,6 +73,14 @@ Status struct
 	- handlers
 	- log handle
 
+## Assertions
+
+- check bool conditions
+- on failure, condition is false:
+	- collect error info: file, line #, expression, message
+	- call assert handler
+- configure assert handler on app init
+
 ## Memory Integrity
 
 - Check bad inputs (null/bad pointer, zero/negative size)
@@ -100,15 +100,21 @@ Status struct
 
 ### String Requirements
 
-- compatible with any C string storage method
-- immutable
-	- string value cannot be modified
-	- identifier can be re-assigned new string value 
-- does not rely on null-terminator
+- compatible with any storage method
+- stores end pointer for faster concat & length
 - can be null/empty
-- function param & return by value
-- can be value member of arrays, lists, tables
-- I/O
+- function pass & return by value
+- value member of arrays, lists, tables
+- overflow protection & bounds checking
+- minimize dynamic allocation
+
+// int-aligned fixed-length string
+union strand {
+	int data[4];
+	char characters[sizeof(int)*4];
+};
+
+
 
 ### String Storage
 
@@ -121,7 +127,7 @@ Status struct
 
 ### String Composition
 
-- printf format
+- formatting
 - concat
 - join
 - template
