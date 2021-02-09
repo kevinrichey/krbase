@@ -198,7 +198,7 @@ static const int XORSHIFT_PARAM_LIST[][3] = {
 
 void Xorshift_init(Xorshifter *state, uint32_t seed, int params_num)
 {
-	params_num = params_num % ARRAY_LENGTH(XORSHIFT_PARAM_LIST);
+	params_num = params_num % ARRAY_SIZE(XORSHIFT_PARAM_LIST);
     const int *params = XORSHIFT_PARAM_LIST[params_num];
 
     *state = (Xorshifter)

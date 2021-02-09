@@ -13,6 +13,16 @@
 - Storage (de/serialization)
 - Documentation
 - Code generation & meta-programming tools
+- names? Deep C, Dark C, Fathom the C
+
+## What Every C Programmer Needs to Know
+
+- Scope
+- Pointers
+- Stack & heap
+- Storage class & duration
+- Undefined behavior
+
 
 # Software Engineering Quality
 

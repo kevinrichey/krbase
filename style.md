@@ -82,10 +82,6 @@ Prefer basic C primitives
 : int, double, char, bool
 : Use unsigned only for overflow & bit operations
 
-Classic C Idioms
-: - Push (stack): `*p++ = x`
-: - Pop  (stack): `x = *--p`
-
 Preprocessor Macros
 : - Wrap statement macros in `do{ ... }while(0)`.
 : - Wrap macro parameters in parens.
@@ -115,7 +111,35 @@ Enumerations
 
 Arrays
 : Use enum values for designated array Initializers
-:   `type_name  array_name[] = { [enum_a] = value, [enum_b] = value };`
+:   `type_name  array_name[] = { [ENUM_A] = a, [ENUM_B] = b };`
+
+Goes-To Operator
+: `while (x --> 0)`
+: Combination of unary postfix decrment and greater-than: -- >
+: Compares x to 0 and then decrements it. Iteration stops when x equals 0.
+
+Bang Bang Operator
+: `x += !!length_of_thing()`
+: Two logical not operators. Forces an integer into zero or one.
+: If an expression is any non-zero value, !! returns 1, otherwise 0.
+: This example increments x iif `length_of_thing()` returns non-zero.
+
+Push Onto Pointer
+: `*p++ = value`
+: Pointer de-reference assignment and pointer unary post increment.
+: Precondition: *p* points to element in array[n] where n < array length.
+: If *p* is pointer to the first unused element of an array, 
+: assign *value* to the element 
+: advance the pointer to the next unused element.
+
+Pop Off Pointer
+: `x = *--p`
+: Pointer unary prefix decrement and assignment to pointer dereference.
+: Precondition: *p* must point to element array[n] where n > 0 and n <= array length.
+: If *p* is pointer to the first unused element of an array,
+: and the previous element contains a value,
+: move pointer back to the last used element,
+: assign the element value to x.
 
 
 

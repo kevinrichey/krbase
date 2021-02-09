@@ -20,15 +20,18 @@
 #define STRINGIFY_EXPAND(x)     STRINGIFY(x)
 
 #define LINE_STR                EXPAND_STRINGIFY(__LINE__)
-#define SOURCE_LINE_STR         __FILE__ ":" LINE_STR ":"
 
 #define VA_NARGS_N(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, PA, PB, PC, PD, PE, PF, PN, ...) PN
-#define VA_NARGS(...) VA_NARGS_N(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1)
-
-#define VA_PARAM_0(_0, ...)      _0
+#define VA_NARGS(...) VA_NARGS_N(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
+#define VA_PARAM_0(_0, ...)  _0
 #define VA_PARAM_1(_0, _1, ...)  _1
+#define VA_PARAM_2(_0, _1, _2, ...)  _2
+#define VA_PARAM_3(_0, _1, _2, _3, ...)  _3
+#define VA_PARAM_4(_0, _1, _2, _3, _4, ...)  _4
+#define VA_PARAM_5(_0, _1, _2, _3, _4, _5, ...)  _5
+#define VA_PARAM_6(_0, _1, _2, _3, _4, _5, _6, ...)  _6
+#define VA_PARAM_7(_0, _1, _2, _3, _4, _5, _6, _7, ...)  _7
 
-#define ARRAY_LENGTH(A_)  (sizeof(A_) / sizeof(*A_))
 #define ARRAY_SIZE(A_)    (sizeof(A_) / sizeof(*(A_)))
 
 static inline int int_max(int a, int b)
@@ -130,7 +133,7 @@ void Test_assert(
       TYPE_ at[VA_NARGS(__VA_ARGS__)]; \
   }
 
-#define VECT_LENGTH(V_)    (int)(ARRAY_LENGTH((V_).at))
+#define VECT_LENGTH(V_)    (int)(ARRAY_SIZE((V_).at))
 
 
 //@module Span
@@ -141,7 +144,7 @@ void Test_assert(
 			{ .begin = (PTR_), .size = (LEN_) }
 
 #define Span_init(...) \
-			Span_init_n(__VA_ARGS__, ARRAY_LENGTH(VA_PARAM_0(__VA_ARGS__)))
+			Span_init_n(__VA_ARGS__, ARRAY_SIZE(VA_PARAM_0(__VA_ARGS__)))
 
 
 

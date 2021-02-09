@@ -5,6 +5,187 @@
 #include <stdarg.h>
 #include "klib.h"
 
+//-----------------------------------------------------------------------------
+// Testing Language Assumptions
+//
+
+TEST_CASE(empty_struct_adds_no_size)
+{
+	struct empty {};
+	struct full  { void *a, *b; };
+
+	struct no_head    { int n; char s[]; };
+	struct empty_head { struct empty head; int n; char s[]; };
+	struct full_head  { struct full  head; int n; char s[]; };
+
+	TEST(sizeof(struct no_head) == sizeof(struct empty_head));
+	TEST(sizeof(struct full_head) > sizeof(struct empty_head));
+}
+
+
+//-----------------------------------------------------------------------------
+// Preprocessor Macros
+//
+
+TEST_CASE(unused_prevents_compiler_warnings)
+{
+	// All test cases have a hidden parameter named "test_counter".
+	UNUSED(test_counter);
+
+	// Unused local variable should cause compiler warning
+	int x = 1;
+
+	// UNUSED macro stops the warning
+	UNUSED(x);
+}
+
+TEST_CASE(stringify_makes_literal_strings)
+{
+	const char *s = STRINGIFY(hello world);
+	const char hello[] =  "hello world";
+	TEST(!strcmp(s, hello));
+}
+
+TEST_CASE(num_arguments_passed_to_va_macro)
+{
+#define  GET_NUM_VA_ARGS(...)   VA_NARGS(__VA_ARGS__)
+
+	TEST(GET_NUM_VA_ARGS(a) == 1);
+	TEST(GET_NUM_VA_ARGS(a, b, c) == 3);
+	TEST(GET_NUM_VA_ARGS(a, b, c, d, e, f, g, h, i) == 9);
+	TEST(GET_NUM_VA_ARGS(a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a) == 16);
+
+	// Doesn't work with zero args though
+	TEST(GET_NUM_VA_ARGS() != 0);
+}
+
+TEST_CASE(get_va_macro_param_n)
+{
+	TEST(VA_PARAM_0(1, 2, 3, 4, 5, 6, 7, 8, 9) == 1);
+	TEST(VA_PARAM_1(1, 2, 3, 4, 5, 6, 7, 8, 9) == 2);
+	TEST(VA_PARAM_2(1, 2, 3, 4, 5, 6, 7, 8, 9) == 3);
+	TEST(VA_PARAM_3(1, 2, 3, 4, 5, 6, 7, 8, 9) == 4);
+	TEST(VA_PARAM_4(1, 2, 3, 4, 5, 6, 7, 8, 9) == 5);
+	TEST(VA_PARAM_5(1, 2, 3, 4, 5, 6, 7, 8, 9) == 6);
+	TEST(VA_PARAM_6(1, 2, 3, 4, 5, 6, 7, 8, 9) == 7);
+	TEST(VA_PARAM_7(1, 2, 3, 4, 5, 6, 7, 8, 9) == 8);
+}
+
+TEST_CASE(compute_array_size)
+{
+	int a[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+	TEST(ARRAY_SIZE(a) == 10);
+
+	// Does not work on plain pointers tho
+	int *b = a;
+	TEST(ARRAY_SIZE(b) != 10);
+}
+
+
+//-----------------------------------------------------------------------------
+// Fun Variadic Functions
+//
+
+void unpack_i(int *a, int n, ...)
+{
+	va_list args;
+	va_start(args, n);
+
+	int *i;
+	while (n --> 0) {
+		if ((i = va_arg(args, int*)))
+			*i = *a++;
+		else
+			break;
+	}
+
+	va_end(args);
+}
+
+TEST_CASE(unpack_entire_array)
+{
+	int arr[] = { 10, 11, 12, 13, 14 };
+	int a, b, c, d, e;
+
+	unpack_i(arr, ARRAY_SIZE(arr), &a, &b, &c, &d, &e);
+	TEST(a == 10);
+	TEST(b == 11);
+	TEST(c == 12);
+	TEST(d == 13);
+	TEST(e == 14);
+}
+
+TEST_CASE(unpack_partial_array)
+{
+	int arr[] = { 10, 11, 12, 13, 14 };
+	int a, b, c;
+
+	unpack_i(arr, ARRAY_SIZE(arr), &a, &b, &c, NULL);
+	TEST(a == 10);
+	TEST(b == 11);
+	TEST(c == 12);
+}
+
+TEST_CASE(unpack_shorter_array)
+{
+	int arr[] = { 10, 11, 12 };
+	int a, b, c;
+	int d = 99;
+	int e = 88;
+
+	// Since array is shorter, only 3 variables will be updated
+	unpack_i(arr, ARRAY_SIZE(arr), &a, &b, &c, &d, &e);
+	TEST(a == 10);
+	TEST(b == 11);
+	TEST(c == 12);
+	TEST(d == 99);
+	TEST(e == 88);
+}
+
+int reduce_i_va(int (*f)(int,int), int n, ...)
+{
+	if (!n) 
+		return 0;
+
+	va_list args;
+	va_start(args, n);
+
+	int result = va_arg(args, int);
+	while (--n)
+		result = f(result, va_arg(args, int));
+
+	va_end(args);
+	return result;
+}
+
+#define min_i(...)   \
+	reduce_i_va(int_min, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
+
+#define max_i(...)   \
+	reduce_i_va(int_max, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
+
+#define reduce_to_i(FN_, ...)  \
+	reduce_i_va((FN_), VA_NARGS(__VA_ARGS__), __VA_ARGS__)
+
+TEST_CASE(max_of_n_ints)
+{
+	TEST(max_i(0) == 0);
+	TEST(max_i(1, 10) == 10);
+	TEST(max_i(1, 2, 3, 50, 4) == 50);
+	TEST(reduce_to_i(int_max, 1, 2, 3, 50, 4) == 50);
+}
+
+TEST_CASE(min_of_n_ints)
+{
+	TEST(min_i(0) == 0);
+	TEST(min_i(1, 10) == 1);
+	TEST(min_i(100, 10, 3, 50, 4) == 3);
+}
+
+//-----------------------------------------------------------------------------
+// Error Handling
+//
+
 TEST_CASE(Status_to_string)
 {
 	TEST( !strcmp(Status_string(Status_First), "OK") );
@@ -647,7 +828,7 @@ void fill(void *data, int length, void *set, int e_size)
 }
 
 #define Array_fill(A_, V_)   \
-	fill((A_), ARRAY_LENGTH(A_), &(V_), sizeof(V_))
+	fill((A_), ARRAY_SIZE(A_), &(V_), sizeof(V_))
 
 TEST_CASE(hash_table)
 {
@@ -671,7 +852,7 @@ TEST_CASE(hash_table)
 	data[i].value = 'a';
 
 	for (int f = 0; f < size; ++f) {
-		printf("%3d: hash = %llu, value = %c\n", f, data[f].hash, data[f].value);
+//		printf("%3d: hash = %llu, value = %c\n", f, data[f].hash, data[f].value);
 		if (data[f].hash > 0) {
 			TEST(data[f].value == 'a');
 		}
