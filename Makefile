@@ -2,8 +2,10 @@
 CC = clang
 CWARNFLAGS = -Wall -Wextra -Werror \
 			 -Wno-missing-field-initializers \
-			 -Wno-missing-braces
-CFLAGS = -g -D DEBUG $(CWARNFLAGS)
+			 -Wno-missing-braces \
+			 -Wvla -Wimplicit-fallthrough \
+			 -fno-delete-null-pointer-checks
+CFLAGS = -std=c17 -g -D DEBUG $(CWARNFLAGS)
 #CFLAGS = -std=c11 -g -D DEBUG -I/mingw64/include/SDL2  -MMD $(CWARNFLAGS)
 TESTCASES_C = $(wildcard test_*.c)
 TESTCASES_O = $(TESTCASES_C:.c=.o)

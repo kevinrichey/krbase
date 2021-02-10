@@ -142,45 +142,6 @@ TEST_CASE(unpack_shorter_array)
 	TEST(e == 88);
 }
 
-int reduce_i_va(int (*f)(int,int), int n, ...)
-{
-	if (!n) 
-		return 0;
-
-	va_list args;
-	va_start(args, n);
-
-	int result = va_arg(args, int);
-	while (--n)
-		result = f(result, va_arg(args, int));
-
-	va_end(args);
-	return result;
-}
-
-#define min_i(...)   \
-	reduce_i_va(int_min, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
-
-#define max_i(...)   \
-	reduce_i_va(int_max, VA_NARGS(__VA_ARGS__), __VA_ARGS__)
-
-#define reduce_to_i(FN_, ...)  \
-	reduce_i_va((FN_), VA_NARGS(__VA_ARGS__), __VA_ARGS__)
-
-TEST_CASE(max_of_n_ints)
-{
-	TEST(max_i(0) == 0);
-	TEST(max_i(1, 10) == 10);
-	TEST(max_i(1, 2, 3, 50, 4) == 50);
-	TEST(reduce_to_i(int_max, 1, 2, 3, 50, 4) == 50);
-}
-
-TEST_CASE(min_of_n_ints)
-{
-	TEST(min_i(0) == 0);
-	TEST(min_i(1, 10) == 1);
-	TEST(min_i(100, 10, 3, 50, 4) == 3);
-}
 
 //-----------------------------------------------------------------------------
 // Error Handling
@@ -608,8 +569,8 @@ TEST_CASE(make_span_from_arrays)
 
 	// An array of fibonacci numbers
 	Fibonacci fib = Fib_begin();
-	int length  = 20;
-	int numbers[length];
+	int numbers[20];
+	int length  = ARRAY_SIZE(numbers);
 	for (int *n = numbers; length--; ++n) {
 		*n = Fib_get(fib);
 		fib = Fib_next(fib);
@@ -832,14 +793,14 @@ void fill(void *data, int length, void *set, int e_size)
 
 TEST_CASE(hash_table)
 {
-	int   size = 16;
 
 	typedef struct {
 		uint64_t hash;
 		char     value;
 	} table_record;
 	
-	table_record data[size];
+	table_record data[16];
+	int   size = ARRAY_SIZE(data);
 
 	Array_fill(data, ((table_record){ .hash=0, .value=' ' }));
 

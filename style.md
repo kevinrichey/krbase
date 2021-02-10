@@ -35,13 +35,18 @@ Modules
 
 ## Function and Type Suffixes
 
+Functions that have multiple versions for different types use a 
+type abbreviation following an underscore.
+For example: max_i() and max_d() for a max function on int and double.
+
 - i - int
 - d - double
 - c - char
 - b - bool
 - a - array
-- n - number, length, count
 - s - string
+- n - number, length, count
+- va - variable arguments
 
 ## Matching Verb Pairs
 
@@ -141,5 +146,11 @@ Pop Off Pointer
 : move pointer back to the last used element,
 : assign the element value to x.
 
+Avoid Switch
+: Prefer if-else-if over switch.
+: Set -Wimplicit-fallthrough to warn about missing breaks.
 
+Avoid Variable-Length Arrays
+: Used fixed-length or malloc'd arrays.
+: Set -Wvla option to detect VLAs.
 

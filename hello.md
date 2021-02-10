@@ -44,7 +44,7 @@ Failure
 
 Status codes
 
-- Signed overflow
+- Math overflow
 - Array overflow
 - Null pointer
 - Un-init pointer
@@ -53,35 +53,29 @@ Status codes
 
 Error Reporting
 
-- Set status code
-- Collect error & debug info
-- Call handler
-- Maybe return error code
-- Status failure(err, code, debug_info, message)
 - Status success(err, code)
+- Status failure(err, code, debug_info, message)
+	- Set status code
+	- Collect error & debug info
+	- Push error onto stack
+	- Call handler
+	- If handler returns, return status code
+- raise(err, code, debug, message)  - propogate error up, adding debug info
 
-Error Handlers
+Error Handler Module
 
-- Global array of handlers for each error code
-- Possible outcomes
-	- Return status code
-	- Terminate
-	- Long jump
+- List handler functions for each error code
+	- Possible outcomes: return code, terminate, long jump
+- Error stack
+- log handle
+- long jump location
 
-Error struct
+Error 
 
 - Information about specific error occurrance 
 	- Status code
 	- Debug info: file & line
 	- Message
-
-Status struct
-
-- Information about current program status
-	- Error 
-	- jump location
-	- handlers
-	- log handle
 
 ## Assertions
 

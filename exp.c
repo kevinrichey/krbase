@@ -38,12 +38,40 @@ void exp_strand()
 	free(line);
 }
 
+// thou shalt not pass NULL
+int kr_reduce_i(int *start, int *stop, int (*f)(int,int))
+{
+	int result = 0;
 
+	if (stop > start) {
+		for (result = *start++; start < stop; ++start)
+			result = f(result, *start);
+	}
+
+	return result;
+}
+
+int kr_reduce_in(int *start, int n, int (*f)(int,int))
+{
+	return (n) ?  kr_reduce_i(start, start+n, f) : 0;
+}
+
+int maxi(int a, int b) { return a > b ? a : b; }
+int mini(int a, int b) { return a < b ? a : b; }
+int sumi(int a, int b) { return a + b; }
 
 int main(int argc, char *argv[])
 {
-	exp_strand();
+	//exp_strand();
 
+	int arr[] = { 1, 2, -10, 50, 3 };
+	int *end = arr + 5;
+	printf("Greatest: %d\n", kr_reduce_i(arr, end, maxi));
+	printf("Least:    %d\n", kr_reduce_i(arr, end, mini));
+	printf("Sum:      %d\n", kr_reduce_i(arr, end, sumi));
+
+	int a = 1, b = 2, c = -3, d = 0, e = 100, f = 5;
+	printf("Params max: %d\n", kr_reduce_in( (int[]){ a, b, c, d, e, f }, 6, maxi));
 
 	return 0;
 }
