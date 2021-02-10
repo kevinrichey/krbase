@@ -46,6 +46,14 @@ static inline int int_min(int a, int b)
 
 //@module Debugging & Error Checking
 
+typedef struct SourceInfo_struct {
+	const char *file;
+	int line;
+} SourceInfo;
+
+#define SOURCE_INFO_INIT   { .file = __FILE__, .line = __LINE__ }
+#define SOURCE_HERE        (SourceInfo)SOURCE_INFO_INIT   
+
 #define STATUS_X_TABLE \
   X(OK) \
   X(Test_Failure) \
@@ -65,8 +73,9 @@ const char *Status_string(StatusCode stat);
 
 typedef struct Error_struct {
 	StatusCode     status;
-	const char    *filename;
-	int            fileline;
+	SourceInfo     source;
+	const char    *filename; // delete
+	int            fileline; // delete
 	const char    *message;
 } ErrorInfo;
 

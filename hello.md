@@ -22,7 +22,7 @@
 - Stack & heap
 - Storage class & duration
 - Undefined behavior
-
+- Calling conventions & return values
 
 # Software Engineering Quality
 
@@ -50,6 +50,8 @@ Status codes
 - Un-init pointer
 - Out of memory
 - Not found
+- Test case failure
+- Assertion failure
 
 Error Reporting
 

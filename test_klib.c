@@ -147,6 +147,109 @@ TEST_CASE(unpack_shorter_array)
 // Error Handling
 //
 
+TEST_CASE(collect_source_debug_info)
+{
+	SourceInfo source = SOURCE_INFO_INIT;
+	int line = __LINE__ - 1; // Get the previous line #
+
+	TEST(!strcmp(source.file, "test_klib.c"));
+	TEST(source.line == line);
+}
+
+static void source_info_test_fn(TestCounter *test_counter, int line, SourceInfo source)
+{
+	TEST(!strcmp(source.file, "test_klib.c"));
+	TEST(source.line == line);
+}
+
+TEST_CASE(pass_source_info_parameter)
+{
+	int line = __LINE__ + 1;
+	source_info_test_fn(test_counter, line, SOURCE_HERE);
+}
+
+
+
+typedef struct ErrHand ErrHand;
+typedef StatusCode (*ErrorHandler)(ErrHand *errh);
+
+typedef struct ErrHand {
+	ErrorInfo error;
+	ErrorHandler handlers[Status_End];
+} ErrHand;
+
+
+StatusCode 
+Error_failure(ErrHand *errh, StatusCode code, const char *message, SourceInfo source)
+{
+	errh->error.status  = code;
+	errh->error.source  = source;
+	errh->error.message = message;
+
+	if (code > Status_First && code < Status_End) {
+		ErrorHandler handler = errh->handlers[code];
+		if (handler)
+			return handler(errh);
+	}
+
+	return code;
+}
+
+bool test_error_handler_called = false;
+
+static StatusCode test_error_handler(ErrHand *errh)
+{
+	test_error_handler_called = true;
+	return errh->error.status;
+}
+
+int this_function_fails_line;
+
+static StatusCode this_function_fails(ErrHand *errh)
+{
+	this_function_fails_line = __LINE__ + 1;
+	return Error_failure(errh, Status_Error, "Testing function failure", SOURCE_HERE);
+}
+
+TEST_CASE(function_fails)
+{
+	// Given an error handler
+	ErrHand errh = {0};
+	errh.handlers[Status_Error] = test_error_handler;
+
+	// When a function returns failure
+	StatusCode stat = this_function_fails(&errh);
+
+	// Then error status is set and the handler was called
+	TEST(stat == Status_Error);
+	TEST(errh.error.status == Status_Error);
+	TEST(!strcmp(errh.error.source.file, "test_klib.c"));
+	TEST(errh.error.source.line == this_function_fails_line);
+	TEST(!strcmp(errh.error.message, "Testing function failure"));
+	TEST(test_error_handler_called);
+}
+
+void Error_clear(ErrHand *errh)
+{
+	errh->error = (ErrorInfo){0};
+}
+
+TEST_CASE(clear_error_status)
+{
+	// Given an error handler with an error status
+	ErrHand errh = {0};
+	Error_failure(&errh, Status_Error, "Testing clear error", SOURCE_HERE);
+	TEST(errh.error.status == Status_Error);
+
+	// Clear the error
+	Error_clear(&errh);
+
+	TEST(errh.error.status == Status_OK);
+	TEST(errh.error.source.file == NULL);
+	TEST(errh.error.source.line == 0);
+	TEST(errh.error.message == NULL);
+}
+
 TEST_CASE(Status_to_string)
 {
 	TEST( !strcmp(Status_string(Status_First), "OK") );
