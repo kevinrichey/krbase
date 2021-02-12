@@ -23,6 +23,7 @@
 - Storage class & duration
 - Undefined behavior
 - Calling conventions & return values
+- Namespaces: tags, members, labels, identifiers
 
 # Software Engineering Quality
 
@@ -33,7 +34,6 @@
 
 - Test case isolation
 - Test discovery & execution
-- Fixture setup & teardown
 - Testing for data alignment
 - Handle errors & assertions as test failures
 
@@ -55,7 +55,6 @@ Status codes
 
 Error Reporting
 
-- Status success(err, code)
 - Status failure(err, code, debug_info, message)
 	- Set status code
 	- Collect error & debug info

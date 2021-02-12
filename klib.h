@@ -34,6 +34,29 @@
 
 #define ARRAY_SIZE(A_)    (sizeof(A_) / sizeof(*(A_)))
 
+
+//@module Unit Testing
+
+typedef struct TestCounter_struct {
+	int test_count, failure_count;
+	const char *test_name;
+} TestCounter;
+
+typedef void (*TestCase_fn)(TestCounter*);
+
+#define TEST_CASE(TEST_NAME_) \
+	void TestCase_##TEST_NAME_(TestCounter *test_counter)
+
+void Test_fail(TestCounter *counter, const char *file, int line, const char *msg);
+
+#define TEST(CONDITION_) \
+	do { if (CONDITION_); else Test_fail(test_counter, __FILE__, __LINE__, #CONDITION_); } while(0)
+
+
+
+
+
+
 static inline int int_max(int a, int b)
 {
 	return (a > b)? a: b;
@@ -43,6 +66,9 @@ static inline int int_min(int a, int b)
 {
 	return (a < b)? a: b;
 }
+
+
+
 
 //@module Debugging & Error Checking
 
@@ -108,30 +134,6 @@ StatusCode Error_fail(ErrorInfo *e);
 #define CHECK(...) \
   CHECK_HERE(__VA_ARGS__, __FILE__, __LINE__)
 
-
-//@module Unit Testing
-
-typedef struct TestCounter_struct {
-	int test_count, failure_count;
-	const char *test_name;
-} TestCounter;
-
-typedef void (*TestCase_fn)(TestCounter*);
-
-#define TEST_CASE(test_name_)  void TestCase_##test_name_(TestCounter *test_counter)
-
-void Test_assert(
-		TestCounter  *counter,
-		bool          test_condition,
-		const char   *file,
-		int           line,
-		const char   *msg);
-
-#define TEST_M(CONDITION_, MESSAGE_) \
-	Test_assert(test_counter, (CONDITION_), __FILE__, __LINE__, (MESSAGE_))
-
-#define TEST(condition_) \
-	Test_assert(test_counter, (condition_), __FILE__, __LINE__, #condition_)
 
 
 //@module Vector - tuple with named and random access

@@ -4,6 +4,18 @@
 #include <stdarg.h>
 #include "klib.h"
 
+//----------------------------------------------------------------------
+// Unit Testing Modules
+
+void Test_fail(TestCounter *counter, const char *file, int line, const char *msg)
+{
+	++counter->test_count;
+	printf("%s:%d: Test Failure: %s in test case %s()\n", file, line, msg, counter->test_name);
+	++counter->failure_count;
+}
+
+
+
 const char *Status_string(StatusCode stat)
 {
 	if (stat < Status_First || stat > Status_Last) 
@@ -51,34 +63,7 @@ Bytes Bytes_init_str(char *s)
 	return (Bytes)Span_init((Byte_t*)s, strlen(s));
 }
 
-void Test_assert(TestCounter *counter, bool test_condition, const char *file, int line, const char *msg)
-{
-	++counter->test_count;
 
-	if (!test_condition) {
-		ErrorInfo err = {
-			.status = Status_Test_Failure,
-			.filename = file,
-			.fileline = line,
-			.message  = msg,
-		};
-		Error_printf(stdout, &err, " in test %s()", counter->test_name);
-		counter->failure_count++;
-	}
-}
-
-int int_min_n(int n, ...)
-{
-	va_list args;
-	va_start(args, n);
-
-	int min = va_arg(args, int);
-	while (--n)
-		min = int_min(min, va_arg(args, int));
-
-	va_end(args);
-	return min;
-}
 
 #define LIST_MIN_CAPACITY 8
 
