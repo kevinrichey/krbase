@@ -5,8 +5,9 @@
 #include <stdio.h>
 #include <stdint.h>
 
-//@library klib - Core Library
+//@library Kevin's C Library
 
+//----------------------------------------------------------------------
 //@module Utility Macros
 
 #define UNUSED(VAR_)  (void)(VAR_)
@@ -35,6 +36,19 @@
 #define ARRAY_SIZE(A_)    (sizeof(A_) / sizeof(*(A_)))
 
 
+//----------------------------------------------------------------------
+//@module Primitive Utilities
+
+bool in_bounds(int n, int lower, int upper);
+
+#define in_enum_bounds(VAL_, ENUM_) \
+    in_bounds((VAL_), (ENUM_##_First), (ENUM_##_Last))
+
+#define in_array_bounds(I_, ARR_) \
+    in_bounds((I_), 0, ARRAY_SIZE(ARR_)-1)
+
+
+//----------------------------------------------------------------------
 //@module Unit Testing
 
 typedef struct TestCounter_struct {
@@ -53,32 +67,8 @@ void Test_fail(TestCounter *counter, const char *file, int line, const char *msg
 	do { if (CONDITION_); else Test_fail(test_counter, __FILE__, __LINE__, #CONDITION_); } while(0)
 
 
-
-
-
-
-static inline int int_max(int a, int b)
-{
-	return (a > b)? a: b;
-}
-
-static inline int int_min(int a, int b)
-{
-	return (a < b)? a: b;
-}
-
-
-
-
+//----------------------------------------------------------------------
 //@module Debugging & Error Checking
-
-typedef struct SourceInfo_struct {
-	const char *file;
-	int line;
-} SourceInfo;
-
-#define SOURCE_INFO_INIT   { .file = __FILE__, .line = __LINE__ }
-#define SOURCE_HERE        (SourceInfo)SOURCE_INFO_INIT   
 
 #define STATUS_X_TABLE \
   X(OK) \
@@ -97,42 +87,51 @@ typedef enum {
 
 const char *Status_string(StatusCode stat);
 
-typedef struct Error_struct {
+
+typedef struct SourceInfo {
+	const char *file;
+	int         line;
+} SourceInfo;
+
+#define SOURCE_INFO_INIT   { .file = __FILE__, .line = __LINE__ }
+#define SOURCE_HERE        (SourceInfo)SOURCE_INFO_INIT   
+
+typedef struct Error {
 	StatusCode     status;
 	SourceInfo     source;
-	const char    *filename; // delete
-	int            fileline; // delete
 	const char    *message;
-} ErrorInfo;
+	void          *baggage;
+} Error;
 
-#define ERROR_INIT(STAT_, MSG_) {  \
-			.status   = (STAT_),   \
-			.filename = __FILE__,  \
-			.fileline = __LINE__,  \
-			.message  = (MSG_) }
+typedef StatusCode (*ErrorHandler)(Error *err);
 
-#define ERROR_LITERAL(STAT_, MSG_)  \
-			(ErrorInfo)ERROR_INIT(STAT_, MSG_)
+StatusCode    Error_status(Error *e);
+StatusCode    Error_print(Error *e);
+void          Error_fprintf(Error *e, FILE *out, const char *fmt, ...);
+ErrorHandler  Error_set_handler(StatusCode code, ErrorHandler h);
+StatusCode    Error_fail(Error *errh, StatusCode code, const char *message, SourceInfo source);
+void          Error_clear(Error *errh);
 
-#define ERROR(ERR_, STAT_, MSG_) \
-			((ERR_) = ERROR_LITERAL((STAT_), (MSG_))).status;
 
-static inline StatusCode Error_status(ErrorInfo *e)
+
+
+static inline int int_max(int a, int b)
 {
-	return e? e->status: Status_Unknown_Error;
+	return (a > b)? a: b;
 }
 
-void Error_print(ErrorInfo *e, FILE *out);
+static inline int int_min(int a, int b)
+{
+	return (a < b)? a: b;
+}
 
-StatusCode Error_fail(ErrorInfo *e);
 
-#define CHECK_HERE(ASSERTION_, FILE_, LINE_, ...) \
-	do{ if(!(ASSERTION_)) \
-		Error_fail(&ERROR_LITERAL(Status_Assert_Failure, #ASSERTION_)); \
-	}while(0) \
 
-#define CHECK(...) \
-  CHECK_HERE(__VA_ARGS__, __FILE__, __LINE__)
+
+
+
+
+
 
 
 
@@ -235,7 +234,7 @@ static inline int List_check(void *l, int i)
 {
 	if (i < 0)
 		i = LIST_BASE(l)->length + i;
-	CHECK(l && List_in_bounds(l, i));
+//	CHECK(l && List_in_bounds(l, i));
 	return i;
 }
 

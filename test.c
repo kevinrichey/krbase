@@ -35,8 +35,9 @@ int main(int argc, char *argv[])
 	else
 		printf("Success! ");
 
-	printf("[cases: %d, tests: %d, failures: %d]\n", i, test_counter.test_count, test_counter.failure_count);
+	printf("[cases: %d, tests: %d, failures: %d]\n",
+	       i, test_counter.test_count, test_counter.failure_count);
 
-    return test_counter.failure_count;
+	return test_counter.failure_count;
 }
 

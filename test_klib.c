@@ -89,6 +89,141 @@ TEST_CASE(compute_array_size)
 
 
 //-----------------------------------------------------------------------------
+// Primitive Utilities
+
+TEST_CASE(in_bounds_enums_and_arrays)
+{
+	TEST(in_bounds(3, 1, 5));
+	TEST(in_bounds(1, 1, 5));
+	TEST(in_bounds(5, 1, 5));
+	TEST(!in_bounds(0, 1, 5));
+	TEST(!in_bounds(6, 1, 5));
+
+	enum TestBoundsEnum {
+		Bounds_One,
+		Bounds_Two,
+		Bounds_Three,
+		STANDARD_ENUM_VALUES(Bounds)
+	};
+
+	TEST(in_enum_bounds(Bounds_One, Bounds));
+	TEST(in_enum_bounds(Bounds_Two, Bounds));
+	TEST(in_enum_bounds(Bounds_Three, Bounds));
+	TEST(!in_enum_bounds(-1, Bounds));
+	TEST(!in_enum_bounds(99, Bounds));
+
+	int array[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+	TEST(in_array_bounds(0, array));
+	TEST(in_array_bounds(5, array));
+	TEST(in_array_bounds(8, array));
+	TEST(!in_array_bounds(9, array));
+	TEST(!in_array_bounds(-1, array));
+}
+
+//-----------------------------------------------------------------------------
+// Error Module
+
+TEST_CASE(Status_to_string)
+{
+	TEST( !strcmp(Status_string(Status_First), "OK") );
+	TEST( !strcmp(Status_string(Status_OK), "OK") );
+	TEST( !strcmp(Status_string(Status_Error), "Error") );
+	TEST( !strcmp(Status_string(Status_End), "Unknown Status") );
+	TEST( !strcmp(Status_string(-1), "Unknown Status") );
+	TEST( !strcmp(Status_string(100000), "Unknown Status") );
+}
+
+
+static void 
+source_info_test_fn(TestCounter *test_counter, int line, SourceInfo source)
+{
+	TEST(!strcmp(source.file, "test_klib.c"));
+	TEST(source.line == line);
+}
+
+TEST_CASE(pass_source_info_parameter)
+{
+	int line = __LINE__ + 1;
+	source_info_test_fn(test_counter, line, SOURCE_HERE);
+}
+
+
+static StatusCode test_error_handler(Error *err)
+{
+	bool *handler_called = err->baggage;
+	*handler_called = true;
+	return err->status;
+}
+
+TEST_CASE(function_fails_call_error_handler)
+{
+	// Given an error handler
+	ErrorHandler oldh = Error_set_handler(Status_Error, test_error_handler);
+	bool handler_called = false;
+	Error err = { .baggage = &handler_called };
+
+	// When a function fails
+	int lineno = __LINE__ + 1;
+	StatusCode stat = Error_fail(&err, Status_Error, "Error message here", SOURCE_HERE);
+
+	// Then error status is set and the handler was called
+	TEST(stat == Status_Error);
+	TEST(err.status == Status_Error);
+	TEST(!strcmp(err.source.file, "test_klib.c"));
+	TEST(err.source.line == lineno);
+	TEST(!strcmp(err.message,  "Error message here"));
+	TEST(handler_called);
+
+	Error_set_handler(Status_Error, oldh);
+}
+
+TEST_CASE(clear_error_status)
+{
+	// Given an error handler with an error status
+	Error err = {0};
+	Error_fail(&err, Status_Error, "Testing clear error", SOURCE_HERE);
+	TEST(err.status == Status_Error);
+
+	// Clear the error
+	Error_clear(&err);
+
+	TEST(err.status == Status_OK);
+	TEST(err.source.file == NULL);
+	TEST(err.source.line == 0);
+	TEST(err.message == NULL);
+	TEST(err.baggage == NULL);
+}
+
+TEST_CASE(print_error_handler)
+{
+	UNUSED(test_counter);
+
+	ErrorHandler old = Error_set_handler(Status_Error, Error_print);
+	Error err = {0};
+	Error_fail(&err, Status_Error, "testing 1, 2, 3", SOURCE_HERE);
+
+	Error_set_handler(Status_Error, old);
+}
+
+
+StatusCode Error_abort(Error *e)
+{
+	Error_fprintf(e, stderr, NULL);
+	abort();
+}
+
+TEST_CASE(abort_error_handler)
+{
+	UNUSED(test_counter);
+
+	ErrorHandler old = Error_set_handler(Status_Error, Error_abort);
+	Error err = {0};
+	Error_fail(&err, Status_Error, "aborting in 3..2..1", SOURCE_HERE);
+
+	Error_set_handler(Status_Error, old);
+}
+
+//-----------------------------------------------------------------------------
 // Fun Variadic Functions
 //
 
@@ -150,53 +285,7 @@ TEST_CASE(unpack_shorter_array)
 
 
 
-TEST_CASE(Status_to_string)
-{
-	TEST( !strcmp(Status_string(Status_First), "OK") );
-	TEST( !strcmp(Status_string(Status_OK), "OK") );
-	TEST( !strcmp(Status_string(Status_Error), "Error") );
-	TEST( !strcmp(Status_string(Status_End), "Unknown Status") );
-}
 
-TEST_CASE(Error_declare_literal)
-{
-	ErrorInfo e = {0};
-	int error_line = __LINE__ + 1;
-	e = ERROR_LITERAL(Status_Error, "Oops!");
-
-	TEST(Error_status(&e) == Status_Error);
-	TEST(!strcmp(e.filename, "test_klib.c"));
-	TEST(e.fileline == error_line);
-	TEST(!strcmp(e.message, "Oops!"));
-}
-
-TEST_CASE(Error_init)
-{
-	int error_line = __LINE__ + 1;
-	ErrorInfo e = ERROR_INIT(Status_Error, "Uh-oh!!");
-
-	TEST(Error_status(&e) == Status_Error);
-	TEST(!strcmp(e.filename, "test_klib.c"));
-	TEST(e.fileline == error_line);
-	TEST(!strcmp(e.message, "Uh-oh!!"));
-}
-
-static StatusCode test_error_return_code(ErrorInfo *err)
-{
-	return ERROR(*err, Status_Error, "DOH!");
-}
-
-TEST_CASE(Error_return_value)
-{
-	ErrorInfo e = {0};
-
-	StatusCode ret_stat = test_error_return_code(&e);
-
-	TEST(ret_stat == Status_Error);
-	TEST(Error_status(&e) == Status_Error);
-	TEST(!strcmp(e.filename, "test_klib.c"));
-	TEST(!strcmp(e.message, "DOH!"));
-}
 
 TEST_CASE(Error_check_bad_param)
 {

@@ -5,7 +5,15 @@
 #include "klib.h"
 
 //----------------------------------------------------------------------
-// Unit Testing Modules
+// Primitive Utilities
+
+bool in_bounds(int n, int lower, int upper)
+{
+	return (lower <= n) && (n <= upper);
+}
+
+//----------------------------------------------------------------------
+// Unit Testing Module
 
 void Test_fail(TestCounter *counter, const char *file, int line, const char *msg)
 {
@@ -15,10 +23,12 @@ void Test_fail(TestCounter *counter, const char *file, int line, const char *msg
 }
 
 
+//----------------------------------------------------------------------
+// Error Module
 
 const char *Status_string(StatusCode stat)
 {
-	if (stat < Status_First || stat > Status_Last) 
+	if (!in_enum_bounds(stat, Status))
 		return "Unknown Status";
 
 #define X(EnumName)  [Status_##EnumName] = #EnumName,
@@ -26,11 +36,19 @@ const char *Status_string(StatusCode stat)
 #undef X
 }
 
-void Error_printf(FILE *out, ErrorInfo *e, const char *fmt, ...)
+StatusCode Error_status(Error *e)
 {
+	return e ? e->status : Status_Unknown_Error;
+}
+
+void Error_fprintf(Error *e, FILE *out, const char *fmt, ...)
+{
+	if (!e)
+		return;
+
 	fprintf(out, "%s:%d: %s: %s", 
-	        e->filename, 
-			e->fileline, 
+	        e->source.file, 
+			e->source.line, 
 			Status_string(e->status), 
 			e->message);
 
@@ -45,18 +63,48 @@ void Error_printf(FILE *out, ErrorInfo *e, const char *fmt, ...)
 	fflush(out);
 }
 
-void Error_print(ErrorInfo *e, FILE *out)
+StatusCode Error_print(Error *e)
 {
-	Error_printf(out, e, "");
-}
-
-StatusCode Error_fail(ErrorInfo *e)
-{
-	Error_print(e, stderr);
-	fflush(stderr);
-	abort();
+	Error_fprintf(e, stderr, NULL);
 	return Error_status(e);
 }
+
+static ErrorHandler private_error_handlers[Status_End] = { 0 };
+
+ErrorHandler Error_set_handler(StatusCode code, ErrorHandler h)
+{
+	ErrorHandler old = NULL;
+	if (in_array_bounds(code, private_error_handlers)) {
+		old = private_error_handlers[code];
+		private_error_handlers[code] = h;
+	}
+	return old;
+}
+
+StatusCode Error_fail(Error *err, StatusCode code, const char *message, SourceInfo source)
+{
+	err->status  = code;
+	err->source  = source;
+	err->message = message;
+
+	if (in_array_bounds(code, private_error_handlers)) {
+		ErrorHandler handler = private_error_handlers[code];
+		if (handler)
+			code = handler(err);
+	}
+
+	return code;
+}
+
+void Error_clear(Error *err)
+{
+    if (err)
+        *err = (Error){0};
+}
+
+
+
+
 
 Bytes Bytes_init_str(char *s)
 {
@@ -69,7 +117,7 @@ Bytes Bytes_init_str(char *s)
 
 void *List_grow(void *l, int sizeof_base, int sizeof_item, int min_cap, int add_length)
 {
-	CHECK(min_cap || add_length);
+//	CHECK(min_cap || add_length);
 
 	ListDims *b = l;
 
