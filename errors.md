@@ -98,6 +98,7 @@ Process returns 0 on all success, non-zero on any failures.
 - Debug mode: report to console & abort
 - Release mode: report to log & abort
 - Optimized mode: compiled out
+- No extra parameters require beyond call point.
 
 ## Interface
 

@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <setjmp.h>
 #include "klib.h"
 
 
@@ -120,6 +121,61 @@ TEST_CASE(in_bounds_enums_and_arrays)
 	TEST(!in_array_bounds(-1, array));
 }
 
+
+//-----------------------------------------------------------------------------
+// Assertions Module
+
+typedef void (*AssertHandlerFn)(SourceInfo source, const char *message, void *baggage);
+
+typedef struct {
+	AssertHandlerFn func;
+	void *baggage;
+} AssertionHandler;
+
+static AssertionHandler assert_handler;
+
+AssertionHandler Assert_swap_handler(AssertionHandler new_handler)
+{
+	AssertionHandler old = assert_handler;
+	assert_handler = new_handler;
+	return old;
+}
+
+void Assert_set_handler(AssertHandlerFn new_hand, void *bag)
+{
+	assert_handler.func = new_hand;
+	assert_handler.baggage = bag;
+}
+
+void Assert_failed(SourceInfo source, const char *message)
+{
+	if (assert_handler.func)
+		assert_handler.func(source, message, assert_handler.baggage);
+}
+
+#define CHECK(CONDITION_)   \
+	do{ if (CONDITION_); else Assert_failed(SOURCE_HERE, #CONDITION_); } while(0)
+
+void test_assert_handler(SourceInfo source, const char *message, void *baggage)
+{
+	UNUSED(message);
+	UNUSED(source);
+	*((int*)baggage) = 5; 
+	printf("%s:%d: Assertion failed: %s\n", source.file, source.line, message);
+}
+
+TEST_CASE(custom_assert_handler)
+{
+	int asserted = 0;
+
+	Assert_set_handler(test_assert_handler, &asserted);
+
+	bool oops = false;
+	CHECK(oops);
+
+	TEST(asserted == 5);
+}
+
 //-----------------------------------------------------------------------------
 // Error Module
 
@@ -198,11 +254,11 @@ TEST_CASE(print_error_handler)
 {
 	UNUSED(test_counter);
 
-	ErrorHandler old = Error_set_handler(Status_Error, Error_print);
-	Error err = {0};
-	Error_fail(&err, Status_Error, "testing 1, 2, 3", SOURCE_HERE);
-
-	Error_set_handler(Status_Error, old);
+//	ErrorHandler old = Error_set_handler(Status_Error, Error_print);
+//	Error err = {0};
+//	Error_fail(&err, Status_Error, "testing 1, 2, 3", SOURCE_HERE);
+//
+//	Error_set_handler(Status_Error, old);
 }
 
 
@@ -216,9 +272,50 @@ TEST_CASE(abort_error_handler)
 {
 	UNUSED(test_counter);
 
-	ErrorHandler old = Error_set_handler(Status_Error, Error_abort);
+//	ErrorHandler old = Error_set_handler(Status_Error, Error_abort);
+//	Error err = {0};
+//	Error_fail(&err, Status_Error, "aborting in 3..2..1", SOURCE_HERE);
+
+//	Error_set_handler(Status_Error, old);
+}
+
+
+TEST_CASE(error_return_status_handler)
+{
+	ErrorHandler old = Error_set_handler(Status_Error, Error_status);
 	Error err = {0};
-	Error_fail(&err, Status_Error, "aborting in 3..2..1", SOURCE_HERE);
+	StatusCode stat = Error_fail(&err, Status_Error, "return code", SOURCE_HERE);
+	TEST(stat == Status_Error);
+	Error_set_handler(Status_Error, old);
+}
+
+StatusCode Error_jump(Error *e)
+{
+	if (e) {
+		jmp_buf *buf = e->baggage;
+		longjmp(*buf, e->status);
+	}
+	else {
+		return Status_Unknown_Error;
+	}
+}
+
+TEST_CASE(longjmp_error_handler)
+{
+	ErrorHandler old = Error_set_handler(Status_Error, Error_status);
+	Error err = {0};
+	jmp_buf buf;
+	err.baggage = &buf;
+
+	switch (setjmp(buf)) {
+		case 0:
+			Error_fail(&err, Status_Error, "return code", SOURCE_HERE);
+		case Status_Error:
+			printf("Jumped. sizeof buf: %d\n", sizeof(buf));
+			break;
+		default:
+			TEST(false);
+	}
 
 	Error_set_handler(Status_Error, old);
 }
