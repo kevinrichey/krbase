@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 #define STRAND_DATA_TYPE  int
 #define STRAND_DATA_SIZE  1
@@ -60,6 +61,32 @@ int maxi(int a, int b) { return a > b ? a : b; }
 int mini(int a, int b) { return a < b ? a : b; }
 int sumi(int a, int b) { return a + b; }
 
+
+typedef struct { int a, b; } pair;
+
+#define pack2(A_, B_)  (pair){ .a=(A_), .b=(B_) }
+
+#define unpack2(A_, B_, P_)  do{ \
+	pair pair_temp = P_; \
+	A_ = pair_temp.a;    \
+	B_ = pair_temp.b;    \
+}while(0)
+
+pair get_pair()
+{
+	return pack2(10, 11);
+}
+
+typedef struct { bool ok; int result; }  ok_result;
+
+ok_result  maybe_get_number(int x)
+{
+	if (x > 0)
+		return (ok_result){ .ok=true, .result=100 };
+	else
+		return (ok_result){ .ok=false };
+}
+
 int main(int argc, char *argv[])
 {
 	//exp_strand();
@@ -73,6 +100,21 @@ int main(int argc, char *argv[])
 	int a = 1, b = 2, c = -3, d = 0, e = 100, f = 5;
 	printf("Params max: %d\n", kr_reduce_in( (int[]){ a, b, c, d, e, f }, 6, maxi));
 
+    int x = 0, y = 0;
+	unpack2(x, y,  get_pair());
+    printf("pair.a = %d, pair.b = %d\n", x, y);
+
+
+#define maybe(R_, N_, FN_)  \
+	( ((R_) = (FN_)), (R_).ok ? (N_) = (R_).result : 0, (R_).ok)
+
+	ok_result res;
+	if (maybe(res, x, maybe_get_number(-11)))
+//	if ( (res = maybe_get_number(1)), res.ok ? x = res.result : 0, res.ok )
+		printf("maybe_get_number returned %d\n", x); //res.result);
+	else
+		printf("maybe_get_number returned not ok\n");
+	
 	return 0;
 }
 
