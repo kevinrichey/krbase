@@ -150,51 +150,51 @@ void sum_ints(void *total, void *next_i)
 
 
 
-void *Binode_next(Binode *n)
+void *Binode_next(struct link *n)
 {
 	return n? n->right: NULL;
 }
 
-void *Binode_prev(Binode *n)
+void *Binode_prev(struct link *n)
 {
 	return n? n->left: NULL;
 }
 
-_Bool Binode_is_linked(Binode *n)
+_Bool Binode_is_linked(struct link *n)
 {
 	return n && (n->right || n->left);
 }
 
-_Bool Binode_not_linked(Binode *n)
+_Bool Binode_not_linked(struct link *n)
 {
 	return n && !n->right && !n->left;
 }
 
-_Bool Binodes_are_linked(Binode *l, Binode *r)
+_Bool Binodes_are_linked(struct link *l, struct link *r)
 {
 	return l && l->right == r && r && r->left == l;
 }
 
-void Binode_link(Binode *a, Binode *b)
+void Binode_link(struct link *a, struct link *b)
 {
 	if (a)  a->right = b;
 	if (b)  b->left  = a;
 }
 
-void Binode_insert(Binode *l, Binode *n)
+void Binode_insert(struct link *l, struct link *n)
 {
 	Binode_link(n, Binode_next(l));
 	Binode_link(l, n);
 }
 
-void Binode_remove(Binode *n)
+void Binode_remove(struct link *n)
 {
 	Binode_link(Binode_prev(n), Binode_next(n));
 	Binode_link(n, NULL);
 	Binode_link(NULL, n);
 }
 
-void *Binode_foreach(Binode *node, closure_fn fn, void *closure, int offset)
+void *Binode_foreach(struct link *node, closure_fn fn, void *closure, int offset)
 {
 	for ( ; node != NULL; node = Binode_next(node))
 		fn(closure, (Byte_t*)node + offset);
@@ -208,8 +208,8 @@ Chain Binode_chain_va(void *first, ...)
 	va_list args;
 	va_start(args, first);
 
-	Binode *n = NULL;
-	while ( (n = va_arg(args, Binode*)) ) {
+	struct link *n = NULL;
+	while ( (n = va_arg(args, struct link*)) ) {
 		Binode_link(c.tail, n);
 		c.tail = n;
 	}

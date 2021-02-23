@@ -10,20 +10,20 @@
 	- Encryption
 	- authentication
 - Localization
-- Storage (de/serialization)
+- Storage, de/serialization
 - Documentation
 - Code generation & meta-programming tools
 - names? Deep C, Dark C, Fathom the C
 
 ## What Every C Programmer Needs to Know
 
-- Scope
-- Pointers
+- Scope: function, block, file/translation unit, function proto
+- Namespaces: tags, members, labels, identifiers
+- Calling conventions & return values
 - Stack & heap
 - Storage class & duration
+- Pointers
 - Undefined behavior
-- Calling conventions & return values
-- Namespaces: tags, members, labels, identifiers
 
 # Software Engineering Quality
 
