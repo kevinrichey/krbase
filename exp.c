@@ -104,7 +104,6 @@ int main(int argc, char *argv[])
 	unpack2(x, y,  get_pair());
     printf("pair.a = %d, pair.b = %d\n", x, y);
 
-
 #define maybe(R_, N_, FN_)  \
 	( ((R_) = (FN_)), (R_).ok ? (N_) = (R_).result : 0, (R_).ok)
 
