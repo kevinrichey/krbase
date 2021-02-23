@@ -251,39 +251,39 @@ typedef void (*closure_fn)(void*, void*);
 void sum_ints(void *total, void *next_i);
 
 
-//@module Double linked list
+//@module Double Linked List
 
 typedef struct link {
-	struct link *right, *left;
-} Binode;
+	struct link *next, *prev;
+} link;
 
-void *Binode_next(struct link *n);
-void *Binode_prev(struct link *b);
-_Bool Binode_is_linked(struct link *n);
-_Bool Binode_not_linked(struct link *n);
-_Bool Binodes_are_linked(struct link *a, struct link *b);
+void *link_next(link *n);
+void *link_prev(link *b);
+_Bool link_is_attached(link *n);
+_Bool link_not_attached(link *n);
+_Bool links_are_attached(link *a, link *b);
 
-void Binode_link(struct link *a, struct link *b);
-void Binode_insert(struct link *l, struct link *n);
-void Binode_remove(struct link *n);
-void *Binode_foreach(struct link *node, closure_fn fn, void *closure, int offset);
+void link_attach(link *a, link *b);
+void link_insert(link *l, link *n);
+void link_remove(link *n);
+void *link_foreach(link *node, closure_fn fn, void *closure, int offset);
 
-typedef struct {
-	struct link *head, *tail;
-} Chain;
+typedef struct chain {
+	link *head, *tail;
+} chain;
 
-Chain Binode_chain_va(void *first, ...);
+chain make_chain_va(void *first, ...);
 
-#define BINODE_CHAIN(...)   Binode_chain_va(__VA_ARGS__, NULL)
+#define make_chain(...)   make_chain_va(__VA_ARGS__, NULL)
 
-static inline struct link *Chain_head(Chain *c) 
+static inline link *chain_head(chain *c) 
 {
-	return c? c->head: NULL;
+	return c ? c->head : NULL;
 }
 
-static inline struct link *Chain_tail(Chain *c) 
+static inline link *chain_tail(chain *c) 
 {
-	return c? c->tail: NULL;
+	return c ? c->tail : NULL;
 }
 
 //@module Pseudo-Random Number Generation

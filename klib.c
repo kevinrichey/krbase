@@ -150,74 +150,74 @@ void sum_ints(void *total, void *next_i)
 
 
 
-void *Binode_next(struct link *n)
+void *link_next(link *n)
 {
-	return n? n->right: NULL;
+	return n? n->next: NULL;
 }
 
-void *Binode_prev(struct link *n)
+void *link_prev(link *n)
 {
-	return n? n->left: NULL;
+	return n? n->prev: NULL;
 }
 
-_Bool Binode_is_linked(struct link *n)
+_Bool link_is_attached(link *n)
 {
-	return n && (n->right || n->left);
+	return n && (n->next || n->prev);
 }
 
-_Bool Binode_not_linked(struct link *n)
+_Bool link_not_attached(link *n)
 {
-	return n && !n->right && !n->left;
+	return n && !n->next && !n->prev;
 }
 
-_Bool Binodes_are_linked(struct link *l, struct link *r)
+_Bool links_are_attached(link *l, link *r)
 {
-	return l && l->right == r && r && r->left == l;
+	return l && l->next == r && r && r->prev == l;
 }
 
-void Binode_link(struct link *a, struct link *b)
+void link_attach(link *a, link *b)
 {
-	if (a)  a->right = b;
-	if (b)  b->left  = a;
+	if (a)  a->next = b;
+	if (b)  b->prev  = a;
 }
 
-void Binode_insert(struct link *l, struct link *n)
+void link_insert(link *l, link *n)
 {
-	Binode_link(n, Binode_next(l));
-	Binode_link(l, n);
+	link_attach(n, link_next(l));
+	link_attach(l, n);
 }
 
-void Binode_remove(struct link *n)
+void link_remove(link *n)
 {
-	Binode_link(Binode_prev(n), Binode_next(n));
-	Binode_link(n, NULL);
-	Binode_link(NULL, n);
+	link_attach(link_prev(n), link_next(n));
+	link_attach(n, NULL);
+	link_attach(NULL, n);
 }
 
-void *Binode_foreach(struct link *node, closure_fn fn, void *closure, int offset)
+void *link_foreach(link *node, closure_fn fn, void *closure, int offset)
 {
-	for ( ; node != NULL; node = Binode_next(node))
+	for ( ; node != NULL; node = link_next(node))
 		fn(closure, (Byte_t*)node + offset);
 	return closure;
 }
 
-Chain Binode_chain_va(void *first, ...)
+chain make_chain_va(void *first, ...)
 {
-	Chain c = { .head = first, .tail = first };
+	chain c = { .head = first, .tail = first };
 
 	va_list args;
 	va_start(args, first);
 
-	struct link *n = NULL;
-	while ( (n = va_arg(args, struct link*)) ) {
-		Binode_link(c.tail, n);
+	link *n = NULL;
+	while ( (n = va_arg(args, link*)) ) {
+		link_attach(c.tail, n);
 		c.tail = n;
 	}
 
 	va_end(args);
 
-	Binode_link(NULL, c.head);
-	Binode_link(c.tail, NULL);
+	link_attach(NULL, c.head);
+	link_attach(c.tail, NULL);
 
 	return c;
 }

@@ -3,7 +3,6 @@ CC = clang
 CWARNFLAGS = -Wall -Wextra -Werror \
 			 -Wno-missing-field-initializers \
 			 -Wno-missing-braces \
-			 -Wvla -Wimplicit-fallthrough \
 			 -fno-delete-null-pointer-checks
 CFLAGS = -std=c17 -g -D DEBUG $(CWARNFLAGS)
 #CFLAGS = -std=c11 -g -D DEBUG -I/mingw64/include/SDL2  -MMD $(CWARNFLAGS)
