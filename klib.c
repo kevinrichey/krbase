@@ -150,14 +150,14 @@ void sum_ints(void *total, void *next_i)
 
 
 
-void *link_next(link *n)
+link *link_next(link *n)
 {
-	return n? n->next: NULL;
+	return n ? n->next : NULL;
 }
 
-void *link_prev(link *n)
+link *link_prev(link *n)
 {
-	return n? n->prev: NULL;
+	return n ? n->prev : NULL;
 }
 
 _Bool link_is_attached(link *n)
@@ -175,16 +175,36 @@ _Bool links_are_attached(link *l, link *r)
 	return l && l->next == r && r && r->prev == l;
 }
 
-void link_attach(link *a, link *b)
+link *link_attach(link *a, link *b)
 {
 	if (a)  a->next = b;
 	if (b)  b->prev  = a;
+	return b;
 }
 
-void link_insert(link *l, link *n)
+link *link_attach_n(link *prev, ...)
 {
-	link_attach(n, link_next(l));
-	link_attach(l, n);
+	va_list args;
+	va_start(args, prev);
+
+	link *next = NULL;
+	while ((next = va_arg(args, link*)))
+		prev = link_attach(prev, next);
+
+	va_end(args);
+	return prev;
+}
+
+void link_insert(link *new_link, link *before_this)
+{
+	link_attach(link_prev(before_this), new_link);
+	link_attach(new_link, before_this);
+}
+
+void link_append(link *after_this, link *new_link)
+{
+	link_attach(new_link, link_next(after_this));
+	link_attach(after_this, new_link);
 }
 
 void link_remove(link *n)
@@ -199,27 +219,6 @@ void *link_foreach(link *node, closure_fn fn, void *closure, int offset)
 	for ( ; node != NULL; node = link_next(node))
 		fn(closure, (Byte_t*)node + offset);
 	return closure;
-}
-
-chain make_chain_va(void *first, ...)
-{
-	chain c = { .head = first, .tail = first };
-
-	va_list args;
-	va_start(args, first);
-
-	link *n = NULL;
-	while ( (n = va_arg(args, link*)) ) {
-		link_attach(c.tail, n);
-		c.tail = n;
-	}
-
-	va_end(args);
-
-	link_attach(NULL, c.head);
-	link_attach(c.tail, NULL);
-
-	return c;
 }
 
 

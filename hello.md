@@ -13,7 +13,7 @@
 - Storage, de/serialization
 - Documentation
 - Code generation & meta-programming tools
-- names? Deep C, Dark C, Fathom the C
+- names? Deep C, Dark C, Fathom the C, explore C
 
 ## What Every C Programmer Needs to Know
 
@@ -25,58 +25,119 @@
 - Pointers
 - Undefined behavior
 
-# Software Engineering Quality
+# Build Modes
 
-- Signal handling
-- Tracing & Logging
+- Test
+- Debug
+- Release
 
-## Unit testing
+enum & global constant for current build mode.
+
+# Unit testing
 
 - Test case isolation
 - Test discovery & execution
 - Testing for data alignment
 - Handle errors & assertions as test failures
+- Fixture setup & tear down
 
-## Error handling 
+## Test Output
 
-Failure
-: Function is unable to complete succesfully. 
+Success or Failure
 
-Status codes
+Test Failure
+: `FILE.c:LINE: Test FUNCTION failed: CONDITION`
 
+Statistics (# tests, # failures)
+
+Process returns 0 on all success, non-zero on any failures.
+
+### Components
+
+- test_assert(condition, file, line, fmt, ...)
+- test_assert_eq_T("a", a, "b", b, file, line, fmt, ...)
+- test_failure(file, line, fmt, ...)
+
+# Error Handling 
+
+- do nothing, ignore, off/disabled
+- print/log a message
+- pause, prompt user
+- return error code to client
+- set error state
+- longjmp/exception
+- halt program
+- breakpoint
+- raise signal
+
+Unit Test Mode
+: Print to stderr
+: Propagate error up to test case
+: Test failure if test case does not handle error
+: Test passes if test case handles error
+
+Debug Mode
+: Print to stderr
+: Break in debugger
+
+Release Mode
+: Print to log
+: Inform user
+
+## Status codes
+
+- OK, no error
+- Error, general
 - Math overflow
 - Array overflow
 - Null pointer
-- Un-init pointer
-- Out of memory
+- Bad pointer
+- Allocation failure
 - Not found
 - Test case failure
 - Assertion failure
+- File/disk error
+- Bad user input
 
-Error Reporting
+Operations
 
-- Status failure(err, code, debug_info, message)
-	- Set status code
-	- Collect error & debug info
-	- Push error onto stack
-	- Call handler
-	- If handler returns, return status code
-- raise(err, code, debug, message)  - propogate error up, adding debug info
+- status to string
 
-Error Handler Module
+## Error 
 
-- List handler functions for each error code
-	- Possible outcomes: return code, terminate, long jump
+Information about specific error.
+
+- Status code
+- Message
+- Debug info: file & line
+
+Operations
+
+- init
+- is OK
+- is error
+- print error
+
+## Error Handler Module
+
+- List of handler functions for each status code
 - Error stack
-- log handle
+- output stream
 - long jump location
 
-Error 
+Operations
 
-- Information about specific error occurrance 
-	- Status code
-	- Debug info: file & line
-	- Message
+- init
+- set handler
+- dispose
+- has error
+- push error
+- pop error
+- clear errors
+- print error
+- print error stack
+- set jump
+- set stream
 
 ## Assertions
 
@@ -86,13 +147,57 @@ Error
 	- call assert handler
 - configure assert handler on app init
 
-## Memory Integrity
+Categories
+
+- precondition
+- postcondition
+- invariant
+
+Failure Handling
+
+- print/log
+- ignore
+- halt
+- throw/long jump
+- breakpoint
+
+Return error code is not an option.
+
+# Memory Integrity
 
 - Check bad inputs (null/bad pointer, zero/negative size)
 - Initialize memory with special value
 - Init pointers with special value
 - Over-allocate and check for overflows
 - Track memory usage (pointer, size, file/line at allocation)
+
+# Tracing & Logging
+
+- Logging is tracing to a file
+- Delimited output for easy parsing
+- Thread-safe
+
+## What to Log
+
+- Date/time stamp
+- Category
+- Volume level
+- Thread ID
+- Message
+
+## How to Log
+
+- Application Start-up & shut-down
+- Config info (option name, value, source/origin)
+- Begin/end main loop, transactions, events, requests, etc
+- Errors, Assertion failures
+- Debugging, watch variables
+
+## Log Configuration
+
+- Volume throttle (0 = always)
+- Category on/off (null handler)
+- Rotation, archiving, cleanup
 
 # Basic Types 
 
@@ -105,7 +210,7 @@ Error
 
 ### String Requirements
 
-- compatible with any storage method
+- any storage method
 - stores end pointer for faster concat & length
 - can be null/empty
 - function pass & return by value
@@ -120,15 +225,14 @@ union strand {
 };
 
 
-
 ### String Storage
 
 - constant literal
-- char pointer
+- char pointer + length
 - local array
 - compound literal array
 - internal short array
-- dynamic allocation, must be freed
+- heap
 
 ### String Composition
 
@@ -143,7 +247,7 @@ union strand {
 ### String Operations
 
 - length
-- not/equals
+- not/equals, ignore case
 - compare
 - copy
 
@@ -190,8 +294,6 @@ Enumerated, ordered objects.
 
 # Standard Operations
 
-- size:      storage consumption (bytes) of sequence
-
 ## Object Existence
 
 - create:    Bring new object into existence on heap.
@@ -203,7 +305,6 @@ Enumerated, ordered objects.
 
 - length:    number of elements
 - size:      max number of elements a container may hold.
-- capacity:  maxiumum length of sequence
 - empty:     length is zero, no elements to get or remove
 - nonempty:  length is at least 1
 - full:      length equals size, cannot add more elements
@@ -256,10 +357,30 @@ State
 Operations
 
 - begin:     Start itertion 
-- next(n)  - advance n elements (default 1), fails if done.
+- next(n)  - advance n steps (default 1), fails if done.
+
+Common inits
 
 - first(n):  start=0, step=1, count=n
 - last(n):   start=-1, step=-1, count=n
+
+## Collection Pipeline Operations
+
+operations -> new list/array
+
+- copy
+- concat
+- diff (new list = x : x not in [set])
+- intersect (new list = x : x in [set])
+- union (new list = x : x in [old] and x in [new])
+- distinct/unique
+- filter (new list = x : p(x) is true), aka select
+- reject (new list = x : p(x) is false)
+- group-by 
+- map (new list = f(x), x in old)
+- reduce
+- slice
+- sort(comp)
 
 # Configuration
 

@@ -5,7 +5,7 @@
 #include "klib.h"
 
 struct object {
-	Binode siblings;
+	link siblings;
 	struct object *down;
 	const char *id;
 	const char *file;
@@ -20,7 +20,7 @@ bool object_is_child_of(struct object *node, struct object *parent)
 void object_link_down(struct object *node, struct object *sub)
 {
 	if (node)  node->down = sub;
-	if (sub)   sub->siblings.left = &node->siblings;
+	if (sub)   sub->siblings.prev = &node->siblings;
 }
 
 #define WATCH(VAR_)      printf(#VAR_ " = %d\n", (int)(VAR_))
@@ -43,7 +43,7 @@ void print_mem(struct object *h, int indent)
 {
 	// print self and all siblings
 	
-	for (; h != NULL; h = (struct object*)h->siblings.right) {
+	for (; h != NULL; h = (struct object*)h->siblings.next) {
 		for (int i = 0; i < indent; ++i)
 			putchar('\t');
 		printf("%p\t%s\t%s:%d\n", (void*)h, h->id, h->file, h->line);
@@ -57,10 +57,10 @@ void *tmalloc(struct object *parent, size_t size, const char *id, const char *fi
 {
 	struct object *h = malloc(size);
 	if (h) {
-		h->siblings.right = h->siblings.left = NULL;
+		h->siblings.next = h->siblings.prev = NULL;
 		h->down = NULL;
 		if (parent) {
-			Binode_link(&h->siblings, (Binode*)parent->down);
+			link_attach(&h->siblings, (link*)parent->down);
 			object_link_down(parent, h);
 		}
 		h->id = id;
@@ -91,7 +91,7 @@ void tfree_children(struct object *head)
 {
 	struct object *child = head->down;
 	while (child) {
-		struct object *next = (struct object*)child->siblings.right;
+		struct object *next = (struct object*)child->siblings.next;
 		if (child->down)
 			tfree_children(child);
 		printf("freed %s\n", child->id);
@@ -107,10 +107,10 @@ void tfree(void *p)
 	if (h) {
 		tfree_children(h);
 
-		if (object_is_child_of(h, (struct object*)h->siblings.left)) 
-			object_link_down((struct object*)h->siblings.left, (struct object*)h->siblings.right);
+		if (object_is_child_of(h, (struct object*)h->siblings.prev)) 
+			object_link_down((struct object*)h->siblings.prev, (struct object*)h->siblings.next);
 		else
-			Binode_link(h->siblings.left, h->siblings.right);
+			link_attach(h->siblings.prev, h->siblings.next);
 
 		printf("freed %s\n", h->id);
 		free(p);

@@ -540,128 +540,114 @@ TEST_CASE(add_item_to_empty_list)
 
 TEST_CASE(link_attach_2_solo_nodes)
 {
-	struct {
-		struct link link;
-		char q;
-	} a = { .q = 'a' }, 
-	  b = { .q = 'b' },
-	  *p;
-
 	// Given two unlinked nodes
-	TEST(link_not_attached(&a.link));
-	TEST(link_not_attached(&b.link));
+	link a = {0};
+	link b = {0};
+	TEST(link_not_attached(&a));
+	TEST(link_not_attached(&b));
 	
 	// When they're linked
-	link_attach(&a.link, &b.link);
+	link_attach(&a, &b);
 
-	TEST(links_are_attached(&a.link, &b.link));
-	TEST(link_next(&a.link) == (void*)&b);
-	TEST(link_next(&b.link) == NULL);
-	TEST(link_is_attached(&a.link));
-	TEST(link_is_attached(&b.link));
-
-	// and advancing to a right is b
-	p = &a;
-	TEST(p->q == 'a');
-	p = link_next((link*)p);
-	TEST(p->q == 'b');
+	// They are attached and adjacent
+	TEST(links_are_attached(&a, &b));
+	TEST(link_next(&a) == &b);
+	TEST(link_next(&b) == NULL);
 }
 
 TEST_CASE(link_insert_between_2_links)
 {
-	struct {
-		link link;
-		char q;
-	} a = { .q = 'a' }, 
-	  b = { .q = 'b' },
-	  c = { .q = 'c' },
-	  *p;
-
 	// Given two linked and one solo nodes
-	link_attach(&a.link, &b.link);
-	TEST( links_are_attached(&a.link, &b.link) );
-	TEST( link_not_attached(&c.link) );
-	p = NULL;
+	link a = {0};
+	link b = {0};
+	link c = {0};
+	link_attach(&a, &b);
+	test(links_are_attached(&a, &b));
+	test(link_not_attached(&c) );
 
-	// When solo node c inserted after a
-	link_insert(&a.link, &c.link);
+	// When solo node c inserted before b
+	link_insert(&c, &b);
 
 	// Then a.right is c and c.right is b
-	p = &a;
-	TEST(p->q == 'a');
-	p = link_next(&p->link);
-	TEST(p->q == 'c');
-	p = link_next(&p->link);
-	TEST(p->q == 'b');
+	test(links_are_attached(&a, &c) );
+	test(links_are_attached(&c, &b) );
 }
 
 TEST_CASE(link_attach_to_null)
 {
-	struct {
-		link link;
-		char q;
-	} a = { .q = 'a' }, 
-	  b = { .q = 'b' },
-	  *p;
-
-	p = NULL;
-
 	// Given a and b are linked
-	link_attach(&a.link, &b.link);
-	TEST( links_are_attached(&a.link, &b.link) );
+	link a = {0};
+	link b = {0};
+	link_attach(&a, &b);
+	test(links_are_attached(&a, &b) );
 	
 	// When a is linked to NULL
-	link_attach(&a.link, NULL);
+	link_attach(&a, NULL);
 
 	// Then a is no longer linked to b
 	// and b is still linked to a
-	TEST( !links_are_attached(&a.link, &b.link) );
-	TEST( link_not_attached(&a.link) );
-	TEST( link_next(&a.link) != &b.link );
-	TEST( link_prev(&b.link) == &a.link );
+	test(!links_are_attached(&a, &b));
+	test(link_not_attached(&a));
+	test(link_next(&a) != &b);
+	test(link_prev(&b) == &a);
 }
 
 TEST_CASE(link_remove_node)
 {
-	struct {
-		link link;
-		char q;
-	} a = { .q = 'a' }, 
-	  b = { .q = 'b' },
-	  c = { .q = 'c' };
-
 	// Given chain a:b:c
-	link_attach(&a.link, &b.link);
-	link_attach(&b.link, &c.link);
+	link a = {0};
+	link b = {0};
+	link c = {0};
+	link_attach(&a, &b);
+	link_attach(&b, &c);
 
 	// When b is removed
-	link_remove(&b.link);
+	link_remove(&b);
 
 	// Then a is linked to c and b is unlinked
-	TEST(link_not_attached(&b.link));
-	TEST(links_are_attached(&a.link, &c.link));
+	test(link_not_attached(&b));
+	test(links_are_attached(&a, &c));
 }
 
 TEST_CASE(link_remove_last_node)
 {
-	struct {
-		link link;
-		char q;
-	} a = { .q = 'a' }, 
-	  b = { .q = 'b' },
-	  c = { .q = 'c' };
-
 	// Given chain a:b:c
-	link_attach(&a.link, &b.link);
-	link_attach(&b.link, &c.link);
+	link a = {0};
+	link b = {0};
+	link c = {0};
+	link_attach(&a, &b);
+	link_attach(&b, &c);
 
 	// When c is removed
-	link_remove(&c.link);
+	link_remove(&c);
 
 	// Then a is linked to b and c is unlinked
-	TEST(link_not_attached(&c.link));
-	TEST(links_are_attached(&a.link, &b.link));
-	TEST(!links_are_attached(&b.link, &c.link));
+	test(link_not_attached(&c));
+	test(links_are_attached(&a, &b));
+	test(!links_are_attached(&b, &c));
+}
+
+TEST_CASE(link_attach_multiple_links)
+{
+	// Given several links
+	link a = {0}, 
+	     b = {0},
+	     c = {0},
+	     d = {0},
+	     e = {0},
+	     f = {0};
+
+	// When all attached together
+	link *r = link_attach_n(&a, &b, &c, &d, &e, &f, NULL);
+
+	test(links_are_attached(&a, &b));
+	test(links_are_attached(&b, &c));
+	test(links_are_attached(&c, &d));
+	test(links_are_attached(&d, &e));
+	test(links_are_attached(&e, &f));
+	test(link_prev(&a) == NULL);
+	test(link_next(&f) == NULL);
+	test(r == &f);
 }
 
 TEST_CASE(link_foreach)
@@ -692,39 +678,32 @@ TEST_CASE(link_foreach)
 	TEST(total == 21);
 }
 
-TEST_CASE(link_make_chain)
+TEST_CASE(add_links_to_chain)
 {
-	struct test_node {
-		link link;
-		int i;
-	} a = { .i = 1 }, 
-	  b = { .i = 2 },
-	  c = { .i = 3 },
-	  d = { .i = 4 },
-	  e = { .i = 5 },
-	  f = { .i = 6 };
+	// Given a cyclic chain head and un-attached links
+	link head = { &head, &head };
+	link a = {0};
+	link b = {0};
+	link c = {0};
+	test(link_not_attached(&a));
+	test(link_not_attached(&b));
+	test(link_not_attached(&c));
 
-	// Given several unlinked nodes
-	TEST(link_not_attached(&a.link));
-	TEST(link_not_attached(&b.link));
-	TEST(link_not_attached(&c.link));
-	TEST(link_not_attached(&d.link));
-	TEST(link_not_attached(&e.link));
-	TEST(link_not_attached(&f.link));
+	// Inserting links at head appends to end of chain
+	link_insert(&a, &head);
+	test(links_are_attached(&head, &a));
+	test(links_are_attached(&a, &head));
 
-	// When chained together
-	chain x = make_chain(&a, &b, &c, &d, &e, &f);
+	link_insert(&b, &head);
+	test(links_are_attached(&head, &a));
+	test(links_are_attached(&a, &b));
+	test(links_are_attached(&b, &head));
 
-	// Then they're all linked
-	TEST(chain_head(&x) == (link*)&a);
-	TEST(chain_tail(&x) == (link*)&f);
-	TEST(link_prev(x.head) == NULL);
-	TEST(link_next(x.tail) == NULL);
-	TEST(links_are_attached(&a.link, &b.link));
-	TEST(links_are_attached(&b.link, &c.link));
-	TEST(links_are_attached(&c.link, &d.link));
-	TEST(links_are_attached(&d.link, &e.link));
-	TEST(links_are_attached(&e.link, &f.link));
+	link_insert(&c, &head);
+	test(links_are_attached(&head, &a));
+	test(links_are_attached(&a, &b));
+	test(links_are_attached(&b, &c));
+	test(links_are_attached(&c, &head));
 }
 
 

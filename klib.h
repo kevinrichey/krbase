@@ -66,6 +66,8 @@ void Test_fail(TestCounter *counter, const char *file, int line, const char *msg
 #define TEST(CONDITION_) \
 	do { if (CONDITION_); else Test_fail(test_counter, __FILE__, __LINE__, #CONDITION_); } while(0)
 
+#define test(CONDITION_) \
+	do { if (CONDITION_); else Test_fail(test_counter, __FILE__, __LINE__, #CONDITION_); } while(0)
 
 //----------------------------------------------------------------------
 //@module Debugging & Error Checking
@@ -251,40 +253,25 @@ typedef void (*closure_fn)(void*, void*);
 void sum_ints(void *total, void *next_i);
 
 
-//@module Double Linked List
+//@module Chain - Double Linked List
 
 typedef struct link {
 	struct link *next, *prev;
 } link;
 
-void *link_next(link *n);
-void *link_prev(link *b);
+link *link_next(link *n);
+link *link_prev(link *b);
 _Bool link_is_attached(link *n);
 _Bool link_not_attached(link *n);
 _Bool links_are_attached(link *a, link *b);
 
-void link_attach(link *a, link *b);
-void link_insert(link *l, link *n);
+link *link_attach(link *a, link *b);
+link *link_attach_n(link *prev, ...);
+void link_insert(link *new_link, link *before_this);
+void link_append(link *after_this, link *new_link);
 void link_remove(link *n);
 void *link_foreach(link *node, closure_fn fn, void *closure, int offset);
 
-typedef struct chain {
-	link *head, *tail;
-} chain;
-
-chain make_chain_va(void *first, ...);
-
-#define make_chain(...)   make_chain_va(__VA_ARGS__, NULL)
-
-static inline link *chain_head(chain *c) 
-{
-	return c ? c->head : NULL;
-}
-
-static inline link *chain_tail(chain *c) 
-{
-	return c ? c->tail : NULL;
-}
 
 //@module Pseudo-Random Number Generation
 
