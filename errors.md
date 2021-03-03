@@ -45,13 +45,6 @@ I use two strategies for catching logic errors: unit testing and assertions.
 Both utilize the same basic element: the assertion function.
 Libc provides the standard assert() macro, which is pretty useful, but lacking in some features. I prefer a more 
 
-# Compilation & Runtime Modes
-
-- Test - running under a testing framework
-- Debug - running in a debugger
-- Release - running in production
-- Optimized - optimized for production
-
 # Categories
 
 - Assertion

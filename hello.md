@@ -33,6 +33,16 @@
 
 enum & global constant for current build mode.
 
+# Categories
+
+- Error
+- Assertion
+- Debug
+- Allocation
+- Undefined Behavior
+- Bad input
+- Testing
+
 # Unit testing
 
 - Test case isolation
@@ -118,12 +128,12 @@ Operations
 - is error
 - print error
 
-## Error Handler Module
+## Diagnostics Module
 
-- List of handler functions for each status code
+- List of handler functions for each category
 - Error stack
-- output stream
-- long jump location
+- tracing/logging output stream
+- long jump on/off, location
 
 Operations
 

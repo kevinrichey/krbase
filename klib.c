@@ -182,19 +182,6 @@ link *link_attach(link *a, link *b)
 	return b;
 }
 
-link *link_attach_n(link *prev, ...)
-{
-	va_list args;
-	va_start(args, prev);
-
-	link *next = NULL;
-	while ((next = va_arg(args, link*)))
-		prev = link_attach(prev, next);
-
-	va_end(args);
-	return prev;
-}
-
 void link_insert(link *new_link, link *before_this)
 {
 	link_attach(link_prev(before_this), new_link);
@@ -210,14 +197,47 @@ void link_append(link *after_this, link *new_link)
 void link_remove(link *n)
 {
 	link_attach(link_prev(n), link_next(n));
-	link_attach(n, NULL);
-	link_attach(NULL, n);
+	n->next = n->prev = NULL;
 }
 
-void *link_foreach(link *node, closure_fn fn, void *closure, int offset)
+bool chain_empty(chain *chain)
 {
-	for ( ; node != NULL; node = link_next(node))
-		fn(closure, (Byte_t*)node + offset);
+	return !chain || chain->head.next == &chain->head;
+}
+
+link *chain_first(chain *chain)
+{
+	return chain_empty(chain) ? NULL : chain->head.next;
+}
+
+link *chain_last(chain *chain)
+{
+	return chain_empty(chain) ? NULL : chain->head.prev;
+}
+
+void chain_append(chain *c, link *l)
+{
+	link_insert(l, &c->head);
+}
+
+void chain_appends(chain *chain, ...)
+{
+	va_list args;
+	va_start(args, chain);
+
+	link *prev = &chain->head;
+	link *next = NULL;
+	while ((next = va_arg(args, link*)))
+		prev = link_attach(prev, next);
+	link_attach(prev, &chain->head);
+
+	va_end(args);
+}
+
+void *chain_foreach(chain *chain, closure_fn fn, void *closure, int offset)
+{
+	for (link *n = chain->head.next; n != &chain->head; n = n->next)
+		fn(closure, (Byte_t*)n + offset);
 	return closure;
 }
 

@@ -259,6 +259,14 @@ typedef struct link {
 	struct link *next, *prev;
 } link;
 
+#define link_init()   {0}
+
+typedef struct chain {
+	link head;
+} chain;
+
+#define chain_init(C_)   { .head = { .next = &(C_).head, .prev = &(C_).head } }
+
 link *link_next(link *n);
 link *link_prev(link *b);
 _Bool link_is_attached(link *n);
@@ -266,11 +274,17 @@ _Bool link_not_attached(link *n);
 _Bool links_are_attached(link *a, link *b);
 
 link *link_attach(link *a, link *b);
-link *link_attach_n(link *prev, ...);
+
 void link_insert(link *new_link, link *before_this);
 void link_append(link *after_this, link *new_link);
 void link_remove(link *n);
-void *link_foreach(link *node, closure_fn fn, void *closure, int offset);
+
+bool  chain_empty(chain *chain);
+link *chain_first(chain *chain);
+link *chain_last(chain *chain);
+void  chain_append(chain *c, link *l);
+void  chain_appends(chain *chain, ...);
+void *chain_foreach(chain *chain, closure_fn fn, void *closure, int offset);
 
 
 //@module Pseudo-Random Number Generation

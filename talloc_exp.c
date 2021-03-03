@@ -6,22 +6,10 @@
 
 struct object {
 	link siblings;
-	struct object *down;
 	const char *id;
 	const char *file;
 	int         line;
 };
-
-bool object_is_child_of(struct object *node, struct object *parent)
-{
-	return node && parent && parent->down == node;
-}
-
-void object_link_down(struct object *node, struct object *sub)
-{
-	if (node)  node->down = sub;
-	if (sub)   sub->siblings.prev = &node->siblings;
-}
 
 #define WATCH(VAR_)      printf(#VAR_ " = %d\n", (int)(VAR_))
 #define WATCH_STR(VAR_)  printf(#VAR_ " = %s\n", (char*)(VAR_))

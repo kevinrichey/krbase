@@ -538,11 +538,11 @@ TEST_CASE(add_item_to_empty_list)
 // Doubly Linked List
 //
 
-TEST_CASE(link_attach_2_solo_nodes)
+TEST_CASE(attach_two_links)
 {
-	// Given two unlinked nodes
-	link a = {0};
-	link b = {0};
+	// Given two empty links
+	link a = link_init();
+	link b = link_init();
 	TEST(link_not_attached(&a));
 	TEST(link_not_attached(&b));
 	
@@ -555,12 +555,12 @@ TEST_CASE(link_attach_2_solo_nodes)
 	TEST(link_next(&b) == NULL);
 }
 
-TEST_CASE(link_insert_between_2_links)
+TEST_CASE(insert_link)
 {
 	// Given two linked and one solo nodes
-	link a = {0};
-	link b = {0};
-	link c = {0};
+	link a = link_init();
+	link b = link_init();
+	link c = link_init();
 	link_attach(&a, &b);
 	test(links_are_attached(&a, &b));
 	test(link_not_attached(&c) );
@@ -573,31 +573,12 @@ TEST_CASE(link_insert_between_2_links)
 	test(links_are_attached(&c, &b) );
 }
 
-TEST_CASE(link_attach_to_null)
-{
-	// Given a and b are linked
-	link a = {0};
-	link b = {0};
-	link_attach(&a, &b);
-	test(links_are_attached(&a, &b) );
-	
-	// When a is linked to NULL
-	link_attach(&a, NULL);
-
-	// Then a is no longer linked to b
-	// and b is still linked to a
-	test(!links_are_attached(&a, &b));
-	test(link_not_attached(&a));
-	test(link_next(&a) != &b);
-	test(link_prev(&b) == &a);
-}
-
 TEST_CASE(link_remove_node)
 {
 	// Given chain a:b:c
-	link a = {0};
-	link b = {0};
-	link c = {0};
+	link a = link_init();
+	link b = link_init();
+	link c = link_init();
 	link_attach(&a, &b);
 	link_attach(&b, &c);
 
@@ -609,49 +590,35 @@ TEST_CASE(link_remove_node)
 	test(links_are_attached(&a, &c));
 }
 
-TEST_CASE(link_remove_last_node)
+TEST_CASE(chain_multiple_links)
 {
-	// Given chain a:b:c
-	link a = {0};
-	link b = {0};
-	link c = {0};
-	link_attach(&a, &b);
-	link_attach(&b, &c);
+	// Given empty chain and several links
+	chain chain = chain_init(chain);
+	link a = link_init(), 
+	     b = link_init(),
+	     c = link_init(),
+	     d = link_init(),
+	     e = link_init(),
+	     f = link_init();
 
-	// When c is removed
-	link_remove(&c);
+	// When all appended to chain
+	chain_appends(&chain, &a, &b, &c, &d, &e, &f, NULL);
 
-	// Then a is linked to b and c is unlinked
-	test(link_not_attached(&c));
-	test(links_are_attached(&a, &b));
-	test(!links_are_attached(&b, &c));
-}
-
-TEST_CASE(link_attach_multiple_links)
-{
-	// Given several links
-	link a = {0}, 
-	     b = {0},
-	     c = {0},
-	     d = {0},
-	     e = {0},
-	     f = {0};
-
-	// When all attached together
-	link *r = link_attach_n(&a, &b, &c, &d, &e, &f, NULL);
-
-	test(links_are_attached(&a, &b));
-	test(links_are_attached(&b, &c));
-	test(links_are_attached(&c, &d));
-	test(links_are_attached(&d, &e));
-	test(links_are_attached(&e, &f));
-	test(link_prev(&a) == NULL);
-	test(link_next(&f) == NULL);
-	test(r == &f);
+	// Each attached to the next
+	link *l = chain_first(&chain);
+	test(l == &a);
+	test((l = link_next(l)) == &b);
+	test((l = link_next(l)) == &c);
+	test((l = link_next(l)) == &d);
+	test((l = link_next(l)) == &e);
+	test((l = link_next(l)) == &f);
+	test(l == chain_last(&chain));
 }
 
 TEST_CASE(link_foreach)
 {
+	chain chain = chain_init(chain);
+
 	struct test_node {
 		link link;
 		int i;
@@ -663,47 +630,41 @@ TEST_CASE(link_foreach)
 	  f = { .i = 6 };
 
 	// Given chain a:b:c:d:e:f
-	link_attach(&a.link, &b.link);
-	link_attach(&b.link, &c.link);
-	link_attach(&c.link, &d.link);
-	link_attach(&d.link, &e.link);
-	link_attach(&e.link, &f.link);
+	chain_appends(&chain, &a, &b, &c, &d, &e, &f, NULL);
 
 	// When we sum all node values with foreach
 	int total = 0;
-	int i_offset = offsetof(struct test_node,i);
-	link_foreach(&a.link, sum_ints, &total, i_offset);
+	int i_offset = offsetof(struct test_node, i);
+	chain_foreach(&chain, sum_ints, &total, i_offset);
 
 	// Then we get a total
 	TEST(total == 21);
 }
 
-TEST_CASE(add_links_to_chain)
+TEST_CASE(add_links_to_empty_chain)
 {
-	// Given a cyclic chain head and un-attached links
-	link head = { &head, &head };
-	link a = {0};
-	link b = {0};
-	link c = {0};
-	test(link_not_attached(&a));
-	test(link_not_attached(&b));
-	test(link_not_attached(&c));
+	// Given an empty chain
+	chain chain = chain_init(chain);
+	test(chain_empty(&chain));
 
-	// Inserting links at head appends to end of chain
-	link_insert(&a, &head);
-	test(links_are_attached(&head, &a));
-	test(links_are_attached(&a, &head));
+	// Append links to chain
+	link a = link_init();
+	chain_append(&chain, &a);
+	test(links_are_attached(&chain.head, &a));
+	test(links_are_attached(&a, &chain.head));
 
-	link_insert(&b, &head);
-	test(links_are_attached(&head, &a));
+	link b = link_init();
+	chain_append(&chain, &b);
+	test(links_are_attached(&chain.head, &a));
 	test(links_are_attached(&a, &b));
-	test(links_are_attached(&b, &head));
+	test(links_are_attached(&b, &chain.head));
 
-	link_insert(&c, &head);
-	test(links_are_attached(&head, &a));
+	link c = link_init();
+	chain_append(&chain, &c);
+	test(links_are_attached(&chain.head, &a));
 	test(links_are_attached(&a, &b));
 	test(links_are_attached(&b, &c));
-	test(links_are_attached(&c, &head));
+	test(links_are_attached(&c, &chain.head));
 }
 
 
