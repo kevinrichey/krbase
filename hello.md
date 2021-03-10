@@ -6,6 +6,7 @@
 - Concurrency & Parallelism, multi-threading & forking
 - Networking, Inter-Process Communication
 - Security
+	- bounds checking
 	- Vulnerability prevention
 	- Encryption
 	- authentication
@@ -13,9 +14,12 @@
 - Storage, de/serialization
 - Documentation
 - Code generation & meta-programming tools
-- names? Deep C, Dark C, Fathom the C, explore C
+- names?
+	- Deep C, Dark C, Fathom the C, 
+	- explore C, C explorer, 
+	- C tools, C toolbox, C toolkit
 
-## What Every C Programmer Needs to Know
+## Things Every C Programmer Needs to Know
 
 - Scope: function, block, file/translation unit, function proto
 - Namespaces: tags, members, labels, identifiers
@@ -24,6 +28,7 @@
 - Storage class & duration
 - Pointers
 - Undefined behavior
+- Preprocessor
 
 # Build Modes
 

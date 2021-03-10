@@ -108,7 +108,7 @@ void Error_clear(Error *err)
 
 Bytes Bytes_init_str(char *s)
 {
-	return (Bytes)Span_init((Byte_t*)s, strlen(s));
+	return (Bytes)span_init((Byte_t*)s, strlen(s));
 }
 
 
@@ -200,7 +200,7 @@ void link_remove(link *n)
 	n->next = n->prev = NULL;
 }
 
-bool chain_empty(chain *chain)
+bool chain_empty(const chain * const chain)
 {
 	return !chain || chain->head.next == &chain->head;
 }
@@ -213,6 +213,11 @@ link *chain_first(chain *chain)
 link *chain_last(chain *chain)
 {
 	return chain_empty(chain) ? NULL : chain->head.prev;
+}
+
+void  chain_prepend(chain *c, link *l)
+{
+	link_append(&c->head, l);
 }
 
 void chain_append(chain *c, link *l)
@@ -236,7 +241,7 @@ void chain_appends(chain *chain, ...)
 
 void *chain_foreach(chain *chain, closure_fn fn, void *closure, int offset)
 {
-	for (link *n = chain->head.next; n != &chain->head; n = n->next)
+	for (link *n = chain->head.next; n && n != &chain->head; n = n->next)
 		fn(closure, (Byte_t*)n + offset);
 	return closure;
 }
@@ -275,8 +280,8 @@ uint64_t hash_fnv_1a_64bit(Bytes data, uint64_t hash)
 {
 	const uint64_t fnv_1a_64bit_prime = 0x100000001B3;
 
-	const Byte_t *end = data.begin + data.size;
-	for (const Byte_t *b = data.begin; b != end; ++b) {
+	const Byte_t *end = data.ptr + data.size;
+	for (const Byte_t *b = data.ptr; b != end; ++b) {
 		hash ^= (uint64_t)*b;
 		hash *= fnv_1a_64bit_prime;
 	}

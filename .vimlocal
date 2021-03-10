@@ -39,5 +39,6 @@ nnoremap <F9>   :exec('make break FILE=% LINE='.line('.'))<CR>|   " - F9: Debug 
 " ========================================
 
 nnoremap <Leader>main  :-1read $HOME/.vim/snippets/main.c<CR>jo
+nnoremap <Leader>vaarg   :-1read $HOME/.vim/snippets/vaarg.c<CR>
 
 " vim:ft=vim:

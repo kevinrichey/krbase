@@ -6,6 +6,7 @@
 
 struct object {
 	link siblings;
+	chain children;
 	const char *id;
 	const char *file;
 	int         line;
@@ -29,15 +30,13 @@ struct person {
 
 void print_mem(struct object *h, int indent)
 {
-	// print self and all siblings
-	
-	for (; h != NULL; h = (struct object*)h->siblings.next) {
+	for (; h != NULL; h = (struct object*)link_next(&h->siblings)) {
 		for (int i = 0; i < indent; ++i)
 			putchar('\t');
 		printf("%p\t%s\t%s:%d\n", (void*)h, h->id, h->file, h->line);
 
-		if (h->down)
-			print_mem(h->down, indent+1);
+		if (!chain_empty(&h->children))
+			print_mem((struct object*)chain_first(&h->children), indent+1);
 	}
 }
 
@@ -45,13 +44,12 @@ void *tmalloc(struct object *parent, size_t size, const char *id, const char *fi
 {
 	struct object *h = malloc(size);
 	if (h) {
-		h->siblings.next = h->siblings.prev = NULL;
-		h->down = NULL;
-		if (parent) {
-			link_attach(&h->siblings, (link*)parent->down);
-			object_link_down(parent, h);
-		}
-		h->id = id;
+		if (parent)
+			chain_append(&parent->children, &h->siblings);
+		else
+			h->siblings.next = h->siblings.prev = NULL;
+		h->children.head.next = h->children.head.prev = &h->children.head;
+		h->id   = id;
 		h->file = file;
 		h->line = line;
 	}
@@ -77,10 +75,10 @@ struct string *tmalloc_str(struct object *parent, size_t str_size, const char *i
 
 void tfree_children(struct object *head)
 {
-	struct object *child = head->down;
+	struct object *child = (struct object*)chain_first(&head->children);
 	while (child) {
-		struct object *next = (struct object*)child->siblings.next;
-		if (child->down)
+		struct object *next = (struct object*)link_next(&child->siblings);
+		if (!chain_empty(&child->children))
 			tfree_children(child);
 		printf("freed %s\n", child->id);
 		free(child);
@@ -94,12 +92,7 @@ void tfree(void *p)
 
 	if (h) {
 		tfree_children(h);
-
-		if (object_is_child_of(h, (struct object*)h->siblings.prev)) 
-			object_link_down((struct object*)h->siblings.prev, (struct object*)h->siblings.next);
-		else
-			link_attach(h->siblings.prev, h->siblings.next);
-
+		link_remove(&h->siblings);
 		printf("freed %s\n", h->id);
 		free(p);
 	}
@@ -118,10 +111,14 @@ int main(int argc, char *argv[])
 	me->name = CREATE_STR(me->name, 100, &me->head);
 	strncpy(me->name->p, "Kevin Richey", me->name->size);
 	print_mem((struct object*)me, 0);
+	fprintf(stderr, "name string added\n");
 
 	me->addy = CREATE_STR(me->addy, 100, &me->head);
+	fprintf(stderr, "addy string created\n");
 	strncpy(me->addy->p, "660 Independence blvd, Christiansburg VA, 24073", me->addy->size-1);
+	fprintf(stderr, "addy string copied\n");
 	print_mem((struct object*)me, 0);
+	fprintf(stderr, "print_mem with addy string\n");
 
 	WATCH(me->age);
 	WATCH_STR(me->name->p);

@@ -48,6 +48,19 @@ bool in_bounds(int n, int lower, int upper);
     in_bounds((I_), 0, ARRAY_SIZE(ARR_)-1)
 
 
+//@module Span
+
+#define span(T_)  struct { T_ *ptr; size_t size; }
+
+#define span_init_n(PTR_, LEN_, ...) { .ptr=(PTR_), .size=(LEN_) }
+#define span_init(...) span_init_n(__VA_ARGS__, ARRAY_SIZE(VA_PARAM_0(__VA_ARGS__)))
+#define span_init_auto(T_, SIZE_)  { .ptr=(T_[SIZE_]){}, .size=(SIZE_) }
+#define span_init_cast(T_, SPAN_)   { .ptr=(T_*)(SPAN_).ptr, .size=(SPAN_).size }
+
+typedef span(char)  str_span;
+typedef span(void)  void_span;
+
+
 //----------------------------------------------------------------------
 //@module Unit Testing
 
@@ -148,29 +161,18 @@ static inline int int_min(int a, int b)
 #define VECT_LENGTH(V_)    (int)(ARRAY_SIZE((V_).at))
 
 
-//@module Span
 
-#define Span_t(T_)        struct { T_ *begin; int size; }
-
-#define Span_init_n(PTR_, LEN_, ...) \
-			{ .begin = (PTR_), .size = (LEN_) }
-
-#define Span_init(...) \
-			Span_init_n(__VA_ARGS__, ARRAY_SIZE(VA_PARAM_0(__VA_ARGS__)))
-
-
-
-//@module Bytes
+//@module bytes
 
 typedef unsigned char Byte_t;
 
-typedef Span_t(Byte_t)  Bytes;
+typedef span(Byte_t)  Bytes;
 
 #define Bytes_init_array(ARR_)  \
-			(Bytes)Span_init((Byte_t*)(ARR_), sizeof(ARR_))
+			(Bytes)span_init((Byte_t*)(ARR_), sizeof(ARR_))
 
 #define Bytes_init_var(VAR_)   \
-			(Bytes)Span_init((Byte_t*)&(VAR_), sizeof(VAR_))
+			(Bytes)span_init((Byte_t*)&(VAR_), sizeof(VAR_))
 
 Bytes Bytes_init_str(char *s);
 
@@ -259,7 +261,7 @@ typedef struct link {
 	struct link *next, *prev;
 } link;
 
-#define link_init()   {0}
+#define link_init(...)   {0, __VA_ARGS__ }
 
 typedef struct chain {
 	link head;
@@ -267,21 +269,21 @@ typedef struct chain {
 
 #define chain_init(C_)   { .head = { .next = &(C_).head, .prev = &(C_).head } }
 
-link *link_next(link *n);
-link *link_prev(link *b);
-_Bool link_is_attached(link *n);
-_Bool link_not_attached(link *n);
-_Bool links_are_attached(link *a, link *b);
+link  *link_next(link *n);
+link  *link_prev(link *b);
+_Bool  link_is_attached(link *n);
+_Bool  link_not_attached(link *n);
+_Bool  links_are_attached(link *a, link *b);
 
 link *link_attach(link *a, link *b);
+void  link_insert(link *new_link, link *before_this);
+void  link_append(link *after_this, link *new_link);
+void  link_remove(link *n);
 
-void link_insert(link *new_link, link *before_this);
-void link_append(link *after_this, link *new_link);
-void link_remove(link *n);
-
-bool  chain_empty(chain *chain);
+bool  chain_empty(const chain * const chain);
 link *chain_first(chain *chain);
 link *chain_last(chain *chain);
+void  chain_prepend(chain *c, link *l);
 void  chain_append(chain *c, link *l);
 void  chain_appends(chain *chain, ...);
 void *chain_foreach(chain *chain, closure_fn fn, void *closure, int offset);
@@ -290,9 +292,9 @@ void *chain_foreach(chain *chain, closure_fn fn, void *closure, int offset);
 //@module Pseudo-Random Number Generation
 
 #define XORSHIFT_TEMPLATE(X_, A_, B_, C_)  \
-			X_ ^= (X_ << A_),  \
-			X_ ^= (X_ >> B_),  \
-			X_ ^= (X_ << C_)
+			(X_) ^= ((X_) << (A_)),  \
+			(X_) ^= ((X_) >> (B_)),  \
+			(X_) ^= ((X_) << (C_))
 
 
 typedef struct Xorshifter_struct {

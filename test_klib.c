@@ -121,6 +121,33 @@ TEST_CASE(in_bounds_enums_and_arrays)
 	TEST(!in_array_bounds(-1, array));
 }
 
+// span
+
+TEST_CASE(init_span_from_arrays)
+{
+	char letters[] = "abcdefghijklmnopqrstuvwxyz";
+	str_span cspan = span_init(letters);
+	test(cspan.size == 27); // don't forget the null-terminator
+	test(cspan.ptr[5] == 'f');
+
+	// Make a span from the array
+	int fibs[] = { 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 };
+	span(int) nspan = span_init(fibs, 12);
+	TEST(nspan.size == 12);
+	int i = 0;
+	TEST(nspan.ptr[i++] ==  0);
+	TEST(nspan.ptr[i++] ==  1);
+	TEST(nspan.ptr[i++] ==  1);
+	TEST(nspan.ptr[i++] ==  2);
+	TEST(nspan.ptr[i++] ==  3);
+	TEST(nspan.ptr[i++] ==  5);
+	TEST(nspan.ptr[i++] ==  8);
+	TEST(nspan.ptr[i++] == 13);
+	TEST(nspan.ptr[i++] == 21);
+	TEST(nspan.ptr[i++] == 34);
+	TEST(nspan.ptr[i++] == 55);
+	TEST(nspan.ptr[i++] == 89);
+}
 
 //-----------------------------------------------------------------------------
 // Assertions Module
@@ -552,7 +579,7 @@ TEST_CASE(attach_two_links)
 	// They are attached and adjacent
 	TEST(links_are_attached(&a, &b));
 	TEST(link_next(&a) == &b);
-	TEST(link_next(&b) == NULL);
+	TEST(link_prev(&b) == &a);
 }
 
 TEST_CASE(insert_link)
@@ -565,7 +592,7 @@ TEST_CASE(insert_link)
 	test(links_are_attached(&a, &b));
 	test(link_not_attached(&c) );
 
-	// When solo node c inserted before b
+	// When node c inserted before b
 	link_insert(&c, &b);
 
 	// Then a.right is c and c.right is b
@@ -622,12 +649,12 @@ TEST_CASE(link_foreach)
 	struct test_node {
 		link link;
 		int i;
-	} a = { .i = 1 }, 
-	  b = { .i = 2 },
-	  c = { .i = 3 },
-	  d = { .i = 4 },
-	  e = { .i = 5 },
-	  f = { .i = 6 };
+	} a = link_init(.i = 1), 
+	  b = link_init(.i = 2),
+	  c = link_init(.i = 3),
+	  d = link_init(.i = 4),
+	  e = link_init(.i = 5),
+	  f = link_init(.i = 6);
 
 	// Given chain a:b:c:d:e:f
 	chain_appends(&chain, &a, &b, &c, &d, &e, &f, NULL);
@@ -667,7 +694,31 @@ TEST_CASE(add_links_to_empty_chain)
 	test(links_are_attached(&c, &chain.head));
 }
 
+TEST_CASE(prepent_links_to_chain)
+{
+	// Given an empty chain
+	chain chain = chain_init(chain);
+	test(chain_empty(&chain));
 
+	// Prepend links to chain
+	link a = link_init();
+	chain_prepend(&chain, &a);
+	test(links_are_attached(&a, &chain.head));
+	test(links_are_attached(&chain.head, &a));
+
+	link b = link_init();
+	chain_prepend(&chain, &b);
+	test(links_are_attached(&chain.head, &b));
+	test(links_are_attached(&b, &a));
+	test(links_are_attached(&a, &chain.head));
+
+	link c = link_init();
+	chain_prepend(&chain, &c);
+	test(links_are_attached(&chain.head, &c));
+	test(links_are_attached(&c, &b));
+	test(links_are_attached(&b, &a));
+	test(links_are_attached(&a, &chain.head));
+}
 
 
 TEST_CASE(Xorshift_random_numbers)

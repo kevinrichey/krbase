@@ -8,50 +8,16 @@
 // This is all experimental stuff
 //
 
-TEST_CASE(make_span_from_arrays)
-{
-	char letters[] = "abcdefghijklmnopqrstuvwxyz";
-	Span_t(char) cspan = Span_init(letters);
-	TEST(cspan.size == 27); // don't forget the null-terminator
-	TEST(cspan.begin[5] == 'f');
-
-	// An array of fibonacci numbers
-	Fibonacci fib = Fib_begin();
-	int numbers[20];
-	int length  = ARRAY_SIZE(numbers);
-	for (int *n = numbers; length--; ++n) {
-		*n = Fib_get(fib);
-		fib = Fib_next(fib);
-	}
-
-	// Make a span from the array
-	Span_t(int) nspan = Span_init(numbers, 20);
-	TEST(nspan.size == 20);
-	int i = 0;
-	TEST(nspan.begin[i++] ==  0);
-	TEST(nspan.begin[i++] ==  1);
-	TEST(nspan.begin[i++] ==  1);
-	TEST(nspan.begin[i++] ==  2);
-	TEST(nspan.begin[i++] ==  3);
-	TEST(nspan.begin[i++] ==  5);
-	TEST(nspan.begin[i++] ==  8);
-	TEST(nspan.begin[i++] == 13);
-	TEST(nspan.begin[i++] == 21);
-	TEST(nspan.begin[i++] == 34);
-	TEST(nspan.begin[i++] == 55);
-	TEST(nspan.begin[i++] == 89);
-}
-
 
 //@module String
 
 //typedef Span_t(char)  String;
 
-typedef struct { char *begin; int size; } String;
+typedef struct { char *ptr; int size; } String;
 
 static inline bool String_not_empty(String s)
 {
-	return s.size && s.begin && *s.begin;
+	return s.size && s.ptr && *s.ptr;
 }
 
 static inline bool String_is_empty(String s)
@@ -62,12 +28,12 @@ static inline bool String_is_empty(String s)
 int String_length(String s)
 {
 	int length = 0;
-	while (s.size-- && *s.begin++)  
+	while (s.size-- && *s.ptr++)  
 		++length;
 	return length;
 }
 
-#define String_init(...)  Span_init(__VA_ARGS__)
+#define String_init(...)  span_init(__VA_ARGS__)
 
 #define STR(...)    (String)String_init(__VA_ARGS__)
 
@@ -103,14 +69,14 @@ String String_create_f(const char *format, ...)
 void String_destroy(String *s)
 {
 	if (s) {
-		free((void*)s->begin);
+		free((void*)s->ptr);
 		*s = (String){0};
 	}
 }
 
 bool String_equals(String s1, String s2)
 {
-	return !strncmp(s1.begin, s2.begin, int_min(s1.size, s2.size));
+	return !strncmp(s1.ptr, s2.ptr, int_min(s1.size, s2.size));
 }
 
 TEST_CASE(init_string_to_null)
@@ -118,7 +84,7 @@ TEST_CASE(init_string_to_null)
 	String s_null = {0};
 
 	TEST(s_null.size == 0);
-	TEST(s_null.begin == NULL);
+	TEST(s_null.ptr == NULL);
 	TEST(String_is_empty(s_null));
 }
 
@@ -274,7 +240,7 @@ int timestamp_now(String *out_time)
 	time_t now = time(NULL);
 	struct tm *now_tm = localtime(&now);
 	if (now_tm)
-		return strftime(out_time->begin, out_time->size, "%Y-%m-%d %H:%M:%S", now_tm);
+		return strftime(out_time->ptr, out_time->size, "%Y-%m-%d %H:%M:%S", now_tm);
 	else
 		return 0;
 }
@@ -287,7 +253,7 @@ TEST_CASE(log_to_file)
 
 	String stamp = String_init((char[25]){0});
 	timestamp_now(&stamp); 
-	fprintf(log_file, "%s DEBUG 1 This is a test.\n", stamp.begin);
+	fprintf(log_file, "%s DEBUG 1 This is a test.\n", stamp.ptr);
 
 	fclose(log_file);
 }
