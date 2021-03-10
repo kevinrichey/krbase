@@ -13,17 +13,6 @@ bool in_bounds(int n, int lower, int upper)
 }
 
 //----------------------------------------------------------------------
-// Unit Testing Module
-
-void Test_fail(TestCounter *counter, const char *file, int line, const char *msg)
-{
-	++counter->test_count;
-	printf("%s:%d: Test Failure: %s in test case %s()\n", file, line, msg, counter->test_name);
-	++counter->failure_count;
-}
-
-
-//----------------------------------------------------------------------
 // Error Module
 
 const char *Status_string(StatusCode stat)

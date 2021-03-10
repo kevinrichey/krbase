@@ -3,14 +3,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <setjmp.h>
-#include "klib.h"
-
-
-TEST_CASE(this_always_fails)
-{
-	UNUSED(test_counter);
-//	TEST(!"This test case always fails");
-}
+#include "test.h"
 
 //-----------------------------------------------------------------------------
 // Testing Language Assumptions
@@ -82,10 +75,6 @@ TEST_CASE(compute_array_size)
 {
 	int a[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 	TEST(ARRAY_SIZE(a) == 10);
-
-	// Does not work on plain pointers tho
-//	int *b = a;
-//	TEST(ARRAY_SIZE(b) != 10);
 }
 
 
@@ -121,14 +110,16 @@ TEST_CASE(in_bounds_enums_and_arrays)
 	TEST(!in_array_bounds(-1, array));
 }
 
+//-----------------------------------------------------------------------------
 // span
+//
 
 TEST_CASE(init_span_from_arrays)
 {
 	char letters[] = "abcdefghijklmnopqrstuvwxyz";
 	str_span cspan = span_init(letters);
-	test(cspan.size == 27); // don't forget the null-terminator
-	test(cspan.ptr[5] == 'f');
+	TEST(cspan.size == 27); // don't forget the null-terminator
+	TEST(cspan.ptr[5] == 'f');
 
 	// Make a span from the array
 	int fibs[] = { 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 };
@@ -589,15 +580,15 @@ TEST_CASE(insert_link)
 	link b = link_init();
 	link c = link_init();
 	link_attach(&a, &b);
-	test(links_are_attached(&a, &b));
-	test(link_not_attached(&c) );
+	TEST(links_are_attached(&a, &b));
+	TEST(link_not_attached(&c) );
 
 	// When node c inserted before b
 	link_insert(&c, &b);
 
 	// Then a.right is c and c.right is b
-	test(links_are_attached(&a, &c) );
-	test(links_are_attached(&c, &b) );
+	TEST(links_are_attached(&a, &c) );
+	TEST(links_are_attached(&c, &b) );
 }
 
 TEST_CASE(link_remove_node)
@@ -613,8 +604,8 @@ TEST_CASE(link_remove_node)
 	link_remove(&b);
 
 	// Then a is linked to c and b is unlinked
-	test(link_not_attached(&b));
-	test(links_are_attached(&a, &c));
+	TEST(link_not_attached(&b));
+	TEST(links_are_attached(&a, &c));
 }
 
 TEST_CASE(chain_multiple_links)
@@ -633,13 +624,13 @@ TEST_CASE(chain_multiple_links)
 
 	// Each attached to the next
 	link *l = chain_first(&chain);
-	test(l == &a);
-	test((l = link_next(l)) == &b);
-	test((l = link_next(l)) == &c);
-	test((l = link_next(l)) == &d);
-	test((l = link_next(l)) == &e);
-	test((l = link_next(l)) == &f);
-	test(l == chain_last(&chain));
+	TEST(l == &a);
+	TEST((l = link_next(l)) == &b);
+	TEST((l = link_next(l)) == &c);
+	TEST((l = link_next(l)) == &d);
+	TEST((l = link_next(l)) == &e);
+	TEST((l = link_next(l)) == &f);
+	TEST(l == chain_last(&chain));
 }
 
 TEST_CASE(link_foreach)
@@ -672,52 +663,52 @@ TEST_CASE(add_links_to_empty_chain)
 {
 	// Given an empty chain
 	chain chain = chain_init(chain);
-	test(chain_empty(&chain));
+	TEST(chain_empty(&chain));
 
 	// Append links to chain
 	link a = link_init();
 	chain_append(&chain, &a);
-	test(links_are_attached(&chain.head, &a));
-	test(links_are_attached(&a, &chain.head));
+	TEST(links_are_attached(&chain.head, &a));
+	TEST(links_are_attached(&a, &chain.head));
 
 	link b = link_init();
 	chain_append(&chain, &b);
-	test(links_are_attached(&chain.head, &a));
-	test(links_are_attached(&a, &b));
-	test(links_are_attached(&b, &chain.head));
+	TEST(links_are_attached(&chain.head, &a));
+	TEST(links_are_attached(&a, &b));
+	TEST(links_are_attached(&b, &chain.head));
 
 	link c = link_init();
 	chain_append(&chain, &c);
-	test(links_are_attached(&chain.head, &a));
-	test(links_are_attached(&a, &b));
-	test(links_are_attached(&b, &c));
-	test(links_are_attached(&c, &chain.head));
+	TEST(links_are_attached(&chain.head, &a));
+	TEST(links_are_attached(&a, &b));
+	TEST(links_are_attached(&b, &c));
+	TEST(links_are_attached(&c, &chain.head));
 }
 
 TEST_CASE(prepent_links_to_chain)
 {
 	// Given an empty chain
 	chain chain = chain_init(chain);
-	test(chain_empty(&chain));
+	TEST(chain_empty(&chain));
 
 	// Prepend links to chain
 	link a = link_init();
 	chain_prepend(&chain, &a);
-	test(links_are_attached(&a, &chain.head));
-	test(links_are_attached(&chain.head, &a));
+	TEST(links_are_attached(&a, &chain.head));
+	TEST(links_are_attached(&chain.head, &a));
 
 	link b = link_init();
 	chain_prepend(&chain, &b);
-	test(links_are_attached(&chain.head, &b));
-	test(links_are_attached(&b, &a));
-	test(links_are_attached(&a, &chain.head));
+	TEST(links_are_attached(&chain.head, &b));
+	TEST(links_are_attached(&b, &a));
+	TEST(links_are_attached(&a, &chain.head));
 
 	link c = link_init();
 	chain_prepend(&chain, &c);
-	test(links_are_attached(&chain.head, &c));
-	test(links_are_attached(&c, &b));
-	test(links_are_attached(&b, &a));
-	test(links_are_attached(&a, &chain.head));
+	TEST(links_are_attached(&chain.head, &c));
+	TEST(links_are_attached(&c, &b));
+	TEST(links_are_attached(&b, &a));
+	TEST(links_are_attached(&a, &chain.head));
 }
 
 
@@ -743,7 +734,4 @@ TEST_CASE(Xorshift_random_numbers)
 		printf("xorshift: %u\n", x);
 	}
 }
-
-//----------------------------------------------------------------------
-// Everything below is experimental work in progress
 
