@@ -1,5 +1,4 @@
-% Hello, World
-% by Kevin Richey
+% Kevin Richey's C Library
 
 # Outline
 
@@ -14,10 +13,6 @@
 - Storage, de/serialization
 - Documentation
 - Code generation & meta-programming tools
-- names?
-	- Deep C, Dark C, Fathom the C, 
-	- explore C, C explorer, 
-	- C tools, C toolbox, C toolkit
 
 ## Things Every C Programmer Needs to Know
 
