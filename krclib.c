@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
-#include "klib.h"
+#include "krclib.h"
 
 //----------------------------------------------------------------------
 // Error Module

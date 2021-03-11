@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include "klib.h"
+#include "krclib.h"
 
 struct object {
 	link siblings;

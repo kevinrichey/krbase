@@ -12,7 +12,7 @@ TESTCASES_O = $(TESTCASES_C:.c=.o)
 run: test
 	./test
 
-test: test.o klib.o $(TESTCASES_O)
+test: test.o krclib.o $(TESTCASES_O)
 
 testcases.inc testcases.h: $(TESTCASES_C)
 	awk -f discover_tests.awk $(TESTCASES_C)

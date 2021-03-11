@@ -1,8 +1,7 @@
 #ifndef KRCLIB_TEST_H_INCLUDED
 #define KRCLIB_TEST_H_INCLUDED
 
-
-#include "klib.h"
+#include "krclib.h"
 
 typedef struct {
 	int test_count, failure_count;
