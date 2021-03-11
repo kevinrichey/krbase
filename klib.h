@@ -1,19 +1,21 @@
-#ifndef KLIBC_H_INCLUDED
-#define KLIBC_H_INCLUDED
+#ifndef KRCLIB_H_INCLUDED
+#define KRCLIB_H_INCLUDED
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 
-//@library Kevin's C Library
+//@library Kevin Richey's C Library
 
 //----------------------------------------------------------------------
 //@module Utility Macros
 
+#define NOOP          ((void)0)
 #define UNUSED(VAR_)  (void)(VAR_)
 
 #define STANDARD_ENUM_VALUES(EnumName_) \
   EnumName_##_End,  \
+  EnumName_##_Count = EnumName_##_End,  \
   EnumName_##_Last  = EnumName_##_End - 1, \
   EnumName_##_First = 0,
 
@@ -39,7 +41,10 @@
 //----------------------------------------------------------------------
 //@module Primitive Utilities
 
-bool in_bounds(int n, int lower, int upper);
+static inline bool in_bounds(int n, int lower, int upper)
+{
+	return (lower <= n) && (n <= upper);
+}
 
 #define in_enum_bounds(VAL_, ENUM_) \
     in_bounds((VAL_), (ENUM_##_First), (ENUM_##_Last))
@@ -47,18 +52,18 @@ bool in_bounds(int n, int lower, int upper);
 #define in_array_bounds(I_, ARR_) \
     in_bounds((I_), 0, ARRAY_SIZE(ARR_)-1)
 
+static inline int max_i(int a, int b)
+{
+	return (a > b) ? a: b;
+}
 
-//@module Span
+static inline int min_i(int a, int b)
+{
+	return (a < b) ? a: b;
+}
 
-#define span(T_)  struct { T_ *ptr; size_t size; }
-
-#define span_init_n(PTR_, LEN_, ...) { .ptr=(PTR_), .size=(LEN_) }
-#define span_init(...) span_init_n(__VA_ARGS__, ARRAY_SIZE(VA_PARAM_0(__VA_ARGS__)))
-#define span_init_auto(T_, SIZE_)  { .ptr=(T_[SIZE_]){}, .size=(SIZE_) }
-#define span_init_cast(T_, SPAN_)   { .ptr=(T_*)(SPAN_).ptr, .size=(SPAN_).size }
-
-typedef span(char)  str_span;
-typedef span(void)  void_span;
+// void function pointer
+typedef void (*void_fp)(void);
 
 
 //----------------------------------------------------------------------
@@ -106,38 +111,82 @@ ErrorHandler  Error_set_handler(StatusCode code, ErrorHandler h);
 StatusCode    Error_fail(Error *errh, StatusCode code, const char *message, SourceInfo source);
 void          Error_clear(Error *errh);
 
+//----------------------------------------------------------------------
+//@module Span Template
+
+#define TSpan(T_)  struct { T_ *ptr; size_t size; }
+
+#define SPAN_INIT_N(PTR_, LEN_, ...)  { .ptr=(PTR_), .size=(LEN_) }
+#define SPAN_INIT(...) \
+	SPAN_INIT_N(__VA_ARGS__, ARRAY_SIZE(VA_PARAM_0(__VA_ARGS__)))
+
+#define SPAN_INIT_AUTO(T_, SIZE_)  { .ptr=(T_[SIZE_]){}, .size=(SIZE_) }
+#define SPAN_INIT_CAST(T_, SPAN_)  { .ptr=(T_*)(SPAN_).ptr, .size=(SPAN_).size }
+
+typedef TSpan(char)  StrSpan;
+typedef TSpan(void)  VoidSpan;
 
 
-
-static inline int int_max(int a, int b)
-{
-	return (a > b)? a: b;
-}
-
-static inline int int_min(int a, int b)
-{
-	return (a < b)? a: b;
-}
-
-
-
-
-
-
-
-
-
-
-
+//----------------------------------------------------------------------
 //@module Vector - tuple with named and random access
 
-#define VECTOR(TYPE_, ...)   \
-  union { \
-      struct { TYPE_ __VA_ARGS__; }; \
-      TYPE_ at[VA_NARGS(__VA_ARGS__)]; \
-  }
+#define TVector(TYPE_, ...) \
+	union { \
+		struct { TYPE_ __VA_ARGS__; }; \
+		TYPE_ at[VA_NARGS(__VA_ARGS__)]; \
+	}
 
 #define VECT_LENGTH(V_)    (int)(ARRAY_SIZE((V_).at))
+
+
+//----------------------------------------------------------------------
+//@module Chain - Double Linked List
+
+typedef struct Link {
+	struct Link *next, *prev;
+} Link;
+
+#define LINK_INIT(...)   {0, __VA_ARGS__ }
+
+Link  *Link_next(Link *n);
+Link  *Link_prev(Link *b);
+bool   Link_is_attached(Link *n);
+bool   Link_not_attached(Link *n);
+bool   Links_are_attached(Link *a, Link *b);
+Link  *Link_attach(Link *a, Link *b);
+void   Link_insert(Link *new_link, Link *before_this);
+void   Link_append(Link *after_this, Link *new_link);
+void   Link_remove(Link *n);
+
+typedef struct Chain {
+	Link head;
+} Chain;
+
+// Use: 
+//      Chain c = CHAIN_INIT(c);
+//
+#define CHAIN_INIT(C_)   { .head = { .next = &(C_).head, .prev = &(C_).head } }
+
+bool   Chain_empty(const Chain * const chain);
+Link  *Chain_first(Chain *chain);
+Link  *Chain_last(Chain *chain);
+void   Chain_prepend(Chain *c, Link *l);
+void   Chain_append(Chain *c, Link *l);
+void   Chain_appends(Chain *chain, ...);
+void  *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int offset);
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -145,13 +194,13 @@ static inline int int_min(int a, int b)
 
 typedef unsigned char Byte_t;
 
-typedef span(Byte_t)  Bytes;
+typedef TSpan(Byte_t)  Bytes;
 
 #define Bytes_init_array(ARR_)  \
-			(Bytes)span_init((Byte_t*)(ARR_), sizeof(ARR_))
+			(Bytes)SPAN_INIT((Byte_t*)(ARR_), sizeof(ARR_))
 
 #define Bytes_init_var(VAR_)   \
-			(Bytes)span_init((Byte_t*)&(VAR_), sizeof(VAR_))
+			(Bytes)SPAN_INIT((Byte_t*)&(VAR_), sizeof(VAR_))
 
 Bytes Bytes_init_str(char *s);
 
@@ -229,43 +278,8 @@ void List_dispose(void *l);
 
 
 
-typedef void (*closure_fn)(void*, void*);
 
 void sum_ints(void *total, void *next_i);
-
-
-//@module Chain - Double Linked List
-
-typedef struct link {
-	struct link *next, *prev;
-} link;
-
-#define link_init(...)   {0, __VA_ARGS__ }
-
-typedef struct chain {
-	link head;
-} chain;
-
-#define chain_init(C_)   { .head = { .next = &(C_).head, .prev = &(C_).head } }
-
-link  *link_next(link *n);
-link  *link_prev(link *b);
-_Bool  link_is_attached(link *n);
-_Bool  link_not_attached(link *n);
-_Bool  links_are_attached(link *a, link *b);
-
-link *link_attach(link *a, link *b);
-void  link_insert(link *new_link, link *before_this);
-void  link_append(link *after_this, link *new_link);
-void  link_remove(link *n);
-
-bool  chain_empty(const chain * const chain);
-link *chain_first(chain *chain);
-link *chain_last(chain *chain);
-void  chain_prepend(chain *c, link *l);
-void  chain_append(chain *c, link *l);
-void  chain_appends(chain *chain, ...);
-void *chain_foreach(chain *chain, closure_fn fn, void *closure, int offset);
 
 
 //@module Pseudo-Random Number Generation

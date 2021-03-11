@@ -5,14 +5,6 @@
 #include "klib.h"
 
 //----------------------------------------------------------------------
-// Primitive Utilities
-
-bool in_bounds(int n, int lower, int upper)
-{
-	return (lower <= n) && (n <= upper);
-}
-
-//----------------------------------------------------------------------
 // Error Module
 
 const char *Status_string(StatusCode stat)
@@ -97,7 +89,7 @@ void Error_clear(Error *err)
 
 Bytes Bytes_init_str(char *s)
 {
-	return (Bytes)span_init((Byte_t*)s, strlen(s));
+	return (Bytes)SPAN_INIT((Byte_t*)s, strlen(s));
 }
 
 
@@ -111,11 +103,11 @@ void *List_grow(void *l, int sizeof_base, int sizeof_item, int min_cap, int add_
 	ListDims *b = l;
 
 	int new_length = List_length(l) + add_length;
-	min_cap = int_max(min_cap, new_length);
+	min_cap = max_i(min_cap, new_length);
 
 	if (List_capacity(l) < min_cap) {
-		min_cap = int_max(min_cap, List_capacity(l) * 2);
-		min_cap = int_max(min_cap, LIST_MIN_CAPACITY);
+		min_cap = max_i(min_cap, List_capacity(l) * 2);
+		min_cap = max_i(min_cap, LIST_MIN_CAPACITY);
 		b = realloc(l, sizeof_base + sizeof_item * min_cap);
 		b->cap = min_cap;
 	}
@@ -139,100 +131,100 @@ void sum_ints(void *total, void *next_i)
 
 
 
-link *link_next(link *n)
+Link *Link_next(Link *n)
 {
 	return n ? n->next : NULL;
 }
 
-link *link_prev(link *n)
+Link *Link_prev(Link *n)
 {
 	return n ? n->prev : NULL;
 }
 
-_Bool link_is_attached(link *n)
+_Bool Link_is_attached(Link *n)
 {
 	return n && (n->next || n->prev);
 }
 
-_Bool link_not_attached(link *n)
+_Bool Link_not_attached(Link *n)
 {
 	return n && !n->next && !n->prev;
 }
 
-_Bool links_are_attached(link *l, link *r)
+_Bool Links_are_attached(Link *l, Link *r)
 {
 	return l && l->next == r && r && r->prev == l;
 }
 
-link *link_attach(link *a, link *b)
+Link *Link_attach(Link *a, Link *b)
 {
 	if (a)  a->next = b;
 	if (b)  b->prev  = a;
 	return b;
 }
 
-void link_insert(link *new_link, link *before_this)
+void Link_insert(Link *new_link, Link *before_this)
 {
-	link_attach(link_prev(before_this), new_link);
-	link_attach(new_link, before_this);
+	Link_attach(Link_prev(before_this), new_link);
+	Link_attach(new_link, before_this);
 }
 
-void link_append(link *after_this, link *new_link)
+void Link_append(Link *after_this, Link *new_link)
 {
-	link_attach(new_link, link_next(after_this));
-	link_attach(after_this, new_link);
+	Link_attach(new_link, Link_next(after_this));
+	Link_attach(after_this, new_link);
 }
 
-void link_remove(link *n)
+void Link_remove(Link *n)
 {
-	link_attach(link_prev(n), link_next(n));
+	Link_attach(Link_prev(n), Link_next(n));
 	n->next = n->prev = NULL;
 }
 
-bool chain_empty(const chain * const chain)
+bool Chain_empty(const Chain * const chain)
 {
 	return !chain || chain->head.next == &chain->head;
 }
 
-link *chain_first(chain *chain)
+Link *Chain_first(Chain *chain)
 {
-	return chain_empty(chain) ? NULL : chain->head.next;
+	return Chain_empty(chain) ? NULL : chain->head.next;
 }
 
-link *chain_last(chain *chain)
+Link *Chain_last(Chain *chain)
 {
-	return chain_empty(chain) ? NULL : chain->head.prev;
+	return Chain_empty(chain) ? NULL : chain->head.prev;
 }
 
-void  chain_prepend(chain *c, link *l)
+void  Chain_prepend(Chain *c, Link *l)
 {
-	link_append(&c->head, l);
+	Link_append(&c->head, l);
 }
 
-void chain_append(chain *c, link *l)
+void Chain_append(Chain *c, Link *l)
 {
-	link_insert(l, &c->head);
+	Link_insert(l, &c->head);
 }
 
-void chain_appends(chain *chain, ...)
+void Chain_appends(Chain *chain, ...)
 {
 	va_list args;
 	va_start(args, chain);
 
-	link *prev = &chain->head;
-	link *next = NULL;
-	while ((next = va_arg(args, link*)))
-		prev = link_attach(prev, next);
-	link_attach(prev, &chain->head);
+	Link *prev = &chain->head;
+	Link *next = NULL;
+	while ((next = va_arg(args, Link*)))
+		prev = Link_attach(prev, next);
+	Link_attach(prev, &chain->head);
 
 	va_end(args);
 }
 
-void *chain_foreach(chain *chain, closure_fn fn, void *closure, int offset)
+void *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int offset)
 {
-	for (link *n = chain->head.next; n && n != &chain->head; n = n->next)
-		fn(closure, (Byte_t*)n + offset);
-	return closure;
+	for (Link *n = chain->head.next; n && n != &chain->head; n = n->next)
+		fn(baggage, (Byte_t*)n + offset);
+	return baggage;
 }
 
 

@@ -2,11 +2,11 @@
 
 # Naming Conventions
 
-Variables, parameters, struct & union members
-: Lower case with underscores: `variable_name`.
-
 Types (struct, union, enum, typedef)
 : Capialized: `UpperCamelCase`
+
+Variables, parameters, struct & union members
+: Lower case with underscores: `variable_name`.
 
 Enumerations
 : Enum type name: `UpperCamelCase`.
@@ -24,6 +24,7 @@ Preprocessor macros
 : Parameters are upper case with trailing underscore: `VAR_`
 
 Global Constants
+: Just don't.
 : Upper case with underscores: `MODULE_CONSTANT_NAME`
 
 Modules
@@ -45,8 +46,16 @@ For example: max_i() and max_d() for a max function on int and double.
 - b - bool
 - a - array
 - s - string
-- n - number, length, count
+- v - void
+- p - pointer
+- n - number/length/count
 - va - variable arguments
+
+## Commonly Used Names
+
+- bag or baggage = pass-through object for callback function. 
+- fn, func = function
+
 
 ## Matching Verb Pairs
 

@@ -111,19 +111,19 @@ TEST_CASE(in_bounds_enums_and_arrays)
 }
 
 //-----------------------------------------------------------------------------
-// span
+// Span Template
 //
 
 TEST_CASE(init_span_from_arrays)
 {
 	char letters[] = "abcdefghijklmnopqrstuvwxyz";
-	str_span cspan = span_init(letters);
+	StrSpan cspan = SPAN_INIT(letters);
 	TEST(cspan.size == 27); // don't forget the null-terminator
 	TEST(cspan.ptr[5] == 'f');
 
 	// Make a span from the array
 	int fibs[] = { 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 };
-	span(int) nspan = span_init(fibs, 12);
+	TSpan(int) nspan = SPAN_INIT(fibs, 12);
 	TEST(nspan.size == 12);
 	int i = 0;
 	TEST(nspan.ptr[i++] ==  0);
@@ -139,6 +139,180 @@ TEST_CASE(init_span_from_arrays)
 	TEST(nspan.ptr[i++] == 55);
 	TEST(nspan.ptr[i++] == 89);
 }
+
+TEST_CASE(vector_init)
+{
+	TVector(int, x, y, z) point = { 10, 20, 30 };
+
+	TEST(point.x == 10);
+	TEST(point.y == 20);
+	TEST(point.z == 30);
+	TEST(point.at[0] == 10);
+	TEST(point.at[1] == 20);
+	TEST(point.at[2] == 30);
+	TEST(VECT_LENGTH(point) == 3);
+}
+
+//-----------------------------------------------------------------------------
+// Doubly Linked List
+//
+
+TEST_CASE(attach_two_links)
+{
+	// Given two empty links
+	Link a = LINK_INIT();
+	Link b = LINK_INIT();
+	TEST(Link_not_attached(&a));
+	TEST(Link_not_attached(&b));
+	
+	// When they're linked
+	Link_attach(&a, &b);
+
+	// They are attached and adjacent
+	TEST(Links_are_attached(&a, &b));
+	TEST(Link_next(&a) == &b);
+	TEST(Link_prev(&b) == &a);
+}
+
+TEST_CASE(insert_link)
+{
+	// Given two linked and one solo nodes
+	Link a = LINK_INIT();
+	Link b = LINK_INIT();
+	Link c = LINK_INIT();
+	Link_attach(&a, &b);
+	TEST(Links_are_attached(&a, &b));
+	TEST(Link_not_attached(&c) );
+
+	// When node c inserted before b
+	Link_insert(&c, &b);
+
+	// Then a.right is c and c.right is b
+	TEST(Links_are_attached(&a, &c) );
+	TEST(Links_are_attached(&c, &b) );
+}
+
+TEST_CASE(link_remove_node)
+{
+	// Given chain a:b:c
+	Link a = LINK_INIT();
+	Link b = LINK_INIT();
+	Link c = LINK_INIT();
+	Link_attach(&a, &b);
+	Link_attach(&b, &c);
+
+	// When b is removed
+	Link_remove(&b);
+
+	// Then a is linked to c and b is unlinked
+	TEST(Link_not_attached(&b));
+	TEST(Links_are_attached(&a, &c));
+}
+
+TEST_CASE(chain_multiple_links)
+{
+	// Given empty chain and several links
+	Chain chain = CHAIN_INIT(chain);
+	Link a = LINK_INIT(), 
+	     b = LINK_INIT(),
+	     c = LINK_INIT(),
+	     d = LINK_INIT(),
+	     e = LINK_INIT(),
+	     f = LINK_INIT();
+
+	// When all appended to chain
+	Chain_appends(&chain, &a, &b, &c, &d, &e, &f, NULL);
+
+	// Each attached to the next
+	Link *l = Chain_first(&chain);
+	TEST(l == &a);
+	TEST((l = Link_next(l)) == &b);
+	TEST((l = Link_next(l)) == &c);
+	TEST((l = Link_next(l)) == &d);
+	TEST((l = Link_next(l)) == &e);
+	TEST((l = Link_next(l)) == &f);
+	TEST(l == Chain_last(&chain));
+}
+
+TEST_CASE(link_foreach)
+{
+	Chain chain = CHAIN_INIT(chain);
+
+	struct test_node {
+		Link link;
+		int i;
+	} a = LINK_INIT(.i = 1), 
+	  b = LINK_INIT(.i = 2),
+	  c = LINK_INIT(.i = 3),
+	  d = LINK_INIT(.i = 4),
+	  e = LINK_INIT(.i = 5),
+	  f = LINK_INIT(.i = 6);
+
+	// Given chain a:b:c:d:e:f
+	Chain_appends(&chain, &a, &b, &c, &d, &e, &f, NULL);
+
+	// When we sum all node values with foreach
+	int total = 0;
+	int i_offset = offsetof(struct test_node, i);
+	Chain_foreach(&chain, sum_ints, &total, i_offset);
+
+	// Then we get a total
+	TEST(total == 21);
+}
+
+TEST_CASE(add_links_to_empty_chain)
+{
+	// Given an empty chain
+	Chain chain = CHAIN_INIT(chain);
+	TEST(Chain_empty(&chain));
+
+	// Append links to chain
+	Link a = LINK_INIT();
+	Chain_append(&chain, &a);
+	TEST(Links_are_attached(&chain.head, &a));
+	TEST(Links_are_attached(&a, &chain.head));
+
+	Link b = LINK_INIT();
+	Chain_append(&chain, &b);
+	TEST(Links_are_attached(&chain.head, &a));
+	TEST(Links_are_attached(&a, &b));
+	TEST(Links_are_attached(&b, &chain.head));
+
+	Link c = LINK_INIT();
+	Chain_append(&chain, &c);
+	TEST(Links_are_attached(&chain.head, &a));
+	TEST(Links_are_attached(&a, &b));
+	TEST(Links_are_attached(&b, &c));
+	TEST(Links_are_attached(&c, &chain.head));
+}
+
+TEST_CASE(prepent_links_to_chain)
+{
+	// Given an empty chain
+	Chain chain = CHAIN_INIT(chain);
+	TEST(Chain_empty(&chain));
+
+	// Prepend links to chain
+	Link a = LINK_INIT();
+	Chain_prepend(&chain, &a);
+	TEST(Links_are_attached(&a, &chain.head));
+	TEST(Links_are_attached(&chain.head, &a));
+
+	Link b = LINK_INIT();
+	Chain_prepend(&chain, &b);
+	TEST(Links_are_attached(&chain.head, &b));
+	TEST(Links_are_attached(&b, &a));
+	TEST(Links_are_attached(&a, &chain.head));
+
+	Link c = LINK_INIT();
+	Chain_prepend(&chain, &c);
+	TEST(Links_are_attached(&chain.head, &c));
+	TEST(Links_are_attached(&c, &b));
+	TEST(Links_are_attached(&b, &a));
+	TEST(Links_are_attached(&a, &chain.head));
+}
+
+
 
 //-----------------------------------------------------------------------------
 // Assertions Module
@@ -195,6 +369,7 @@ TEST_CASE(custom_assert_handler)
 
 	TEST(asserted == 5);
 }
+
 
 //-----------------------------------------------------------------------------
 // Error Module
@@ -341,6 +516,10 @@ TEST_CASE(longjmp_error_handler)
 	Error_set_handler(Status_Error, old);
 }
 
+
+
+
+
 //-----------------------------------------------------------------------------
 // Fun Variadic Functions
 //
@@ -443,19 +622,6 @@ TEST_CASE(Fib_iterate_the_fibonacci_sequence)
 	TEST(Fib_get(fib) == 13);
 }
 
-TEST_CASE(VECTOR_init)
-{
-	VECTOR(int, x, y, z) point = { 10, 20, 30 };
-
-	TEST(point.x == 10);
-	TEST(point.y == 20);
-	TEST(point.z == 30);
-	TEST(point.at[0] == 10);
-	TEST(point.at[1] == 20);
-	TEST(point.at[2] == 30);
-	TEST(VECT_LENGTH(point) == 3);
-}
-
 TEST_CASE(declare_null_list_is_empty)
 {
 	// When you declare a null list pointer
@@ -551,165 +717,6 @@ TEST_CASE(add_item_to_empty_list)
 	List_dispose(l);
 }
 
-
-//-----------------------------------------------------------------------------
-// Doubly Linked List
-//
-
-TEST_CASE(attach_two_links)
-{
-	// Given two empty links
-	link a = link_init();
-	link b = link_init();
-	TEST(link_not_attached(&a));
-	TEST(link_not_attached(&b));
-	
-	// When they're linked
-	link_attach(&a, &b);
-
-	// They are attached and adjacent
-	TEST(links_are_attached(&a, &b));
-	TEST(link_next(&a) == &b);
-	TEST(link_prev(&b) == &a);
-}
-
-TEST_CASE(insert_link)
-{
-	// Given two linked and one solo nodes
-	link a = link_init();
-	link b = link_init();
-	link c = link_init();
-	link_attach(&a, &b);
-	TEST(links_are_attached(&a, &b));
-	TEST(link_not_attached(&c) );
-
-	// When node c inserted before b
-	link_insert(&c, &b);
-
-	// Then a.right is c and c.right is b
-	TEST(links_are_attached(&a, &c) );
-	TEST(links_are_attached(&c, &b) );
-}
-
-TEST_CASE(link_remove_node)
-{
-	// Given chain a:b:c
-	link a = link_init();
-	link b = link_init();
-	link c = link_init();
-	link_attach(&a, &b);
-	link_attach(&b, &c);
-
-	// When b is removed
-	link_remove(&b);
-
-	// Then a is linked to c and b is unlinked
-	TEST(link_not_attached(&b));
-	TEST(links_are_attached(&a, &c));
-}
-
-TEST_CASE(chain_multiple_links)
-{
-	// Given empty chain and several links
-	chain chain = chain_init(chain);
-	link a = link_init(), 
-	     b = link_init(),
-	     c = link_init(),
-	     d = link_init(),
-	     e = link_init(),
-	     f = link_init();
-
-	// When all appended to chain
-	chain_appends(&chain, &a, &b, &c, &d, &e, &f, NULL);
-
-	// Each attached to the next
-	link *l = chain_first(&chain);
-	TEST(l == &a);
-	TEST((l = link_next(l)) == &b);
-	TEST((l = link_next(l)) == &c);
-	TEST((l = link_next(l)) == &d);
-	TEST((l = link_next(l)) == &e);
-	TEST((l = link_next(l)) == &f);
-	TEST(l == chain_last(&chain));
-}
-
-TEST_CASE(link_foreach)
-{
-	chain chain = chain_init(chain);
-
-	struct test_node {
-		link link;
-		int i;
-	} a = link_init(.i = 1), 
-	  b = link_init(.i = 2),
-	  c = link_init(.i = 3),
-	  d = link_init(.i = 4),
-	  e = link_init(.i = 5),
-	  f = link_init(.i = 6);
-
-	// Given chain a:b:c:d:e:f
-	chain_appends(&chain, &a, &b, &c, &d, &e, &f, NULL);
-
-	// When we sum all node values with foreach
-	int total = 0;
-	int i_offset = offsetof(struct test_node, i);
-	chain_foreach(&chain, sum_ints, &total, i_offset);
-
-	// Then we get a total
-	TEST(total == 21);
-}
-
-TEST_CASE(add_links_to_empty_chain)
-{
-	// Given an empty chain
-	chain chain = chain_init(chain);
-	TEST(chain_empty(&chain));
-
-	// Append links to chain
-	link a = link_init();
-	chain_append(&chain, &a);
-	TEST(links_are_attached(&chain.head, &a));
-	TEST(links_are_attached(&a, &chain.head));
-
-	link b = link_init();
-	chain_append(&chain, &b);
-	TEST(links_are_attached(&chain.head, &a));
-	TEST(links_are_attached(&a, &b));
-	TEST(links_are_attached(&b, &chain.head));
-
-	link c = link_init();
-	chain_append(&chain, &c);
-	TEST(links_are_attached(&chain.head, &a));
-	TEST(links_are_attached(&a, &b));
-	TEST(links_are_attached(&b, &c));
-	TEST(links_are_attached(&c, &chain.head));
-}
-
-TEST_CASE(prepent_links_to_chain)
-{
-	// Given an empty chain
-	chain chain = chain_init(chain);
-	TEST(chain_empty(&chain));
-
-	// Prepend links to chain
-	link a = link_init();
-	chain_prepend(&chain, &a);
-	TEST(links_are_attached(&a, &chain.head));
-	TEST(links_are_attached(&chain.head, &a));
-
-	link b = link_init();
-	chain_prepend(&chain, &b);
-	TEST(links_are_attached(&chain.head, &b));
-	TEST(links_are_attached(&b, &a));
-	TEST(links_are_attached(&a, &chain.head));
-
-	link c = link_init();
-	chain_prepend(&chain, &c);
-	TEST(links_are_attached(&chain.head, &c));
-	TEST(links_are_attached(&c, &b));
-	TEST(links_are_attached(&b, &a));
-	TEST(links_are_attached(&a, &chain.head));
-}
 
 
 TEST_CASE(Xorshift_random_numbers)

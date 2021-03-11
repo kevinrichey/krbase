@@ -33,7 +33,7 @@ int String_length(String s)
 	return length;
 }
 
-#define String_init(...)  span_init(__VA_ARGS__)
+#define String_init(...)  SPAN_INIT(__VA_ARGS__)
 
 #define STR(...)    (String)String_init(__VA_ARGS__)
 
@@ -76,7 +76,7 @@ void String_destroy(String *s)
 
 bool String_equals(String s1, String s2)
 {
-	return !strncmp(s1.ptr, s2.ptr, int_min(s1.size, s2.size));
+	return !strncmp(s1.ptr, s2.ptr, min_i(s1.size, s2.size));
 }
 
 TEST_CASE(init_string_to_null)
