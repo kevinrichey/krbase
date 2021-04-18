@@ -22,9 +22,18 @@ typedef struct {
 	char mode;
 } string;
 
+#define STRING_MODE_ALLOC   'x'
+#define STRING_MODE_SCOPED  'i'
+#define STRING_MODE_ERROR   'e'
+
+string string_init_x(const char *s, size_t n, int mode)
+{
+	return (string){ .start = s, .end = s + n, .mode = mode };
+}
+
 string string_init_n(const char *s, size_t n)
 {
-	return (string){ .start = s, .end = s + n, .mode = 'x' };
+	return string_init_x(s, n, STRING_MODE_SCOPED);
 }
 
 string string_init(const char *s)
@@ -34,27 +43,34 @@ string string_init(const char *s)
 
 #define STR(S_)   string_init_n((S_), ARRAY_SIZE(S_))
 
-string string_alloc(const char *s)
+struct string_buf *stringbuf_alloc(int length)
 {
-	int length = s ? strlen(s) : 0;
 	size_t size = sizeof(char) * length + 1;
 	struct string_buf *str = malloc(sizeof(*str) + size);
-	str->size = size;
-	if (str->size > 1)
-		strncpy(str->strbuf, s, length);
-	else
-		str->strbuf[0] = '\0';
-	return (string){ .start=str->strbuf, .end=str->strbuf+str->size-1, .mode='x' };
-}
-
-string string_copy(const char *s)
-{
-	return string_alloc(s);
+	if (str)
+		str->size = size;
+	return str;
 }
 
 int string_length(string s) 
 {
 	return s.end - s.start;
+}
+
+string string_copy(string from)
+{
+	int length = string_length(from);
+	string str = { .mode = STRING_MODE_ERROR };
+
+	struct string_buf *buf = stringbuf_alloc(length);
+	if (buf) {
+		if (length > 0)
+			strncpy(buf->strbuf, from.start, length);
+		buf->strbuf[length] = '\0';
+		str = string_init_x(buf->strbuf, length, STRING_MODE_ALLOC);
+	}
+
+	return str;
 }
 
 bool string_is_empty(string s)
@@ -64,7 +80,7 @@ bool string_is_empty(string s)
 
 void string_destroy(string *s)
 {
-	if (s && s->mode == 'x') {
+	if (s && s->mode == STRING_MODE_ALLOC) {
 		struct string_buf *buf = (struct string_buf *)(s->start - sizeof(*buf));
 		free(buf);
 	}
@@ -84,7 +100,7 @@ TEST_CASE(create_string_buffer)
 	TEST(string_length(s) == 0);
 	TEST(string_is_empty(s));
 
-	s = string_copy(cs);
+	s = string_copy(string_init(cs));
 
 	TEST(!string_is_empty(s));
 	TEST(string_length(s) == strlen("Initial String Value"));
@@ -95,7 +111,7 @@ TEST_CASE(create_string_buffer)
 
 TEST_CASE(copy_null_string)
 {
-	const char *nullstr = NULL;
+	string nullstr = string_init(NULL);
 	string s = string_copy(nullstr);
 	TEST(string_length(s) == 0);
 }
