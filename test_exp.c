@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <setjmp.h>
 #include "test.h"
 
 //
@@ -9,150 +10,197 @@
 //
 
 
-//@module String
+//@module string
 
-//typedef Span_t(char)  String;
+struct string_buf {
+	size_t size;
+	char   strbuf[];
+};
 
-typedef struct { char *ptr; int size; } String;
+typedef struct {
+	const char *start, *end;
+	char mode;
+} string;
 
-static inline bool String_not_empty(String s)
+string string_init_n(const char *s, size_t n)
 {
-	return s.size && s.ptr && *s.ptr;
+	return (string){ .start = s, .end = s + n, .mode = 'x' };
 }
 
-static inline bool String_is_empty(String s)
+string string_init(const char *s)
 {
-	return !String_not_empty(s);
+	return string_init_n(s, s? strlen(s): 0);
 }
 
-int String_length(String s)
+#define STR(S_)   string_init_n((S_), ARRAY_SIZE(S_))
+
+string string_alloc(const char *s)
 {
-	int length = 0;
-	while (s.size-- && *s.ptr++)  
-		++length;
-	return length;
+	int length = s ? strlen(s) : 0;
+	size_t size = sizeof(char) * length + 1;
+	struct string_buf *str = malloc(sizeof(*str) + size);
+	str->size = size;
+	if (str->size > 1)
+		strncpy(str->strbuf, s, length);
+	else
+		str->strbuf[0] = '\0';
+	return (string){ .start=str->strbuf, .end=str->strbuf+str->size-1, .mode='x' };
 }
 
-#define String_init(...)  SPAN_INIT(__VA_ARGS__)
-
-#define STR(...)    (String)String_init(__VA_ARGS__)
-
-String String_create(int size)
+string string_copy(const char *s)
 {
-	return STR(calloc(size, sizeof(char)), size);
+	return string_alloc(s);
 }
 
-int vprintf_size(const char *format, va_list args)
+int string_length(string s) 
 {
-	va_list args2;
-	va_copy(args2, args);
-	int size = 1 + vsnprintf(NULL, 0, format, args2);
-	va_end(args2);
-	return size;
+	return s.end - s.start;
 }
 
-String String_create_f(const char *format, ...)
+bool string_is_empty(string s)
 {
-	va_list args;
-	va_start(args, format);
-
-	int size = vprintf_size(format, args);
-	//String s = String_create(size);
-	char *s = malloc(size * sizeof(char));
-	if (s)
-		vsnprintf(s, size, format, args);
-
-	va_end(args);
-	return STR(s, size);
+	return !s.start || !string_length(s);
 }
 
-void String_destroy(String *s)
+void string_destroy(string *s)
 {
-	if (s) {
-		free((void*)s->ptr);
-		*s = (String){0};
+	if (s && s->mode == 'x') {
+		struct string_buf *buf = (struct string_buf *)(s->start - sizeof(*buf));
+		free(buf);
 	}
+	s->start = s->end = NULL;
+	s->mode = '\0';
 }
 
-bool String_equals(String s1, String s2)
+bool strings_equal(string a, string b)
 {
-	return !strncmp(s1.ptr, s2.ptr, min_i(s1.size, s2.size));
+	return !strcmp(a.start, b.start);
 }
 
-TEST_CASE(init_string_to_null)
+TEST_CASE(create_string_buffer)
 {
-	String s_null = {0};
+	const char *cs = "Initial String Value";
+	string s = string_init(NULL);
+	TEST(string_length(s) == 0);
+	TEST(string_is_empty(s));
 
-	TEST(s_null.size == 0);
-	TEST(s_null.ptr == NULL);
-	TEST(String_is_empty(s_null));
+	s = string_copy(cs);
+
+	TEST(!string_is_empty(s));
+	TEST(string_length(s) == strlen("Initial String Value"));
+	TEST(strings_equal(s, STR("Initial String Value")));
+
+	string_destroy(&s);
 }
 
-TEST_CASE(init_string_from_literal)
+TEST_CASE(copy_null_string)
 {
-	String s_lit = String_init("xyzzy");
-
-	TEST(s_lit.size == 6);
-	TEST(String_length(s_lit) == 5);
-	TEST(String_not_empty(s_lit));
+	const char *nullstr = NULL;
+	string s = string_copy(nullstr);
+	TEST(string_length(s) == 0);
 }
 
-TEST_CASE(init_string_from_empty_array)
+size_t strnlen(const char *s, size_t maxlen)
 {
-	char words[40] = {0};
-	String s_arr = String_init(words);
-	TEST(s_arr.size == 40);
-	TEST(String_is_empty(s_arr));
-	TEST(String_length(s_arr) == 0);
+	size_t len = 0;
+	while (*s++ && ++len < maxlen) ;
+	return len;
 }
 
-TEST_CASE(init_string_from_pointer_and_size)
+TEST_CASE(length_of_fixed_size_string)
 {
-	char *ptr = "Hello, world";
-	String s_ptr = String_init(ptr, 13);
+	char same_len[] = "xyzzy";
+	TEST(strnlen(same_len, sizeof(same_len)) == 5);
 
-	TEST(s_ptr.size == 13);
-	TEST(String_length(s_ptr) == 12);
-	TEST(String_not_empty(s_ptr));
-}
+	char longer_str[100] = "less than one hundred";
+	TEST(strnlen(longer_str, sizeof(longer_str)) == 21);
 
-TEST_CASE(init_string_from_compound_literal)
-{
-	String s_acl = String_init((char[15]){ "Foobar"});
-	TEST(s_acl.size == 15);
-	//TEST(String_is_empty(s_acl));
-
-	//strncpy(s_acl.begin, "Foobar", s_acl.size);
-	TEST(String_length(s_acl) == 6);
-	TEST(String_not_empty(s_acl));
-}
-
-TEST_CASE(create_string_on_heap)
-{
-	String s = String_create(100);
-	TEST(s.size == 100);
-	TEST(String_is_empty(s));
-
-	//strncpy(s.begin, "abcdefghijklmnopqrstuvwxyz", s.size);
-	//TEST(String_length(s) == 26);
-	//TEST(String_not_empty(s));
-
-	String_destroy(&s);
-	TEST(s.size  == 0);
-	TEST(String_is_empty(s));
-	TEST(String_length(s) == 0);
-}
-
-TEST_CASE(create_formatted_string_on_heap)
-{
-	String s = String_create_f("Test %d\n", 123);
-	TEST(String_not_empty(s));
-	TEST(String_length(s) == 9);
-	TEST(s.size == 10);
-	TEST(String_equals(s, STR("Test 123\n")));
+	char shorter[] = "send a shorter max length";
+	TEST(strnlen(shorter, 10) == 10);
 	
-	String_destroy(&s);
+	char empty[] = "";
+	TEST(strnlen(empty, sizeof(empty)) == 0);
 }
+
+
+
+
+void swap_c(char *a, char *b)
+{
+	char t = *a;
+	*a = *b;
+	*b = t;
+}
+
+
+
+typedef struct {
+	Link link;
+	void (*dispose)(void*);
+} Resource;
+
+typedef struct {
+	Resource res;
+	char name[32];
+} Object;
+
+void Object_dispose(void *object)
+{
+	Object *o = object;
+	fprintf(stderr, "Disposing %s\n", o->name);
+	free(o);
+}
+
+Object *Object_create(const char *n)
+{
+	Object *o = malloc(sizeof(*o));
+	strncpy(o->name, n, sizeof(o->name));
+	o->res.dispose = Object_dispose;
+	fprintf(stderr, "init %s\n", o->name);
+	return o;
+}
+
+void code(Chain *res_chain, jmp_buf *jmp)
+{
+	Object *a = Object_create("A");
+	Chain_append(res_chain, &a->res.link);
+
+	Object *b = Object_create("B");
+	Chain_append(res_chain, &b->res.link);
+
+	longjmp(*jmp, 99);
+
+	Object *c = Object_create("C");
+	Chain_append(res_chain, &c->res.link);
+}
+
+
+TEST_CASE(destructor_chain)
+{
+	jmp_buf jmp;
+
+	Chain res_chain = CHAIN_INIT(res_chain);
+	if (!setjmp(jmp)) {
+
+		code(&res_chain, &jmp);
+
+		Object *first = (Object*)Chain_first(&res_chain);
+		TEST(!strcmp(first->name, "A"));
+		Object *second = (Object*)Link_next(&first->res.link);
+		TEST(!strcmp(second->name, "B"));
+		Object *third = (Object*)Link_next(&second->res.link);
+		TEST(!strcmp(third->name, "C"));
+	}
+
+	Resource *this = (Resource*)Chain_last(&res_chain);
+	while (&this->link != &res_chain.head) {
+		Resource *prev = (Resource*)Link_prev(&this->link);
+		this->dispose(this);
+		this = prev;
+	}
+
+}
+
 
 TEST_CASE(convert_things_to_bytes)
 {
@@ -235,26 +283,65 @@ TEST_CASE(hash_table)
 
 }
 
-int timestamp_now(String *out_time)
+
+
+//-----------------------------------------------------------------------------
+// Fun Variadic Functions
+//
+
+void unpack_i(int *a, int n, ...)
 {
-	time_t now = time(NULL);
-	struct tm *now_tm = localtime(&now);
-	if (now_tm)
-		return strftime(out_time->ptr, out_time->size, "%Y-%m-%d %H:%M:%S", now_tm);
-	else
-		return 0;
+	va_list args;
+	va_start(args, n);
+
+	int *i;
+	while (n --> 0) {
+		if ((i = va_arg(args, int*)))
+			*i = *a++;
+		else
+			break;
+	}
+
+	va_end(args);
 }
 
-TEST_CASE(log_to_file)
+TEST_CASE(unpack_entire_array)
 {
-	UNUSED(test_counter);
+	int arr[] = { 10, 11, 12, 13, 14 };
+	int a, b, c, d, e;
 
-	FILE *log_file = fopen("test.log", "w");
+	unpack_i(arr, ARRAY_SIZE(arr), &a, &b, &c, &d, &e);
+	TEST(a == 10);
+	TEST(b == 11);
+	TEST(c == 12);
+	TEST(d == 13);
+	TEST(e == 14);
+}
 
-	String stamp = String_init((char[25]){0});
-	timestamp_now(&stamp); 
-	fprintf(log_file, "%s DEBUG 1 This is a test.\n", stamp.ptr);
+TEST_CASE(unpack_partial_array)
+{
+	int arr[] = { 10, 11, 12, 13, 14 };
+	int a, b, c;
 
-	fclose(log_file);
+	unpack_i(arr, ARRAY_SIZE(arr), &a, &b, &c, NULL);
+	TEST(a == 10);
+	TEST(b == 11);
+	TEST(c == 12);
+}
+
+TEST_CASE(unpack_shorter_array)
+{
+	int arr[] = { 10, 11, 12 };
+	int a, b, c;
+	int d = 99;
+	int e = 88;
+
+	// Since array is shorter, only 3 variables will be updated
+	unpack_i(arr, ARRAY_SIZE(arr), &a, &b, &c, &d, &e);
+	TEST(a == 10);
+	TEST(b == 11);
+	TEST(c == 12);
+	TEST(d == 99);
+	TEST(e == 88);
 }
 

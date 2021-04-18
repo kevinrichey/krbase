@@ -41,10 +41,7 @@
 //----------------------------------------------------------------------
 //@module Primitive Utilities
 
-static inline bool in_bounds(int n, int lower, int upper)
-{
-	return (lower <= n) && (n <= upper);
-}
+bool in_bounds(int n, int lower, int upper);
 
 #define in_enum_bounds(VAL_, ENUM_) \
     in_bounds((VAL_), (ENUM_##_First), (ENUM_##_Last))
@@ -52,15 +49,8 @@ static inline bool in_bounds(int n, int lower, int upper)
 #define in_array_bounds(I_, ARR_) \
     in_bounds((I_), 0, ARRAY_SIZE(ARR_)-1)
 
-static inline int max_i(int a, int b)
-{
-	return (a > b) ? a: b;
-}
-
-static inline int min_i(int a, int b)
-{
-	return (a < b) ? a: b;
-}
+int max_i(int a, int b);
+int min_i(int a, int b);
 
 // void function pointer
 typedef void (*void_fp)(void);
@@ -68,6 +58,15 @@ typedef void (*void_fp)(void);
 
 //----------------------------------------------------------------------
 //@module Debugging & Error Checking
+
+typedef struct SourceInfo {
+	const char *file;
+	int         line;
+} SourceInfo;
+
+#define SOURCE_INFO_INIT   { .file = __FILE__, .line = __LINE__ }
+#define SOURCE_HERE        (SourceInfo)SOURCE_INFO_INIT   
+
 
 #define STATUS_X_TABLE \
   X(OK) \
@@ -87,29 +86,11 @@ typedef enum {
 const char *Status_string(StatusCode stat);
 
 
-typedef struct SourceInfo {
-	const char *file;
-	int         line;
-} SourceInfo;
+void Assert_failed(SourceInfo source, const char *message);
 
-#define SOURCE_INFO_INIT   { .file = __FILE__, .line = __LINE__ }
-#define SOURCE_HERE        (SourceInfo)SOURCE_INFO_INIT   
+#define CHECK(CONDITION_)   \
+	do{ if (CONDITION_); else Assert_failed(SOURCE_HERE, #CONDITION_); } while(0)
 
-typedef struct Error {
-	StatusCode     status;
-	SourceInfo     source;
-	const char    *message;
-	void          *baggage;
-} Error;
-
-typedef StatusCode (*ErrorHandler)(Error *err);
-
-StatusCode    Error_status(Error *e);
-StatusCode    Error_print(Error *e);
-void          Error_fprintf(Error *e, FILE *out, const char *fmt, ...);
-ErrorHandler  Error_set_handler(StatusCode code, ErrorHandler h);
-StatusCode    Error_fail(Error *errh, StatusCode code, const char *message, SourceInfo source);
-void          Error_clear(Error *errh);
 
 //----------------------------------------------------------------------
 //@module Span Template
@@ -126,6 +107,12 @@ void          Error_clear(Error *errh);
 typedef TSpan(char)  StrSpan;
 typedef TSpan(void)  VoidSpan;
 
+//----------------------------------------------------------------------
+//@module range
+
+#define range(T_)  struct { T_ start; T_ stop; }
+
+typedef range(const char*) crange;
 
 //----------------------------------------------------------------------
 //@module Vector - tuple with named and random access

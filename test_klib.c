@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <setjmp.h>
+#include <limits.h>
 #include "test.h"
 
 //-----------------------------------------------------------------------------
@@ -22,6 +23,10 @@ TEST_CASE(empty_struct_adds_no_size)
 	TEST(sizeof(struct full_head) > sizeof(struct empty_head));
 }
 
+TEST_CASE(assume_numeric_limits)
+{
+	TEST(CHAR_BIT == 8);
+}
 
 //-----------------------------------------------------------------------------
 // Preprocessor Macros
@@ -110,6 +115,7 @@ TEST_CASE(in_bounds_enums_and_arrays)
 	TEST(!in_array_bounds(-1, array));
 }
 
+
 //-----------------------------------------------------------------------------
 // Span Template
 //
@@ -152,6 +158,7 @@ TEST_CASE(vector_init)
 	TEST(point.at[2] == 30);
 	TEST(VECT_LENGTH(point) == 3);
 }
+
 
 //-----------------------------------------------------------------------------
 // Doubly Linked List
@@ -313,64 +320,6 @@ TEST_CASE(prepent_links_to_chain)
 }
 
 
-
-//-----------------------------------------------------------------------------
-// Assertions Module
-
-typedef void (*AssertHandlerFn)(SourceInfo source, const char *message, void *baggage);
-
-typedef struct {
-	AssertHandlerFn func;
-	void *baggage;
-} AssertionHandler;
-
-static AssertionHandler assert_handler;
-
-AssertionHandler Assert_swap_handler(AssertionHandler new_handler)
-{
-	AssertionHandler old = assert_handler;
-	assert_handler = new_handler;
-	return old;
-}
-
-void Assert_set_handler(AssertHandlerFn new_hand, void *bag)
-{
-	assert_handler.func = new_hand;
-	assert_handler.baggage = bag;
-}
-
-void Assert_failed(SourceInfo source, const char *message)
-{
-	if (assert_handler.func)
-		assert_handler.func(source, message, assert_handler.baggage);
-}
-
-#define CHECK(CONDITION_)   \
-	do{ if (CONDITION_); else Assert_failed(SOURCE_HERE, #CONDITION_); } while(0)
-
-void test_assert_handler(SourceInfo source, const char *message, void *baggage)
-{
-	UNUSED(message);
-	UNUSED(source);
-	*((int*)baggage) = 5; 
-	printf("%s:%d: Assertion failed: %s\n", source.file, source.line, message);
-}
-
-TEST_CASE(custom_assert_handler)
-{
-	return;
-
-	int asserted = 0;
-
-	Assert_set_handler(test_assert_handler, &asserted);
-
-	bool oops = false;
-	CHECK(oops);
-
-	TEST(asserted == 5);
-}
-
-
 //-----------------------------------------------------------------------------
 // Error Module
 
@@ -383,7 +332,6 @@ TEST_CASE(Status_to_string)
 	TEST( !strcmp(Status_string(-1), "Unknown Status") );
 	TEST( !strcmp(Status_string(100000), "Unknown Status") );
 }
-
 
 static void 
 source_info_test_fn(TestCounter *test_counter, int line, SourceInfo source)
@@ -399,198 +347,9 @@ TEST_CASE(pass_source_info_parameter)
 }
 
 
-static StatusCode test_error_handler(Error *err)
-{
-	bool *handler_called = err->baggage;
-	*handler_called = true;
-	return err->status;
-}
-
-TEST_CASE(function_fails_call_error_handler)
-{
-	// Given an error handler
-	ErrorHandler oldh = Error_set_handler(Status_Error, test_error_handler);
-	bool handler_called = false;
-	Error err = { .baggage = &handler_called };
-
-	// When a function fails
-	int lineno = __LINE__ + 1;
-	StatusCode stat = Error_fail(&err, Status_Error, "Error message here", SOURCE_HERE);
-
-	// Then error status is set and the handler was called
-	TEST(stat == Status_Error);
-	TEST(err.status == Status_Error);
-	TEST(!strcmp(err.source.file, "test_klib.c"));
-	TEST(err.source.line == lineno);
-	TEST(!strcmp(err.message,  "Error message here"));
-	TEST(handler_called);
-
-	Error_set_handler(Status_Error, oldh);
-}
-
-TEST_CASE(clear_error_status)
-{
-	// Given an error handler with an error status
-	Error err = {0};
-	Error_fail(&err, Status_Error, "Testing clear error", SOURCE_HERE);
-	TEST(err.status == Status_Error);
-
-	// Clear the error
-	Error_clear(&err);
-
-	TEST(err.status == Status_OK);
-	TEST(err.source.file == NULL);
-	TEST(err.source.line == 0);
-	TEST(err.message == NULL);
-	TEST(err.baggage == NULL);
-}
-
-TEST_CASE(print_error_handler)
-{
-	UNUSED(test_counter);
-
-//	ErrorHandler old = Error_set_handler(Status_Error, Error_print);
-//	Error err = {0};
-//	Error_fail(&err, Status_Error, "testing 1, 2, 3", SOURCE_HERE);
-//
-//	Error_set_handler(Status_Error, old);
-}
-
-
-StatusCode Error_abort(Error *e)
-{
-	Error_fprintf(e, stderr, NULL);
-	abort();
-}
-
-TEST_CASE(abort_error_handler)
-{
-	UNUSED(test_counter);
-
-//	ErrorHandler old = Error_set_handler(Status_Error, Error_abort);
-//	Error err = {0};
-//	Error_fail(&err, Status_Error, "aborting in 3..2..1", SOURCE_HERE);
-
-//	Error_set_handler(Status_Error, old);
-}
-
-
-TEST_CASE(error_return_status_handler)
-{
-	ErrorHandler old = Error_set_handler(Status_Error, Error_status);
-	Error err = {0};
-	StatusCode stat = Error_fail(&err, Status_Error, "return code", SOURCE_HERE);
-	TEST(stat == Status_Error);
-	Error_set_handler(Status_Error, old);
-}
-
-StatusCode Error_jump(Error *e)
-{
-	if (e) {
-		jmp_buf *buf = e->baggage;
-		longjmp(*buf, e->status);
-	}
-	else {
-		return Status_Unknown_Error;
-	}
-}
-
-TEST_CASE(longjmp_error_handler)
-{
-	ErrorHandler old = Error_set_handler(Status_Error, Error_status);
-	Error err = {0};
-	jmp_buf buf;
-	err.baggage = &buf;
-
-	switch (setjmp(buf)) {
-		case 0:
-			Error_fail(&err, Status_Error, "return code", SOURCE_HERE);
-			// fallthrough
-		case Status_Error:
-			printf("Jumped. sizeof buf: %d\n", (int)sizeof(buf));
-			break;
-		default:
-			TEST(false);
-	}
-
-	Error_set_handler(Status_Error, old);
-}
 
 
 
-
-
-//-----------------------------------------------------------------------------
-// Fun Variadic Functions
-//
-
-void unpack_i(int *a, int n, ...)
-{
-	va_list args;
-	va_start(args, n);
-
-	int *i;
-	while (n --> 0) {
-		if ((i = va_arg(args, int*)))
-			*i = *a++;
-		else
-			break;
-	}
-
-	va_end(args);
-}
-
-TEST_CASE(unpack_entire_array)
-{
-	int arr[] = { 10, 11, 12, 13, 14 };
-	int a, b, c, d, e;
-
-	unpack_i(arr, ARRAY_SIZE(arr), &a, &b, &c, &d, &e);
-	TEST(a == 10);
-	TEST(b == 11);
-	TEST(c == 12);
-	TEST(d == 13);
-	TEST(e == 14);
-}
-
-TEST_CASE(unpack_partial_array)
-{
-	int arr[] = { 10, 11, 12, 13, 14 };
-	int a, b, c;
-
-	unpack_i(arr, ARRAY_SIZE(arr), &a, &b, &c, NULL);
-	TEST(a == 10);
-	TEST(b == 11);
-	TEST(c == 12);
-}
-
-TEST_CASE(unpack_shorter_array)
-{
-	int arr[] = { 10, 11, 12 };
-	int a, b, c;
-	int d = 99;
-	int e = 88;
-
-	// Since array is shorter, only 3 variables will be updated
-	unpack_i(arr, ARRAY_SIZE(arr), &a, &b, &c, &d, &e);
-	TEST(a == 10);
-	TEST(b == 11);
-	TEST(c == 12);
-	TEST(d == 99);
-	TEST(e == 88);
-}
-
-
-
-
-
-TEST_CASE(Error_check_bad_param)
-{
-	UNUSED(test_counter);
-
-	//int param = 1;
-	//CHECK(param == 0);
-}
 
 TEST_CASE(Fib_iterate_the_fibonacci_sequence)
 {

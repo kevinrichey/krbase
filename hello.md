@@ -1,5 +1,47 @@
 % Kevin Richey's C Library
 
+Create a C library to make it easier, safer, more fun to code. 
+
+Data structures
+
+- Dynamic arrays
+- stacks, queues
+- tables (associative arrays)
+- strings
+- vector (tuple)
+- chain (linked list)
+- unit testing
+
+Algos
+
+- list comprehension
+- collection operations
+- random, shuffle, noise
+
+Low-level concepts
+
+- error handling
+- assertions / contracts
+- memory management
+- preproc tools
+
+Application Concepts
+
+- tracing
+- logging
+- configuration
+
+Error handling strategy
+
+- low-level: return codes
+
+# Guidelines
+
+- Standard C17, avoid compiler extensions, ignore C++ compat
+- Keep it C, don't try to imitate other languages
+- Use "modern" C features
+- Don't pre-over-optimize! (gets in the way, and you're not that good)
+
 # Outline
 
 - Concurrency & Parallelism, multi-threading & forking
@@ -243,6 +285,7 @@ union strand {
 - compound literal array
 - internal short array
 - heap
+- memory pool
 
 ### String Composition
 

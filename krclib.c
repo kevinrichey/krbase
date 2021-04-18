@@ -4,8 +4,33 @@
 #include <stdarg.h>
 #include "krclib.h"
 
+
+//----------------------------------------------------------------------
+// Primitive Utilities
+
+bool in_bounds(int n, int lower, int upper)
+{
+	return (lower <= n) && (n <= upper);
+}
+
+int max_i(int a, int b)
+{
+	return (a > b) ? a: b;
+}
+
+int min_i(int a, int b)
+{
+	return (a < b) ? a: b;
+}
+
 //----------------------------------------------------------------------
 // Error Module
+
+void Assert_failed(SourceInfo source, const char *message)
+{
+	fprintf(stderr, "%s:%d: %s: %s\n", source.file, source.line, Status_string(Status_Assert_Failure), message); 
+	abort();
+}
 
 const char *Status_string(StatusCode stat)
 {
@@ -15,72 +40,6 @@ const char *Status_string(StatusCode stat)
 #define X(EnumName)  [Status_##EnumName] = #EnumName,
 	return (const char*[]) { STATUS_X_TABLE } [stat];
 #undef X
-}
-
-StatusCode Error_status(Error *e)
-{
-	return e ? e->status : Status_Unknown_Error;
-}
-
-void Error_fprintf(Error *e, FILE *out, const char *fmt, ...)
-{
-	if (!e)
-		return;
-
-	fprintf(out, "%s:%d: %s: %s", 
-	        e->source.file, 
-			e->source.line, 
-			Status_string(e->status), 
-			e->message);
-
-	if (fmt && fmt[0]) {
-		va_list args;
-		va_start(args, fmt);
-		vfprintf(out, fmt, args);
-		va_end(args);
-	}
-
-	putc('\n', out);
-	fflush(out);
-}
-
-StatusCode Error_print(Error *e)
-{
-	Error_fprintf(e, stderr, NULL);
-	return Error_status(e);
-}
-
-static ErrorHandler private_error_handlers[Status_End] = { 0 };
-
-ErrorHandler Error_set_handler(StatusCode code, ErrorHandler h)
-{
-	ErrorHandler old = NULL;
-	if (in_array_bounds(code, private_error_handlers)) {
-		old = private_error_handlers[code];
-		private_error_handlers[code] = h;
-	}
-	return old;
-}
-
-StatusCode Error_fail(Error *err, StatusCode code, const char *message, SourceInfo source)
-{
-	err->status  = code;
-	err->source  = source;
-	err->message = message;
-
-	if (in_array_bounds(code, private_error_handlers)) {
-		ErrorHandler handler = private_error_handlers[code];
-		if (handler)
-			code = handler(err);
-	}
-
-	return code;
-}
-
-void Error_clear(Error *err)
-{
-    if (err)
-        *err = (Error){0};
 }
 
 
