@@ -26,14 +26,14 @@ typedef struct {
 #define STRING_MODE_SCOPED  'i'
 #define STRING_MODE_ERROR   'e'
 
-string string_init_x(const char *s, size_t n, int mode)
+string string_init_x(const char *s, size_t length, int mode)
 {
-	return (string){ .start = s, .end = s + n, .mode = mode };
+	return (string){ .start = s, .end = s + length, .mode = mode };
 }
 
-string string_init_n(const char *s, size_t n)
+string string_init_n(const char *s, size_t length)
 {
-	return string_init_x(s, n, STRING_MODE_SCOPED);
+	return string_init_x(s, length, STRING_MODE_SCOPED);
 }
 
 string string_init(const char *s)
@@ -41,7 +41,7 @@ string string_init(const char *s)
 	return string_init_n(s, s? strlen(s): 0);
 }
 
-#define STR(S_)   string_init_n((S_), ARRAY_SIZE(S_))
+#define STR(S_)   string_init_n((S_), ARRAY_SIZE(S_)-1)
 
 struct string_buf *stringbuf_alloc(int length)
 {
@@ -60,6 +60,10 @@ int string_length(string s)
 string string_copy(string from)
 {
 	int length = string_length(from);
+
+	if (length == 0)
+		return string_init(NULL);
+
 	string str = { .mode = STRING_MODE_ERROR };
 
 	struct string_buf *buf = stringbuf_alloc(length);
@@ -90,20 +94,95 @@ void string_destroy(string *s)
 
 bool strings_equal(string a, string b)
 {
+	if (string_is_empty(a) && string_is_empty(b))
+		return true;
+
+	if (string_length(a) != string_length(b))
+		return false;
+
 	return !strcmp(a.start, b.start);
 }
 
-TEST_CASE(create_string_buffer)
+TEST_CASE(null_string_is_empty)
 {
-	const char *cs = "Initial String Value";
 	string s = string_init(NULL);
 	TEST(string_length(s) == 0);
 	TEST(string_is_empty(s));
 
-	s = string_copy(string_init(cs));
+	string t = string_copy(s);
+	TEST(string_length(t) == 0);
+	TEST(string_is_empty(t));
+
+	string_destroy(&s);
+	string_destroy(&t);
+}
+
+TEST_CASE(create_string_from_literal)
+{
+	string s = STR("hello world");
 
 	TEST(!string_is_empty(s));
-	TEST(string_length(s) == strlen("Initial String Value"));
+	TEST(string_length(s) == 11);
+	TEST(strings_equal(s, STR("hello world")));
+
+	string_destroy(&s);
+}
+
+TEST_CASE(create_string_from_array)
+{
+	char sa[32] = "this is 31 chars long";
+
+	// STR() gets length from the array, not the string!
+	// String length is the array length 32 minus one for null terminator
+	string s = STR(sa);
+	TEST(!string_is_empty(s));
+	TEST(string_length(s) == 31);
+	// Not equal because the literal is 21 and the array is 31
+	TEST(!strings_equal(s, STR("this is 31 chars long")));
+
+	// It's probably better to use string_init() for arrays.
+	string t = string_init(sa);
+	TEST(!string_is_empty(t));
+	TEST(string_length(t) == 21);
+	TEST(strings_equal(t, STR("this is 31 chars long")));
+
+	// Technically unnecessary since arrays and literals are not 
+	// allocated on heap. But probably good practice anyway.
+	string_destroy(&s);
+	string_destroy(&t);
+}
+
+TEST_CASE(create_string_from_pointer)
+{
+	char sa[] = "xyzzy";
+	char *sp = sa;
+
+	string s = string_init(sp);
+
+	TEST(!string_is_empty(s));
+	TEST(string_length(s) == 5);
+	TEST(strings_equal(s, STR("xyzzy")));
+
+	string_destroy(&s);
+}
+
+TEST_CASE(create_string_from_compound_literal)
+{
+	// this is mostly useless since strings are immutable
+	string s = STR((char[16]){0});
+
+	TEST(!string_is_empty(s));
+	TEST(string_length(s) == 15);
+
+	string_destroy(&s);
+}
+
+TEST_CASE(copy_literal_to_string)
+{
+	string s = string_copy(STR("Initial String Value"));
+
+	TEST(!string_is_empty(s));
+	TEST(string_length(s) == 20);
 	TEST(strings_equal(s, STR("Initial String Value")));
 
 	string_destroy(&s);
@@ -114,6 +193,9 @@ TEST_CASE(copy_null_string)
 	string nullstr = string_init(NULL);
 	string s = string_copy(nullstr);
 	TEST(string_length(s) == 0);
+	TEST(strings_equal(s, nullstr));
+
+	string_destroy(&s);
 }
 
 size_t strnlen(const char *s, size_t maxlen)
