@@ -179,6 +179,7 @@ void  *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int o
 
 //@module bytes
 
+typedef unsigned char byte;
 typedef unsigned char Byte_t;
 
 typedef TSpan(Byte_t)  Bytes;

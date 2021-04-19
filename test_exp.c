@@ -3,12 +3,37 @@
 #include <string.h>
 #include <stdarg.h>
 #include <setjmp.h>
+#include <stddef.h>
 #include "test.h"
 
 //
 // This is all experimental stuff
 //
 
+#define member_to_struct_ptr(PTR_, TYPE_, MEMBER_)  \
+	(TYPE_*)((byte*)(PTR_) - offsetof(TYPE_, MEMBER_))
+
+TEST_CASE(convert_member_ptr_to_struct)
+{
+	typedef struct {
+		int i;
+		double d;
+		char s[];
+	} xyzzy;
+
+	xyzzy *zork = malloc(sizeof(xyzzy) + 10);
+
+	int *ip = &zork->i;
+	TEST(member_to_struct_ptr(ip, xyzzy, i) == zork);
+
+	double *dp = &zork->d;
+	TEST(member_to_struct_ptr(dp, xyzzy, d) == zork);
+
+	char *sp = zork->s;
+	TEST(member_to_struct_ptr(sp, xyzzy, s) == zork);
+
+	free(zork);
+}
 
 //@module string
 
@@ -17,13 +42,24 @@ struct string_buf {
 	char   strbuf[];
 };
 
+struct string_buf *stringbuf_alloc(int length)
+{
+	size_t size = sizeof(char) * length + 1;
+	struct string_buf *str = malloc(sizeof(*str) + size);
+	if (str)
+		str->size = size;
+	return str;
+}
+
+
 typedef struct {
 	const char *start, *end;
 	char mode;
 } string;
 
-#define STRING_MODE_ALLOC   'x'
-#define STRING_MODE_SCOPED  'i'
+#define STRING_MODE_NULL    '\0'
+#define STRING_MODE_ALLOC   'a'
+#define STRING_MODE_SCOPED  's'
 #define STRING_MODE_ERROR   'e'
 
 string string_init_x(const char *s, size_t length, int mode)
@@ -43,15 +79,6 @@ string string_init(const char *s)
 
 #define STR(S_)   string_init_n((S_), ARRAY_SIZE(S_)-1)
 
-struct string_buf *stringbuf_alloc(int length)
-{
-	size_t size = sizeof(char) * length + 1;
-	struct string_buf *str = malloc(sizeof(*str) + size);
-	if (str)
-		str->size = size;
-	return str;
-}
-
 int string_length(string s) 
 {
 	return s.end - s.start;
@@ -64,17 +91,13 @@ string string_copy(string from)
 	if (length == 0)
 		return string_init(NULL);
 
-	string str = { .mode = STRING_MODE_ERROR };
-
 	struct string_buf *buf = stringbuf_alloc(length);
-	if (buf) {
-		if (length > 0)
-			strncpy(buf->strbuf, from.start, length);
-		buf->strbuf[length] = '\0';
-		str = string_init_x(buf->strbuf, length, STRING_MODE_ALLOC);
-	}
+	if (buf == NULL)
+		return (string){ .mode = STRING_MODE_ERROR };
 
-	return str;
+	strncpy(buf->strbuf, from.start, length);
+	buf->strbuf[length] = '\0';
+	return string_init_x(buf->strbuf, length, STRING_MODE_ALLOC);
 }
 
 bool string_is_empty(string s)
@@ -84,12 +107,11 @@ bool string_is_empty(string s)
 
 void string_destroy(string *s)
 {
-	if (s && s->mode == STRING_MODE_ALLOC) {
-		struct string_buf *buf = (struct string_buf *)(s->start - sizeof(*buf));
-		free(buf);
+	if (s) {
+		if (s->mode == STRING_MODE_ALLOC)
+			free(member_to_struct_ptr(s->start, struct string_buf, strbuf));
+		*s = (string){0};
 	}
-	s->start = s->end = NULL;
-	s->mode = '\0';
 }
 
 bool strings_equal(string a, string b)
