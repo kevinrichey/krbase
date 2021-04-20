@@ -84,6 +84,22 @@ int string_length(string s)
 	return s.end - s.start;
 }
 
+bool string_is_empty(string s)
+{
+	return !s.start || !string_length(s);
+}
+
+bool strings_equal(string a, string b)
+{
+	if (string_is_empty(a) && string_is_empty(b))
+		return true;
+
+	if (string_length(a) != string_length(b))
+		return false;
+
+	return !strcmp(a.start, b.start);
+}
+
 string string_copy(string from)
 {
 	int length = string_length(from);
@@ -100,11 +116,6 @@ string string_copy(string from)
 	return string_init_x(buf->strbuf, length, STRING_MODE_ALLOC);
 }
 
-bool string_is_empty(string s)
-{
-	return !s.start || !string_length(s);
-}
-
 void string_destroy(string *s)
 {
 	if (s) {
@@ -112,17 +123,6 @@ void string_destroy(string *s)
 			free(member_to_struct_ptr(s->start, struct string_buf, strbuf));
 		*s = (string){0};
 	}
-}
-
-bool strings_equal(string a, string b)
-{
-	if (string_is_empty(a) && string_is_empty(b))
-		return true;
-
-	if (string_length(a) != string_length(b))
-		return false;
-
-	return !strcmp(a.start, b.start);
 }
 
 TEST_CASE(null_string_is_empty)
@@ -219,6 +219,39 @@ TEST_CASE(copy_null_string)
 
 	string_destroy(&s);
 }
+
+string string_format(const char *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+
+	va_list n_args;
+	va_copy(n_args, args);
+	int length = vsnprintf(NULL, 0, format, n_args);
+	va_end(n_args);
+
+	if (length > 0) {
+		struct string_buf *buf = stringbuf_alloc(length);
+		if (buf) {
+			int num = vsnprintf(buf->strbuf, length, format, args);
+			if (num < 0)
+				return (string){ .start = buf->strbuf, .end = buf->strbuf+length, .mode = STRING_MODE_ERROR };
+		}
+	}
+
+	va_end(args);
+	return STR("nope");
+}
+
+TEST_CASE(create_formatted_string)
+{
+	const char *answer = "the answer";
+	string s = string_format("%s to %d/%d is %f", answer, 2, 3, 2.0/3.0);
+
+	printf("s = %s\n", s.start);
+	TEST(strings_equal(s, STR("the answer to 2/3 is 0.666666")));
+}
+
 
 size_t strnlen(const char *s, size_t maxlen)
 {
