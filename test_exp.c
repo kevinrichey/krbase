@@ -37,19 +37,46 @@ TEST_CASE(convert_member_ptr_to_struct)
 
 //@module string
 
+#define FAMSIZE(OBJ_, FAM_, LENGTH_)  (sizeof((OBJ_)) + sizeof(*(OBJ_).FAM_) * (LENGTH_))
+
 struct string_buf {
 	size_t size;
 	char   strbuf[];
 };
 
-struct string_buf *stringbuf_alloc(int length)
+struct allocator {
+	void *(*alloc)(size_t);
+	void  (*free)(void*);
+	void  (*fail)(SourceInfo, size_t);
+};
+
+void *alloc_null(size_t size) { UNUSED(size); return NULL; }
+void  free_nop(void *ptr) { UNUSED(ptr); }
+void  nop(void) {}
+
+void  alloc_fail_print(SourceInfo source, size_t size)
 {
-	size_t size = sizeof(char) * length + 1;
-	struct string_buf *str = malloc(sizeof(*str) + size);
+	fprintf(stderr, "%s:%d: Allocation failed, %lu bytes\n", 
+			source.file, source.line, size);
+}
+
+struct string_buf *stringbuf_alloc(int length, struct allocator *allocator, SourceInfo source)
+{
+	size_t size = 0;
+	struct string_buf *str = allocator->alloc(size = FAMSIZE(*str, strbuf, length));
 	if (str)
-		str->size = size;
+		str->size = length;
+	else
+		allocator->fail(source, size);
 	return str;
 }
+
+struct string_buf *stringbuf_create_dbg(int length, SourceInfo source)
+{
+	return stringbuf_alloc(length, &(struct allocator){ malloc, free, alloc_fail_print }, source);
+}
+
+#define stringbuf_create(LENGTH_)   stringbuf_create_dbg((LENGTH_), SOURCE_HERE)
 
 
 typedef struct {
@@ -100,14 +127,15 @@ bool strings_equal(string a, string b)
 	return !strcmp(a.start, b.start);
 }
 
-string string_copy(string from)
+string string_copy_dbg(string from, SourceInfo source)
 {
 	int length = string_length(from);
 
 	if (length == 0)
 		return string_init(NULL);
 
-	struct string_buf *buf = stringbuf_alloc(length);
+	struct string_buf *buf = stringbuf_alloc(length+1, &(struct allocator){ malloc, free, alloc_fail_print }, source);
+
 	if (buf == NULL)
 		return (string){ .mode = STRING_MODE_ERROR };
 
@@ -115,6 +143,8 @@ string string_copy(string from)
 	buf->strbuf[length] = '\0';
 	return string_init_x(buf->strbuf, length, STRING_MODE_ALLOC);
 }
+
+#define string_copy(FROMSTR_)  string_copy_dbg((FROMSTR_), SOURCE_HERE)
 
 void string_destroy(string *s)
 {
@@ -225,33 +255,57 @@ string string_format(const char *format, ...)
 	va_list args;
 	va_start(args, format);
 
+	string newstr = string_init(NULL);
+
 	va_list n_args;
 	va_copy(n_args, args);
 	int length = vsnprintf(NULL, 0, format, n_args);
 	va_end(n_args);
 
+	if (length < 0)
+		newstr.mode = STRING_MODE_ERROR;
+
 	if (length > 0) {
-		struct string_buf *buf = stringbuf_alloc(length);
+		struct string_buf *buf = stringbuf_create(length+1);
 		if (buf) {
-			int num = vsnprintf(buf->strbuf, length, format, args);
+			int num = vsnprintf(buf->strbuf, buf->size, format, args);
+			newstr = string_init_n(buf->strbuf, length);
 			if (num < 0)
-				return (string){ .start = buf->strbuf, .end = buf->strbuf+length, .mode = STRING_MODE_ERROR };
+				newstr.mode = STRING_MODE_ERROR;
 		}
+		else
+			newstr.mode = STRING_MODE_ERROR;
 	}
 
 	va_end(args);
-	return STR("nope");
+	return newstr;
 }
+
 
 TEST_CASE(create_formatted_string)
 {
 	const char *answer = "the answer";
 	string s = string_format("%s to %d/%d is %f", answer, 2, 3, 2.0/3.0);
 
-	printf("s = %s\n", s.start);
-	TEST(strings_equal(s, STR("the answer to 2/3 is 0.666666")));
+	string sc = STR("the answer to 2/3 is 0.666667");
+	TEST(strings_equal(s, sc));
 }
 
+static bool TEST_STRINGBUF_FAILED = false;
+
+static void test_stringbuf_alloc_failed (SourceInfo source, size_t size)
+{
+	alloc_fail_print(source, size);
+	TEST_STRINGBUF_FAILED = true;
+}
+
+TEST_CASE(create_string_buf_fails)
+{
+	struct allocator stralloc = { alloc_null, free_nop, test_stringbuf_alloc_failed };
+	struct string_buf *str = stringbuf_alloc(10, &stralloc, SOURCE_HERE);
+	TEST(str == NULL);
+	TEST(TEST_STRINGBUF_FAILED);
+}
 
 size_t strnlen(const char *s, size_t maxlen)
 {
