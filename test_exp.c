@@ -5,44 +5,13 @@
 #include <setjmp.h>
 #include <stddef.h>
 #include "test.h"
+#include "krclib.h"
 
 //
 // This is all experimental stuff
 //
 
-#define member_to_struct_ptr(PTR_, TYPE_, MEMBER_)  \
-	(TYPE_*)((byte*)(PTR_) - offsetof(TYPE_, MEMBER_))
-
-TEST_CASE(convert_member_ptr_to_struct)
-{
-	typedef struct {
-		int i;
-		double d;
-		char s[];
-	} xyzzy;
-
-	xyzzy *zork = malloc(sizeof(xyzzy) + 10);
-
-	int *ip = &zork->i;
-	TEST(member_to_struct_ptr(ip, xyzzy, i) == zork);
-
-	double *dp = &zork->d;
-	TEST(member_to_struct_ptr(dp, xyzzy, d) == zork);
-
-	char *sp = zork->s;
-	TEST(member_to_struct_ptr(sp, xyzzy, s) == zork);
-
-	free(zork);
-}
-
-//@module string
-
-#define FAMSIZE(OBJ_, FAM_, LENGTH_)  (sizeof((OBJ_)) + sizeof(*(OBJ_).FAM_) * (LENGTH_))
-
-struct string_buf {
-	size_t size;
-	char   strbuf[];
-};
+// Allocator
 
 struct allocator {
 	void *(*alloc)(size_t);
@@ -54,30 +23,16 @@ void *alloc_null(size_t size) { UNUSED(size); return NULL; }
 void  free_nop(void *ptr) { UNUSED(ptr); }
 void  nop(void) {}
 
-void  alloc_fail_print(SourceInfo source, size_t size)
+void  alloc_fail(SourceInfo source, size_t size)
 {
-	fprintf(stderr, "%s:%d: Allocation failed, %lu bytes\n", 
-			source.file, source.line, size);
+	fprintf(stderr, "%s:%d: Allocation failed, %lu bytes\n", source.file, source.line, size);
+	exit(EXIT_FAILURE);
 }
 
-struct string_buf *stringbuf_alloc(int length, struct allocator *allocator, SourceInfo source)
-{
-	size_t size = 0;
-	struct string_buf *str = allocator->alloc(size = FAMSIZE(*str, strbuf, length));
-	if (str)
-		str->size = length;
-	else
-		allocator->fail(source, size);
-	return str;
-}
+struct allocator *STRING_ALLOCATOR = &(struct allocator){ malloc, free, alloc_fail };
 
-struct string_buf *stringbuf_create_dbg(int length, SourceInfo source)
-{
-	return stringbuf_alloc(length, &(struct allocator){ malloc, free, alloc_fail_print }, source);
-}
 
-#define stringbuf_create(LENGTH_)   stringbuf_create_dbg((LENGTH_), SOURCE_HERE)
-
+//@module string
 
 typedef struct {
 	const char *start, *end;
@@ -124,35 +79,8 @@ bool strings_equal(string a, string b)
 	if (string_length(a) != string_length(b))
 		return false;
 
+	// Need to replace this with non-NULL terminated version
 	return !strcmp(a.start, b.start);
-}
-
-string string_copy_dbg(string from, SourceInfo source)
-{
-	int length = string_length(from);
-
-	if (length == 0)
-		return string_init(NULL);
-
-	struct string_buf *buf = stringbuf_alloc(length+1, &(struct allocator){ malloc, free, alloc_fail_print }, source);
-
-	if (buf == NULL)
-		return (string){ .mode = STRING_MODE_ERROR };
-
-	strncpy(buf->strbuf, from.start, length);
-	buf->strbuf[length] = '\0';
-	return string_init_x(buf->strbuf, length, STRING_MODE_ALLOC);
-}
-
-#define string_copy(FROMSTR_)  string_copy_dbg((FROMSTR_), SOURCE_HERE)
-
-void string_destroy(string *s)
-{
-	if (s) {
-		if (s->mode == STRING_MODE_ALLOC)
-			free(member_to_struct_ptr(s->start, struct string_buf, strbuf));
-		*s = (string){0};
-	}
 }
 
 TEST_CASE(null_string_is_empty)
@@ -160,13 +88,6 @@ TEST_CASE(null_string_is_empty)
 	string s = string_init(NULL);
 	TEST(string_length(s) == 0);
 	TEST(string_is_empty(s));
-
-	string t = string_copy(s);
-	TEST(string_length(t) == 0);
-	TEST(string_is_empty(t));
-
-	string_destroy(&s);
-	string_destroy(&t);
 }
 
 TEST_CASE(create_string_from_literal)
@@ -176,8 +97,6 @@ TEST_CASE(create_string_from_literal)
 	TEST(!string_is_empty(s));
 	TEST(string_length(s) == 11);
 	TEST(strings_equal(s, STR("hello world")));
-
-	string_destroy(&s);
 }
 
 TEST_CASE(create_string_from_array)
@@ -197,11 +116,6 @@ TEST_CASE(create_string_from_array)
 	TEST(!string_is_empty(t));
 	TEST(string_length(t) == 21);
 	TEST(strings_equal(t, STR("this is 31 chars long")));
-
-	// Technically unnecessary since arrays and literals are not 
-	// allocated on heap. But probably good practice anyway.
-	string_destroy(&s);
-	string_destroy(&t);
 }
 
 TEST_CASE(create_string_from_pointer)
@@ -214,8 +128,6 @@ TEST_CASE(create_string_from_pointer)
 	TEST(!string_is_empty(s));
 	TEST(string_length(s) == 5);
 	TEST(strings_equal(s, STR("xyzzy")));
-
-	string_destroy(&s);
 }
 
 TEST_CASE(create_string_from_compound_literal)
@@ -225,6 +137,68 @@ TEST_CASE(create_string_from_compound_literal)
 
 	TEST(!string_is_empty(s));
 	TEST(string_length(s) == 15);
+}
+
+
+
+
+typedef struct StringBuf {
+	size_t size;
+	char   str[];
+} StringBuf;
+
+
+StringBuf *StringBuf_alloc(int length, struct allocator *allocator, SourceInfo source)
+{
+	size_t size = sizeof(struct StringBuf) + (sizeof(char) * length);
+	struct StringBuf *str = allocator->alloc(size );
+	if (str)
+		str->size = length;
+	else
+		allocator->fail(source, size);
+	return str;
+}
+
+struct StringBuf *StringBuf_create(int length, SourceInfo source)
+{
+	return StringBuf_alloc(length, STRING_ALLOCATOR, source);
+}
+
+void string_destroy(string *s)
+{
+	if (s) {
+		if (s->mode == STRING_MODE_ALLOC)
+			free(MEMBER_TO_STRUCT_PTR(s->start, struct StringBuf, str));
+		*s = (string){0};
+	}
+}
+
+string string_copy_dbg(string from, SourceInfo source)
+{
+	int length = string_length(from);
+
+	if (length == 0)
+		return string_init(NULL);
+
+	struct StringBuf *buf = StringBuf_create(length+1, source);
+
+	if (buf == NULL)
+		return (string){ .mode = STRING_MODE_ERROR };
+
+	strncpy(buf->str, from.start, length);
+	buf->str[length] = '\0';
+	return string_init_x(buf->str, length, STRING_MODE_ALLOC);
+}
+
+#define string_copy(FROMSTR_)  string_copy_dbg((FROMSTR_), SOURCE_HERE)
+
+TEST_CASE(copy_null_string)
+{
+	string nullstr = string_init(NULL);
+	string s = string_copy(nullstr);
+	TEST(string_length(s) == 0);
+	TEST(string_is_empty(s));
+	TEST(strings_equal(s, nullstr));
 
 	string_destroy(&s);
 }
@@ -240,17 +214,9 @@ TEST_CASE(copy_literal_to_string)
 	string_destroy(&s);
 }
 
-TEST_CASE(copy_null_string)
-{
-	string nullstr = string_init(NULL);
-	string s = string_copy(nullstr);
-	TEST(string_length(s) == 0);
-	TEST(strings_equal(s, nullstr));
+#define string_format(FORMAT_, ...)   string_format_dbg(SOURCE_HERE, FORMAT_, __VA_ARGS__)
 
-	string_destroy(&s);
-}
-
-string string_format(const char *format, ...)
+string string_format_dbg(SourceInfo source, const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
@@ -266,10 +232,10 @@ string string_format(const char *format, ...)
 		newstr.mode = STRING_MODE_ERROR;
 
 	if (length > 0) {
-		struct string_buf *buf = stringbuf_create(length+1);
+		struct StringBuf *buf = StringBuf_create(length+1, source);
 		if (buf) {
-			int num = vsnprintf(buf->strbuf, buf->size, format, args);
-			newstr = string_init_n(buf->strbuf, length);
+			int num = vsnprintf(buf->str, buf->size, format, args);
+			newstr = string_init_n(buf->str, length);
 			if (num < 0)
 				newstr.mode = STRING_MODE_ERROR;
 		}
@@ -295,17 +261,21 @@ static bool TEST_STRINGBUF_FAILED = false;
 
 static void test_stringbuf_alloc_failed (SourceInfo source, size_t size)
 {
-	alloc_fail_print(source, size);
+	UNUSED(source);
+	UNUSED(size);
 	TEST_STRINGBUF_FAILED = true;
 }
 
 TEST_CASE(create_string_buf_fails)
 {
 	struct allocator stralloc = { alloc_null, free_nop, test_stringbuf_alloc_failed };
-	struct string_buf *str = stringbuf_alloc(10, &stralloc, SOURCE_HERE);
+	struct StringBuf *str = StringBuf_alloc(10, &stralloc, SOURCE_HERE);
 	TEST(str == NULL);
 	TEST(TEST_STRINGBUF_FAILED);
 }
+
+
+
 
 size_t strnlen(const char *s, size_t maxlen)
 {
@@ -341,71 +311,78 @@ void swap_c(char *a, char *b)
 
 
 
-typedef struct {
-	Link link;
-	void (*dispose)(void*);
-} Resource;
+
+struct Object;
 
 typedef struct {
-	Resource res;
-	char name[32];
+	const char *name;
+	void (*dispose)(struct Object*);
+} TypeInfo;
+
+#define DECLARE_TYPE(TYPE_)  TypeInfo * TYPE_##_type_info = &(TypeInfo){ .name=#TYPE_, .dispose=(TYPE_##_dispose) }
+
+
+typedef struct Object {
+	struct Object *next;
+	SourceInfo source;
+	const char *name;
+	TypeInfo *type;
 } Object;
 
-void Object_dispose(void *object)
+void Object_dispose(Object *object)
 {
-	Object *o = object;
-	fprintf(stderr, "Disposing %s\n", o->name);
-	free(o);
+	fprintf(stderr, "Disposing %s \"%s\" from %s:%d\n", object->type->name, object->name, 
+			object->source.file, object->source.line);
+	free(object);
 }
 
-Object *Object_create(const char *n)
+DECLARE_TYPE(Object);
+
+
+Object *Object_create_dbg(const char *name, Object *top, SourceInfo source)
 {
 	Object *o = malloc(sizeof(*o));
-	strncpy(o->name, n, sizeof(o->name));
-	o->res.dispose = Object_dispose;
-	fprintf(stderr, "init %s\n", o->name);
+	o->next = top;
+	o->source = source;
+	o->type = Object_type_info;
+	o->name = name;
+	fprintf(stderr, "Create object \"%s\"\n", o->name);
 	return o;
 }
 
-void code(Chain *res_chain, jmp_buf *jmp)
+#define Object_create(NAME_, TOP_)   Object_create_dbg((NAME_), (TOP_), SOURCE_HERE)
+
+void dispose(Object *object)
 {
-	Object *a = Object_create("A");
-	Chain_append(res_chain, &a->res.link);
-
-	Object *b = Object_create("B");
-	Chain_append(res_chain, &b->res.link);
-
-	longjmp(*jmp, 99);
-
-	Object *c = Object_create("C");
-	Chain_append(res_chain, &c->res.link);
+	if (object)  object->type->dispose(object);
 }
 
-
-TEST_CASE(destructor_chain)
+void Object_dispose_all(Object *top)
 {
-	jmp_buf jmp;
-
-	Chain res_chain = CHAIN_INIT(res_chain);
-	if (!setjmp(jmp)) {
-
-		code(&res_chain, &jmp);
-
-		Object *first = (Object*)Chain_first(&res_chain);
-		TEST(!strcmp(first->name, "A"));
-		Object *second = (Object*)Link_next(&first->res.link);
-		TEST(!strcmp(second->name, "B"));
-		Object *third = (Object*)Link_next(&second->res.link);
-		TEST(!strcmp(third->name, "C"));
+	while (top) {
+		Object *n = top->next;
+		dispose(top);
+		top = n;
 	}
+}
 
-	Resource *this = (Resource*)Chain_last(&res_chain);
-	while (&this->link != &res_chain.head) {
-		Resource *prev = (Resource*)Link_prev(&this->link);
-		this->dispose(this);
-		this = prev;
-	}
+TEST_CASE(object_life_cycle)
+{
+	Object *top = NULL;
 
+	Object *one = top = Object_create("one", top);
+	TEST(!strcmp(one->name, "one"));
+	TEST(one->next == NULL);
+
+	Object *two = top = Object_create("two", top);
+	TEST(!strcmp(two->name, "two"));
+	TEST(two->next == one);
+
+	Object *three = top = Object_create("three", top);
+	TEST(!strcmp(three->name, "three"));
+	TEST(three->next == two);
+
+	Object_dispose_all(top);
 }
 
 

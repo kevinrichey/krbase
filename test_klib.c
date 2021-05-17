@@ -82,6 +82,43 @@ TEST_CASE(compute_array_size)
 	TEST(ARRAY_SIZE(a) == 10);
 }
 
+TEST_CASE(convert_member_ptr_to_struct)
+{
+	typedef struct {
+		int i;
+		double d;
+		char s[];
+	} xyzzy;
+
+	xyzzy *zork = malloc(sizeof(xyzzy) + 10);
+
+	int *ip = &zork->i;
+	TEST(MEMBER_TO_STRUCT_PTR(ip, xyzzy, i) == zork);
+
+	double *dp = &zork->d;
+	TEST(MEMBER_TO_STRUCT_PTR(dp, xyzzy, d) == zork);
+
+	char *sp = zork->s;
+	TEST(MEMBER_TO_STRUCT_PTR(sp, xyzzy, s) == zork);
+
+	free(zork);
+}
+
+TEST_CASE(size_of_flexible_array_struct)
+{
+	typedef struct {
+		int x, y;
+		double dd[];
+	} xyzzy;
+
+	xyzzy *p;
+	size_t xyzzy_size = sizeof(xyzzy);
+	size_t array_length = 10;
+	size_t fam_size  = sizeof(double);
+	size_t total = xyzzy_size + (fam_size * array_length);
+
+	TEST(FAMSIZE(*p, dd, 10) == total);
+}
 
 //-----------------------------------------------------------------------------
 // Primitive Utilities

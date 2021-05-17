@@ -37,6 +37,11 @@
 
 #define ARRAY_SIZE(A_)    (sizeof(A_) / sizeof(*(A_)))
 
+#define MEMBER_TO_STRUCT_PTR(PTR_, TYPE_, MEMBER_)  \
+	(TYPE_*)((byte*)(PTR_) - offsetof(TYPE_, MEMBER_))
+
+#define FAMSIZE(OBJ_, FAM_, LENGTH_)  (sizeof((OBJ_)) + sizeof(*(OBJ_).FAM_) * (LENGTH_))
+
 
 //----------------------------------------------------------------------
 //@module Primitive Utilities
