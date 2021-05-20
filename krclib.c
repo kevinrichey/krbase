@@ -23,6 +23,20 @@ int min_i(int a, int b)
 	return (a < b) ? a: b;
 }
 
+void cswap(char *a, char *b)
+{
+	char t = *a;
+	*a = *b;
+	*b = t;
+}
+
+size_t strnlen(const char *s, size_t maxlen)
+{
+	size_t len = 0;
+	while (*s++ && ++len < maxlen) ;
+	return len;
+}
+
 //----------------------------------------------------------------------
 // Error Module
 
@@ -44,11 +58,91 @@ const char *Status_string(StatusCode stat)
 
 
 
+//----------------------------------------------------------------------
+// string Module
+
+typedef struct string {
+	size_t size;
+	size_t length;
+	char   str[];
+} string;
 
 
-Bytes Bytes_init_str(char *s)
+string *string_create(size_t size)
 {
-	return (Bytes)SPAN_INIT((Byte_t*)s, strlen(s));
+	size_t space = sizeof(string) + (sizeof(char) * size);
+	string *s = malloc(space);
+	if (s) {
+		s->size = size;
+		s->length = 0;
+		s->str[0] = '\0';
+	}
+	return s;
+}
+
+string *string_copy(const char *from)
+{
+	size_t length = strlen(from);
+	string *s = string_create(length + 1);
+	if (s) {
+		strncpy(s->str, from, length + 1);
+		s->length = length;
+	}
+	return s;
+}
+
+void string_dispose(string *s)
+{
+	free(s);
+}
+
+size_t string_length(string *s)
+{
+	return s ? s->length : 0;
+}
+
+bool string_equals(string *s, const char *cstr)
+{
+	if (s && cstr)
+		return !strcmp(s->str, cstr);
+	else
+		return (!s && !cstr);
+}
+
+void string_puts(string *s)
+{
+	puts(s ? s->str : "empty string");
+}
+
+bool string_is_empty(string *s) 
+{
+	return !s  ||  s->length == 0;
+}
+
+string *string_format(const char *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+
+	va_list n_args;
+	va_copy(n_args, args);
+	int length = vsnprintf(NULL, 0, format, n_args) + 1;
+	va_end(n_args);
+
+	string *s = string_create(length + 1);
+	if (s && s->size > 1) {
+		vsnprintf(s->str, s->size, format, args);
+		s->length = length;
+	}
+
+	va_end(args);
+	return s;
+}
+
+
+bspan Bytes_init_str(char *s)
+{
+	return (bspan)SPAN_INIT((byte*)s, strlen(s));
 }
 
 
@@ -182,7 +276,7 @@ void Chain_appends(Chain *chain, ...)
 void *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int offset)
 {
 	for (Link *n = chain->head.next; n && n != &chain->head; n = n->next)
-		fn(baggage, (Byte_t*)n + offset);
+		fn(baggage, (byte*)n + offset);
 	return baggage;
 }
 
@@ -216,12 +310,12 @@ uint32_t Xorshift_rand(Xorshifter *state)
 	return state->x = x;
 }
 
-uint64_t hash_fnv_1a_64bit(Bytes data, uint64_t hash)
+uint64_t hash_fnv_1a_64bit(bspan data, uint64_t hash)
 {
 	const uint64_t fnv_1a_64bit_prime = 0x100000001B3;
 
-	const Byte_t *end = data.ptr + data.size;
-	for (const Byte_t *b = data.ptr; b != end; ++b) {
+	const byte *end = data.end;
+	for (const byte *b = data.begin; b != end; ++b) {
 		hash ^= (uint64_t)*b;
 		hash *= fnv_1a_64bit_prime;
 	}
@@ -229,7 +323,7 @@ uint64_t hash_fnv_1a_64bit(Bytes data, uint64_t hash)
 	return hash;
 }
 
-uint64_t hash(Bytes data)
+uint64_t hash(bspan data)
 {
 	const uint64_t fnv_1a_64bit_offset_basis = 14695981039346656037llu;
 	return hash_fnv_1a_64bit(data, fnv_1a_64bit_offset_basis);

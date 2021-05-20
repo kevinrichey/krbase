@@ -46,6 +46,8 @@
 //----------------------------------------------------------------------
 //@module Primitive Utilities
 
+typedef unsigned char byte;
+
 bool in_bounds(int n, int lower, int upper);
 
 #define in_enum_bounds(VAL_, ENUM_) \
@@ -57,9 +59,12 @@ bool in_bounds(int n, int lower, int upper);
 int max_i(int a, int b);
 int min_i(int a, int b);
 
+void cswap(char *a, char *b);
+
 // void function pointer
 typedef void (*void_fp)(void);
 
+size_t strnlen(const char *s, size_t maxlen);
 
 //----------------------------------------------------------------------
 //@module Debugging & Error Checking
@@ -100,24 +105,20 @@ void Assert_failed(SourceInfo source, const char *message);
 //----------------------------------------------------------------------
 //@module Span Template
 
-#define TSpan(T_)  struct { T_ *ptr; size_t size; }
+#define TSPAN(T_)  struct { T_ *begin, *end; }
 
-#define SPAN_INIT_N(PTR_, LEN_, ...)  { .ptr=(PTR_), .size=(LEN_) }
-#define SPAN_INIT(...) \
-	SPAN_INIT_N(__VA_ARGS__, ARRAY_SIZE(VA_PARAM_0(__VA_ARGS__)))
+#define SPAN_INIT_N(PTR_, LEN_, ...)  { .begin=(PTR_), .end=(PTR_)+(LEN_) }
+#define SPAN_INIT(...)   SPAN_INIT_N(__VA_ARGS__, ARRAY_SIZE(VA_PARAM_0(__VA_ARGS__)))
 
-#define SPAN_INIT_AUTO(T_, SIZE_)  { .ptr=(T_[SIZE_]){}, .size=(SIZE_) }
-#define SPAN_INIT_CAST(T_, SPAN_)  { .ptr=(T_*)(SPAN_).ptr, .size=(SPAN_).size }
+#define SPAN_LENGTH(SPAN_)   (int)((SPAN_).end - (SPAN_).begin)
+#define SPAN_IS_EMPTY(SPAN_)  (((SPAN_).end - (SPAN_).begin <= 1))
 
-typedef TSpan(char)  StrSpan;
-typedef TSpan(void)  VoidSpan;
+typedef TSPAN(char)     cspan;
+typedef TSPAN(int)      ispan;
+typedef TSPAN(double)   dspan;
+typedef TSPAN(void)     vspan;
+typedef TSPAN(byte)     bspan;
 
-//----------------------------------------------------------------------
-//@module range
-
-#define range(T_)  struct { T_ start; T_ stop; }
-
-typedef range(const char*) crange;
 
 //----------------------------------------------------------------------
 //@module Vector - tuple with named and random access
@@ -129,6 +130,20 @@ typedef range(const char*) crange;
 	}
 
 #define VECT_LENGTH(V_)    (int)(ARRAY_SIZE((V_).at))
+
+//----------------------------------------------------------------------
+//@module string
+
+typedef struct string string;
+
+string *string_create(size_t size);
+void string_dispose(string *s);
+size_t string_length(string *s);
+bool string_equals(string *s, const char *cstr);
+void string_puts(string *s);
+bool string_is_empty(string *s);
+string *string_copy(const char *from);
+string *string_format(const char *format, ...);
 
 
 //----------------------------------------------------------------------
@@ -179,23 +194,6 @@ void  *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int o
 
 
 
-
-
-
-//@module bytes
-
-typedef unsigned char byte;
-typedef unsigned char Byte_t;
-
-typedef TSpan(Byte_t)  Bytes;
-
-#define Bytes_init_array(ARR_)  \
-			(Bytes)SPAN_INIT((Byte_t*)(ARR_), sizeof(ARR_))
-
-#define Bytes_init_var(VAR_)   \
-			(Bytes)SPAN_INIT((Byte_t*)&(VAR_), sizeof(VAR_))
-
-Bytes Bytes_init_str(char *s);
 
 
 
@@ -390,9 +388,9 @@ uint32_t Xorshift_rand(Xorshifter *state);
 
 //@module Hash Table
 
-uint64_t hash_fnv_1a_64bit(Bytes data, uint64_t hash);
+uint64_t hash_fnv_1a_64bit(bspan data, uint64_t hash);
 
-uint64_t hash(Bytes data);
+uint64_t hash(bspan data);
 
 //@module Fibonacci Sequence Iterator
 

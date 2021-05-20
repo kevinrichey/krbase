@@ -123,6 +123,11 @@ TEST_CASE(size_of_flexible_array_struct)
 //-----------------------------------------------------------------------------
 // Primitive Utilities
 
+TEST_CASE(bytes_are_size_one)
+{
+	TEST(sizeof(byte) == 1);
+}
+
 TEST_CASE(in_bounds_enums_and_arrays)
 {
 	TEST(in_bounds(3, 1, 5));
@@ -152,35 +157,52 @@ TEST_CASE(in_bounds_enums_and_arrays)
 	TEST(!in_array_bounds(-1, array));
 }
 
+TEST_CASE(length_of_fixed_size_string)
+{
+	char same_len[] = "xyzzy";
+	TEST(strnlen(same_len, sizeof(same_len)) == 5);
+
+	char longer_str[100] = "less than one hundred";
+	TEST(strnlen(longer_str, sizeof(longer_str)) == 21);
+
+	char shorter[] = "send a shorter max length";
+	TEST(strnlen(shorter, 10) == 10);
+	
+	char empty[] = "";
+	TEST(strnlen(empty, sizeof(empty)) == 0);
+}
+
 
 //-----------------------------------------------------------------------------
 // Span Template
 //
 
+TEST_CASE(empty_spans)
+{
+	ispan is = SPAN_INIT((int[0]){});
+	TEST(SPAN_IS_EMPTY(is));
+}
+
 TEST_CASE(init_span_from_arrays)
 {
 	char letters[] = "abcdefghijklmnopqrstuvwxyz";
-	StrSpan cspan = SPAN_INIT(letters);
-	TEST(cspan.size == 27); // don't forget the null-terminator
-	TEST(cspan.ptr[5] == 'f');
+	cspan cs = SPAN_INIT(letters);
+	TEST(SPAN_LENGTH(cs) == 27); // don't forget the null-terminator
+	TEST(cs.begin[5] == 'f');
 
 	// Make a span from the array
 	int fibs[] = { 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 };
-	TSpan(int) nspan = SPAN_INIT(fibs, 12);
-	TEST(nspan.size == 12);
+	ispan nspan = SPAN_INIT(fibs, 8);
+	TEST(SPAN_LENGTH(nspan) == 8);
 	int i = 0;
-	TEST(nspan.ptr[i++] ==  0);
-	TEST(nspan.ptr[i++] ==  1);
-	TEST(nspan.ptr[i++] ==  1);
-	TEST(nspan.ptr[i++] ==  2);
-	TEST(nspan.ptr[i++] ==  3);
-	TEST(nspan.ptr[i++] ==  5);
-	TEST(nspan.ptr[i++] ==  8);
-	TEST(nspan.ptr[i++] == 13);
-	TEST(nspan.ptr[i++] == 21);
-	TEST(nspan.ptr[i++] == 34);
-	TEST(nspan.ptr[i++] == 55);
-	TEST(nspan.ptr[i++] == 89);
+	TEST(nspan.begin[i++] ==  0);
+	TEST(nspan.begin[i++] ==  1);
+	TEST(nspan.begin[i++] ==  1);
+	TEST(nspan.begin[i++] ==  2);
+	TEST(nspan.begin[i++] ==  3);
+	TEST(nspan.begin[i++] ==  5);
+	TEST(nspan.begin[i++] ==  8);
+	TEST(nspan.begin[i++] == 13);
 }
 
 TEST_CASE(vector_init)
@@ -196,6 +218,59 @@ TEST_CASE(vector_init)
 	TEST(VECT_LENGTH(point) == 3);
 }
 
+
+//-----------------------------------------------------------------------------
+// string
+//
+
+TEST_CASE(string_lifecycle)
+{
+	string *s = string_copy("Hello, world.");
+
+	TEST(!string_is_empty(s));
+	TEST(string_length(s) == 13);
+	TEST(string_equals(s, "Hello, world."));
+	TEST(!string_equals(s, "xyzzy"));
+	TEST(!string_equals(s, NULL));
+
+	string_dispose(s);
+}
+
+TEST_CASE(null_string_is_empty)
+{
+	string *s = NULL;
+
+	TEST(string_is_empty(s));
+	TEST(string_length(s) == 0);
+	TEST(string_equals(s, NULL));
+	TEST(!string_equals(s, ""));
+	TEST(!string_equals(s, "xyzzy"));
+
+	string_dispose(s);
+}
+
+TEST_CASE(empty_strings)
+{
+	string *s = string_copy("");
+
+	TEST(string_is_empty(s));
+	TEST(string_length(s) == 0);
+	TEST(string_equals(s, ""));
+	TEST(!string_equals(s, NULL));
+	TEST(!string_equals(s, "xyzzy"));
+
+	string_dispose(s);
+}
+
+TEST_CASE(create_formatted_string)
+{
+	const char *answer = "the answer";
+	string *s = string_format("%s to %d/%d is %.5f", answer, 2, 3, 2.0/3.0);
+
+	TEST(string_equals(s, "the answer to 2/3 is 0.66667"));
+
+	string_dispose(s);
+}
 
 //-----------------------------------------------------------------------------
 // Doubly Linked List

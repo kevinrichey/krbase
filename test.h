@@ -13,9 +13,9 @@ typedef void (*TestCase)(TestCounter*);
 #define TEST_CASE(TEST_NAME_) \
 	void TestCase_##TEST_NAME_(TestCounter *test_counter)
 
-void Test_fail(TestCounter *counter, const char *file, int line, const char *msg);
+void Test_assert(bool condition, TestCounter *counter, const char *file, int line, const char *msg);
 
-#define TEST(CONDITION_) \
-	do { if (CONDITION_); else Test_fail(test_counter, __FILE__, __LINE__, #CONDITION_); } while(0)
+#define TEST(CONDITION_)  Test_assert((CONDITION_), test_counter, __FILE__, __LINE__, #CONDITION_)
+
 
 #endif
