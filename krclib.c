@@ -281,6 +281,22 @@ void *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int of
 }
 
 
+//----------------------------------------------------------------------
+//@module Logging
+//
+
+char *timestamp(char *s, size_t num, struct tm *(*totime)(const time_t*))
+{
+	time_t now = time(NULL);
+	strftime(s, num, "%Y-%m-%d %H:%M:%S %Z", totime(&now));
+	return s;
+}
+
+
+
+
+
+
 #define X(A,B,C)  {A,B,C},
 static const int XORSHIFT_PARAM_LIST[][3] = {
 	XORSHIFT_PARAMS

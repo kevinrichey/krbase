@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <time.h>
 
 //@library Kevin Richey's C Library
 
@@ -105,7 +106,7 @@ void Assert_failed(SourceInfo source, const char *message);
 //----------------------------------------------------------------------
 //@module Span Template
 
-#define TSPAN(T_)  struct { T_ *begin, *end; }
+#define TSPAN(T_)  struct { const T_ *begin, *end; }
 
 #define SPAN_INIT_N(PTR_, LEN_, ...)  { .begin=(PTR_), .end=(PTR_)+(LEN_) }
 #define SPAN_INIT(...)   SPAN_INIT_N(__VA_ARGS__, ARRAY_SIZE(VA_PARAM_0(__VA_ARGS__)))
@@ -137,11 +138,11 @@ typedef TSPAN(byte)     bspan;
 typedef struct string string;
 
 string *string_create(size_t size);
-void string_dispose(string *s);
-size_t string_length(string *s);
-bool string_equals(string *s, const char *cstr);
-void string_puts(string *s);
-bool string_is_empty(string *s);
+void    string_dispose(string *s);
+size_t  string_length(string *s);
+bool    string_equals(string *s, const char *cstr);
+void    string_puts(string *s);
+bool    string_is_empty(string *s);
 string *string_copy(const char *from);
 string *string_format(const char *format, ...);
 
@@ -183,8 +184,17 @@ void   Chain_appends(Chain *chain, ...);
 void  *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int offset);
 
 
+//----------------------------------------------------------------------
+//@module Logging
+//
 
+#define TIMESTAMP_FORMAT  "YYYY-MM-DD HH:MM:SS TMZ"
+#define TIMESTAMP_SIZE    sizeof(TIMESTAMP_FORMAT)
 
+char *timestamp(char *s, size_t num, struct tm *(*totime)(const time_t*));
+
+#define TIMESTAMP_GMT  timestamp((char[TIMESTAMP_SIZE]){}, TIMESTAMP_SIZE, gmtime)
+#define TIMESTAMP_LOC  timestamp((char[TIMESTAMP_SIZE]){}, TIMESTAMP_SIZE, localtime)
 
 
 
