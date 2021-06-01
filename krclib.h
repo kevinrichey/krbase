@@ -42,6 +42,7 @@
 	(TYPE_*)((byte*)(PTR_) - offsetof(TYPE_, MEMBER_))
 
 #define FAMSIZE(OBJ_, FAM_, LENGTH_)  (sizeof((OBJ_)) + sizeof(*(OBJ_).FAM_) * (LENGTH_))
+#define NUM_STR_LEN(T_)  (3*sizeof(T_)+2)
 
 
 //----------------------------------------------------------------------
@@ -65,7 +66,19 @@ void cswap(char *a, char *b);
 // void function pointer
 typedef void (*void_fp)(void);
 
-size_t strnlen(const char *s, size_t maxlen);
+size_t  kr_strnlen(const char *s, size_t maxlen);
+char   *kr_strncpy(char *dest, const char *source, size_t n);
+char   *kr_strnrev(char *reversed, const char *str, int rlen);
+char   *kr_int_to_str_back(int n, char *ps);
+char   *kr_itoa(int n, char s[], int s_len);
+
+#ifdef USING_KR_NAMESPACE
+#define strnlen(...)   kr_strnlen(__VA_ARGS__)
+#define strnrev(...)   kr_strnrev(__VA_ARGS__)
+#define int_to_str_back(...)    kr_int_to_str_back(__VA_ARGS__)
+#define strncpy(...)   kr_strncpy(__VA_ARGS__)
+#define itoa(...)      kr_itoa(__VA_ARGS__)
+#endif
 
 //----------------------------------------------------------------------
 //@module Debugging & Error Checking
@@ -113,6 +126,8 @@ void Assert_failed(SourceInfo source, const char *message);
 
 #define SPAN_LENGTH(SPAN_)   (int)((SPAN_).end - (SPAN_).begin)
 #define SPAN_IS_EMPTY(SPAN_)  (((SPAN_).end - (SPAN_).begin <= 1))
+#define SPAN_LAST(SPAN_)      (*((SPAN_).end-1))
+#define SPAN_BACK(SPAN_)      ((SPAN_).end-1)
 
 typedef TSPAN(char)     cspan;
 typedef TSPAN(int)      ispan;
@@ -143,6 +158,7 @@ size_t  string_length(string *s);
 bool    string_equals(string *s, const char *cstr);
 void    string_puts(string *s);
 bool    string_is_empty(string *s);
+cspan   string_span(string *s);
 string *string_copy(const char *from);
 string *string_format(const char *format, ...);
 

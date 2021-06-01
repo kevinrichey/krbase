@@ -4,11 +4,15 @@
 #include <stdarg.h>
 #include <setjmp.h>
 #include <limits.h>
+
+#define USING_KR_NAMESPACE
 #include "test.h"
 
 //-----------------------------------------------------------------------------
 // Testing Language Assumptions
 //
+
+_Static_assert(CHAR_BIT == 8, "chars must be 8 bits");
 
 TEST_CASE(empty_struct_adds_no_size)
 {
@@ -120,6 +124,13 @@ TEST_CASE(size_of_flexible_array_struct)
 	TEST(FAMSIZE(*p, dd, 10) == total);
 }
 
+TEST_CASE(num_chars_to_store_numbers)
+{
+	TEST((int)NUM_STR_LEN(int) >= snprintf(NULL, 0, "%d", INT_MAX));
+	TEST((int)NUM_STR_LEN(char) >= snprintf(NULL, 0, "%d", CHAR_MAX));
+	TEST((int)NUM_STR_LEN(long) >= snprintf(NULL, 0, "%ld", LONG_MAX));
+}
+
 //-----------------------------------------------------------------------------
 // Primitive Utilities
 
@@ -172,6 +183,31 @@ TEST_CASE(length_of_fixed_size_string)
 	TEST(strnlen(empty, sizeof(empty)) == 0);
 }
 
+TEST_CASE(reverse_copy_a_string)
+{
+	char str[] = "Reverse this string";
+	char rev[25];
+	char small[10];
+
+	TEST( !strcmp(strnrev(rev, str, ARRAY_SIZE(rev)), "gnirts siht esreveR") );
+	TEST( !strcmp(strnrev(small, str, ARRAY_SIZE(small)), "gnirts si") );
+}
+
+TEST_CASE(convert_int_to_chars)
+{
+	char s[NUM_STR_LEN(int)];
+	int  len = ARRAY_SIZE(s);
+
+	TEST(!strcmp(itoa(0, s, len), "0"));
+	TEST(!strcmp(itoa(1, s, len), "1"));
+	TEST(!strcmp(itoa(100, s, len), "100"));
+	TEST(!strcmp(itoa(INT_MAX, s, len), "2147483647"));
+	TEST(!strcmp(itoa(-0, s, len), "0"));
+	TEST(!strcmp(itoa(-1, s, len), "-1"));
+	TEST(!strcmp(itoa(-100, s, len), "-100"));
+	TEST(!strcmp(itoa(INT_MIN, s, len), "-2147483648"));
+}
+
 
 //-----------------------------------------------------------------------------
 // Span Template
@@ -205,6 +241,20 @@ TEST_CASE(init_span_from_arrays)
 	TEST(nspan.begin[i++] == 13);
 }
 
+bool pass_string_span_rvalue(cspan cs)
+{
+	return !strcmp(cs.begin, "xyzzy");
+}
+
+#define LSTR(S_)   (cspan)SPAN_INIT(S_)
+#define PSTR(S_)   (cspan)SPAN_INIT(S_, strlen(S_))
+
+TEST_CASE(string_span_rvalue)
+{
+	TEST( pass_string_span_rvalue(LSTR("xyzzy")) );
+	TEST( pass_string_span_rvalue(PSTR("xyzzy")) );
+}
+
 TEST_CASE(vector_init)
 {
 	TVector(int, x, y, z) point = { 10, 20, 30 };
@@ -222,19 +272,6 @@ TEST_CASE(vector_init)
 //-----------------------------------------------------------------------------
 // string
 //
-
-TEST_CASE(string_lifecycle)
-{
-	string *s = string_copy("Hello, world.");
-
-	TEST(!string_is_empty(s));
-	TEST(string_length(s) == 13);
-	TEST(string_equals(s, "Hello, world."));
-	TEST(!string_equals(s, "xyzzy"));
-	TEST(!string_equals(s, NULL));
-
-	string_dispose(s);
-}
 
 TEST_CASE(null_string_is_empty)
 {
@@ -258,6 +295,28 @@ TEST_CASE(empty_strings)
 	TEST(string_equals(s, ""));
 	TEST(!string_equals(s, NULL));
 	TEST(!string_equals(s, "xyzzy"));
+
+	string_dispose(s);
+}
+
+TEST_CASE(string_lifecycle)
+{
+	string *s = string_copy("Hello, world.");
+
+	TEST(!string_is_empty(s));
+	TEST(string_length(s) == 13);
+	TEST(string_equals(s, "Hello, world."));
+	TEST(!string_equals(s, "xyzzy"));
+	TEST(!string_equals(s, NULL));
+
+	int i = 0;
+	cspan schars = string_span(s);
+	TEST(schars.begin[i++] == 'H');
+	TEST(schars.begin[i++] == 'e');
+	TEST(schars.begin[i++] == 'l');
+	TEST(schars.begin[i++] == 'l');
+	TEST(schars.begin[i++] == 'o');
+	TEST(SPAN_LAST(schars) == '.');
 
 	string_dispose(s);
 }

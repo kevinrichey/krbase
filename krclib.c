@@ -30,11 +30,51 @@ void cswap(char *a, char *b)
 	*b = t;
 }
 
-size_t strnlen(const char *s, size_t maxlen)
+size_t kr_strnlen(const char *s, size_t maxlen)
 {
 	size_t len = 0;
 	while (*s++ && ++len < maxlen) ;
 	return len;
+}
+
+char *kr_strnrev(char *r, const char *s, int rlen)
+{
+	char *result = r;
+
+	const char *c = s + strlen(s) - 1;
+	while (*c && --rlen)  
+		*r++ = *c--;
+	*r = '\0';
+
+	return result;
+}
+
+char *kr_int_to_str_back(int n, char *ps)
+{
+	int sign = n < 0 ? -1 : 1;
+
+	*ps-- = '\0';
+	do *ps-- = sign * (n % 10) + '0';
+	while ((n /= 10) != 0);
+
+	if (sign < 0)  *ps-- = '-';
+
+	return ++ps;
+}
+
+char *kr_strncpy(char *dest, const char *source, size_t n)
+{
+	char *ret = dest;
+	while (n --> 0 && (*dest++ = *source++)) ;
+	*dest = '\0';
+	return ret;
+}
+
+char *kr_itoa(int n, char s[], int s_len)
+{
+	char sbuf[NUM_STR_LEN(int)];
+	char *istr = kr_int_to_str_back(n, sbuf + ARRAY_SIZE(sbuf)-1);
+	return kr_strncpy(s, istr, s_len);
 }
 
 //----------------------------------------------------------------------
@@ -85,7 +125,7 @@ string *string_copy(const char *from)
 	size_t length = strlen(from);
 	string *s = string_create(length + 1);
 	if (s) {
-		strncpy(s->str, from, length + 1);
+		kr_strncpy(s->str, from, length + 1);
 		s->length = length;
 	}
 	return s;
@@ -117,6 +157,11 @@ void string_puts(string *s)
 bool string_is_empty(string *s) 
 {
 	return !s  ||  s->length == 0;
+}
+
+cspan   string_span(string *s)
+{
+	return (cspan)SPAN_INIT_N(s->str, string_length(s));
 }
 
 string *string_format(const char *format, ...)
