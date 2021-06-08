@@ -2,6 +2,31 @@
 
 Create a C library to make it easier, safer, more fun to code. 
 
+# Outline
+
+- Concurrency & Parallelism, multi-threading & forking
+- Networking, Inter-Process Communication
+- Security
+	- bounds checking
+	- Vulnerability prevention
+	- Encryption
+	- authentication
+- Localization
+- Storage, de/serialization
+- Documentation
+- Code generation & meta-programming tools
+
+## Things Every C Programmer Needs to Know
+
+- Scope: function, block, file/translation unit, function proto
+- Namespaces: tags, members, labels, identifiers
+- Calling conventions & return values
+- Stack & heap
+- Storage class & duration
+- Pointers
+- Undefined behavior
+- Preprocessor
+
 Data structures
 
 - Dynamic arrays
@@ -207,31 +232,6 @@ Avoid Variable-Length Arrays
 : Set -Wvla option to detect VLAs.
 
 
-# Outline
-
-- Concurrency & Parallelism, multi-threading & forking
-- Networking, Inter-Process Communication
-- Security
-	- bounds checking
-	- Vulnerability prevention
-	- Encryption
-	- authentication
-- Localization
-- Storage, de/serialization
-- Documentation
-- Code generation & meta-programming tools
-
-## Things Every C Programmer Needs to Know
-
-- Scope: function, block, file/translation unit, function proto
-- Namespaces: tags, members, labels, identifiers
-- Calling conventions & return values
-- Stack & heap
-- Storage class & duration
-- Pointers
-- Undefined behavior
-- Preprocessor
-
 # Build Modes
 
 - Test
@@ -239,6 +239,21 @@ Avoid Variable-Length Arrays
 - Release
 
 enum & global constant for current build mode.
+
+# Layers of Abstraction
+
+- Hardware
+- Machine code
+	- Processor op codes
+	- numeric representation, 2s compliment
+	- assembly
+- Primitive data types
+- Data structurs
+- Abstract data types
+- Domain
+	- domain modelling
+	- business logic
+
 
 # Unit testing
 

@@ -168,55 +168,28 @@ TEST_CASE(in_bounds_enums_and_arrays)
 	TEST(!in_array_bounds(-1, array));
 }
 
-TEST_CASE(length_of_fixed_size_string)
-{
-	char same_len[] = "xyzzy";
-	TEST(strnlen(same_len, sizeof(same_len)) == 5);
-
-	char longer_str[100] = "less than one hundred";
-	TEST(strnlen(longer_str, sizeof(longer_str)) == 21);
-
-	char shorter[] = "send a shorter max length";
-	TEST(strnlen(shorter, 10) == 10);
-	
-	char empty[] = "";
-	TEST(strnlen(empty, sizeof(empty)) == 0);
-}
-
-TEST_CASE(reverse_copy_a_string)
-{
-	char str[] = "Reverse this string";
-	char rev[25];
-	char small[10];
-
-	TEST( !strcmp(strnrev(rev, str, ARRAY_SIZE(rev)), "gnirts siht esreveR") );
-	TEST( !strcmp(strnrev(small, str, ARRAY_SIZE(small)), "gnirts si") );
-}
-
-TEST_CASE(convert_int_to_chars)
-{
-	char s[NUM_STR_LEN(int)];
-	int  len = ARRAY_SIZE(s);
-
-	TEST(!strcmp(itoa(0, s, len), "0"));
-	TEST(!strcmp(itoa(1, s, len), "1"));
-	TEST(!strcmp(itoa(100, s, len), "100"));
-	TEST(!strcmp(itoa(INT_MAX, s, len), "2147483647"));
-	TEST(!strcmp(itoa(-0, s, len), "0"));
-	TEST(!strcmp(itoa(-1, s, len), "-1"));
-	TEST(!strcmp(itoa(-100, s, len), "-100"));
-	TEST(!strcmp(itoa(INT_MIN, s, len), "-2147483648"));
-}
-
 
 //-----------------------------------------------------------------------------
 // Span Template
 //
 
-TEST_CASE(empty_spans)
+TEST_CASE(properties_of_null_span)
 {
-	ispan is = SPAN_INIT((int[0]){});
-	TEST(SPAN_IS_EMPTY(is));
+	ispan null_span = { NULL, NULL };
+
+	TEST(SPAN_IS_NULL(null_span));
+	TEST(SPAN_IS_EMPTY(null_span));
+	TEST(SPAN_LENGTH(null_span) == 0);
+}
+
+TEST_CASE(properties_of_empty_span)
+{
+	int a[] = {};
+	ispan empty_span = SPAN_INIT(a);
+
+	TEST(!SPAN_IS_NULL(empty_span));
+	TEST( SPAN_IS_EMPTY(empty_span));
+	TEST( SPAN_LENGTH(empty_span) == 0);
 }
 
 TEST_CASE(init_span_from_arrays)
@@ -241,18 +214,36 @@ TEST_CASE(init_span_from_arrays)
 	TEST(nspan.begin[i++] == 13);
 }
 
-bool pass_string_span_rvalue(cspan cs)
+static inline int check_index(int i, int length)
 {
-	return !strcmp(cs.begin, "xyzzy");
+	if (i < 0)  i += length;
+	CHECK(i >= 0);
+	return i;
 }
 
-#define LSTR(S_)   (cspan)SPAN_INIT(S_)
-#define PSTR(S_)   (cspan)SPAN_INIT(S_, strlen(S_))
+#define SLICE(SPAN_, START_, STOP_)  { \
+	.begin = (SPAN_).begin + check_index(START_, SPAN_LENGTH(SPAN_)),   \
+	.end   = (SPAN_).begin + check_index(STOP_,  SPAN_LENGTH(SPAN_)) }
 
-TEST_CASE(string_span_rvalue)
+TEST_CASE(slice_span)
 {
-	TEST( pass_string_span_rvalue(LSTR("xyzzy")) );
-	TEST( pass_string_span_rvalue(PSTR("xyzzy")) );
+	//             0  1  2  3  4  5  6   7   8   9  10  11
+	int fibs[] = { 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 };
+	ispan fibspan = SPAN_INIT(fibs);
+
+	ispan s1 = SLICE(fibspan, 3, 8);
+	TEST(SPAN_LENGTH(s1) == 5);
+	TEST(s1.begin[0] == 2);
+	TEST(s1.begin[1] == 3);
+	TEST(s1.begin[2] == 5);
+	TEST(s1.begin[3] == 8);
+	TEST(s1.begin[4] == 13);
+
+	ispan s2 = SLICE(fibspan, 6, -3);
+	TEST(SPAN_LENGTH(s2) == 3);
+	TEST(s2.begin[0] == 8);
+	TEST(s2.begin[1] == 13);
+	TEST(s2.begin[2] == 21);
 }
 
 TEST_CASE(vector_init)
@@ -268,6 +259,117 @@ TEST_CASE(vector_init)
 	TEST(VECT_LENGTH(point) == 3);
 }
 
+
+//-----------------------------------------------------------------------------
+// strand
+//
+
+TEST_CASE(properties_of_null_strand)
+{
+	strand nullstr = { NULL, NULL };
+
+	strand empty   = STR("");
+	strand xyzzy   = STR("xyzzy");
+
+	TEST(   strand_is_null(nullstr));
+	TEST(   strand_is_empty(nullstr));
+	TEST(   strand_length(nullstr) == 0);
+	TEST(   strand_equals(nullstr, (strand){NULL,NULL}));
+	TEST(   strand_equals(nullstr, empty));
+	TEST(   strand_equals(empty, nullstr));
+	TEST( ! strand_equals(nullstr, xyzzy));
+	TEST( ! strand_equals(xyzzy, nullstr));
+}
+
+TEST_CASE(properties_of_empty_strand)
+{
+	strand empty   = STR("");
+
+	strand nullstr = { NULL, NULL };
+	strand xyzzy   = STR("xyzzy");
+
+	TEST( ! strand_is_null(empty));
+	TEST(   strand_is_empty(empty));
+	TEST(   strand_length(empty) == 0);
+	TEST(   strand_equals(empty, nullstr));
+	TEST(   strand_equals(empty, empty));
+	TEST( ! strand_equals(empty, xyzzy));
+}
+
+TEST_CASE(properties_of_strand)
+{
+	strand xyzzy   = STR("xyzzy");
+
+	char   xyzzy_array[] = "xyzzy";
+	strand xyzzy_comp = strand_init(xyzzy_array, strlen(xyzzy_array));
+
+	strand empty   = STR("");
+	strand nullstr = { NULL, NULL };
+	strand zork    = STR("zork");
+	strand xyzzy_longer = STR("xyzzy_longer");
+	char sub[] = "abxyzzycd";
+	strand sub_xyzzy = { sub+2, sub+7 };
+
+	TEST(!strand_is_null(xyzzy));
+	TEST(!strand_is_empty(xyzzy));
+	TEST( strand_length(xyzzy) == 5);
+	TEST( strand_equals(xyzzy,  xyzzy_comp));
+	TEST( strand_equals(xyzzy_comp,  xyzzy));
+	TEST( strand_equals(xyzzy,  sub_xyzzy));
+	TEST( strand_equals(sub_xyzzy, xyzzy));
+
+	TEST(!strand_equals(xyzzy,  nullstr));
+	TEST(!strand_equals(xyzzy,  empty));
+	TEST(!strand_equals(xyzzy,  zork));
+	TEST(!strand_equals(zork,   xyzzy));
+	TEST(!strand_equals(xyzzy, xyzzy_longer));
+	TEST(!strand_equals(xyzzy_longer, xyzzy));
+}
+
+TEST_CASE(copy_strand_to_strbuf)
+{
+	strand s = STR("Copy this string");
+	char buff[] = "********************";
+	strbuf copy = STRBUF_INIT(buff);
+
+	char comp[] = "Copy this string";
+	strand compto = STR(comp);
+	TEST( strand_equals(strand_copy(s, copy), compto) );
+}
+
+TEST_CASE(reverse_copy_a_string)
+{
+	strand str     = STR("Reverse this string");
+
+	char revbuff[25] = "************************";
+	strbuf buf = STRBUF_INIT(revbuff);
+	TEST( strand_equals(strand_reverse(str, buf), STR("gnirts siht esreveR")) );
+
+	char shorter[10] = "*********";
+	buf = STRBUF_INIT(shorter);
+	TEST( strand_equals(strand_reverse(str, buf), STR("gnirts si")) );
+}
+
+TEST_CASE(convert_int_to_strand)
+{
+	char s[NUM_STR_LEN(int)];
+	strbuf buf = STRBUF_INIT(s);
+
+	TEST(strand_equals(strand_itoa(0, buf), STR("0")));
+	TEST(strand_equals(strand_itoa(1, buf), STR("1")));
+	TEST(strand_equals(strand_itoa(12345, buf), STR("12345")));
+	TEST(strand_equals(strand_itoa(INT_MAX, buf), STR( "2147483647")));
+	TEST(strand_equals(strand_itoa(-0, buf), STR("0")));
+	TEST(strand_equals(strand_itoa(-1, buf), STR("-1")));
+	TEST(strand_equals(strand_itoa(-12345, buf), STR("-12345")));
+	TEST(strand_equals(strand_itoa(INT_MIN, buf), STR( "-2147483648")));
+}
+
+TEST_CASE(print_strand_to_file)
+{
+	UNUSED(test_counter);
+	strand_fputs(stderr, STR("hello"));
+}
 
 //-----------------------------------------------------------------------------
 // string
@@ -301,22 +403,23 @@ TEST_CASE(empty_strings)
 
 TEST_CASE(string_lifecycle)
 {
-	string *s = string_copy("Hello, world.");
+	char hello[] = "Hello, world.";
+	string *s = string_copy(hello);
 
 	TEST(!string_is_empty(s));
 	TEST(string_length(s) == 13);
-	TEST(string_equals(s, "Hello, world."));
+	TEST(string_equals(s, hello));
 	TEST(!string_equals(s, "xyzzy"));
 	TEST(!string_equals(s, NULL));
 
 	int i = 0;
-	cspan schars = string_span(s);
+	strand schars = SLICE(*s, 0, 5);
+	TEST(strand_length(schars) == 5);
 	TEST(schars.begin[i++] == 'H');
 	TEST(schars.begin[i++] == 'e');
 	TEST(schars.begin[i++] == 'l');
 	TEST(schars.begin[i++] == 'l');
 	TEST(schars.begin[i++] == 'o');
-	TEST(SPAN_LAST(schars) == '.');
 
 	string_dispose(s);
 }

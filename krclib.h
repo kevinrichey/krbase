@@ -66,19 +66,6 @@ void cswap(char *a, char *b);
 // void function pointer
 typedef void (*void_fp)(void);
 
-size_t  kr_strnlen(const char *s, size_t maxlen);
-char   *kr_strncpy(char *dest, const char *source, size_t n);
-char   *kr_strnrev(char *reversed, const char *str, int rlen);
-char   *kr_int_to_str_back(int n, char *ps);
-char   *kr_itoa(int n, char s[], int s_len);
-
-#ifdef USING_KR_NAMESPACE
-#define strnlen(...)   kr_strnlen(__VA_ARGS__)
-#define strnrev(...)   kr_strnrev(__VA_ARGS__)
-#define int_to_str_back(...)    kr_int_to_str_back(__VA_ARGS__)
-#define strncpy(...)   kr_strncpy(__VA_ARGS__)
-#define itoa(...)      kr_itoa(__VA_ARGS__)
-#endif
 
 //----------------------------------------------------------------------
 //@module Debugging & Error Checking
@@ -115,19 +102,22 @@ void Assert_failed(SourceInfo source, const char *message);
 #define CHECK(CONDITION_)   \
 	do{ if (CONDITION_); else Assert_failed(SOURCE_HERE, #CONDITION_); } while(0)
 
+#define STR_WATCH(S_)  do{ fprintf(stderr, #S_" = %s, strlen %d\n", (S_), (int)strlen(S_)); }while(0)
+#define I_WATCH(I_)    do{ fprintf(stderr, #I_" = %d\n", (int)(I_)); }while(0)
+#define P_WATCH(V_)    do{ fprintf(stderr, #V_" = %p\n", (V_)); }while(0)
+#define B_WATCH(V_)    do{ fprintf(stderr, #V_" = %s\n", (V_) ? "true" : "false"); }while(0)
 
 //----------------------------------------------------------------------
 //@module Span Template
 
-#define TSPAN(T_)  struct { const T_ *begin, *end; }
+#define TSPAN(T_)  struct { T_ *begin, *end; }
 
 #define SPAN_INIT_N(PTR_, LEN_, ...)  { .begin=(PTR_), .end=(PTR_)+(LEN_) }
 #define SPAN_INIT(...)   SPAN_INIT_N(__VA_ARGS__, ARRAY_SIZE(VA_PARAM_0(__VA_ARGS__)))
 
-#define SPAN_LENGTH(SPAN_)   (int)((SPAN_).end - (SPAN_).begin)
-#define SPAN_IS_EMPTY(SPAN_)  (((SPAN_).end - (SPAN_).begin <= 1))
-#define SPAN_LAST(SPAN_)      (*((SPAN_).end-1))
-#define SPAN_BACK(SPAN_)      ((SPAN_).end-1)
+#define SPAN_LENGTH(SPAN_)    (int)((SPAN_).end - (SPAN_).begin)
+#define SPAN_IS_EMPTY(SPAN_)  (SPAN_LENGTH(SPAN_) <= 1)
+#define SPAN_IS_NULL(SPAN_)   ((SPAN_).begin == NULL)
 
 typedef TSPAN(char)     cspan;
 typedef TSPAN(int)      ispan;
@@ -148,9 +138,47 @@ typedef TSPAN(byte)     bspan;
 #define VECT_LENGTH(V_)    (int)(ARRAY_SIZE((V_).at))
 
 //----------------------------------------------------------------------
+//@module strand
+
+typedef struct {
+	size_t size;
+	char   *begin, *end;
+} strbuf;
+
+static inline strbuf strbuf_init(char buf[], size_t size)
+{
+	return (strbuf){ .size = size, .begin = buf, .end = buf };
+}
+#define STRBUF_INIT(BUF_)  strbuf_init((BUF_), sizeof(BUF_))
+
+
+typedef TSPAN(const char) strand;
+
+static inline strand strand_init(char *s, int length)
+{
+	return (strand){ .begin = s, .end = s + length };
+}
+
+#define STR(LIT_)    strand_init((LIT_), sizeof(LIT_)-1)
+
+bool   strand_is_null(strand s);
+bool   strand_is_empty(strand s);
+int    strand_length(strand s);
+bool   strand_equals(strand a, strand b);
+strand strand_copy(strand from, strbuf out);
+strand strand_reverse(strand str, strbuf out);
+strand strand_itoa(int n, strbuf out);
+void   strand_fputs(FILE *out, strand str);
+
+
+//----------------------------------------------------------------------
 //@module string
 
-typedef struct string string;
+typedef struct {
+	size_t size;
+	char  *end;
+	char   begin[];
+} string;
 
 string *string_create(size_t size);
 void    string_dispose(string *s);
@@ -158,7 +186,6 @@ size_t  string_length(string *s);
 bool    string_equals(string *s, const char *cstr);
 void    string_puts(string *s);
 bool    string_is_empty(string *s);
-cspan   string_span(string *s);
 string *string_copy(const char *from);
 string *string_format(const char *format, ...);
 

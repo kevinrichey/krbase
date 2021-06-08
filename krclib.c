@@ -30,26 +30,8 @@ void cswap(char *a, char *b)
 	*b = t;
 }
 
-size_t kr_strnlen(const char *s, size_t maxlen)
-{
-	size_t len = 0;
-	while (*s++ && ++len < maxlen) ;
-	return len;
-}
 
-char *kr_strnrev(char *r, const char *s, int rlen)
-{
-	char *result = r;
-
-	const char *c = s + strlen(s) - 1;
-	while (*c && --rlen)  
-		*r++ = *c--;
-	*r = '\0';
-
-	return result;
-}
-
-char *kr_int_to_str_back(int n, char *ps)
+static char *kr_int_to_str_back(int n, char *ps)
 {
 	int sign = n < 0 ? -1 : 1;
 
@@ -60,21 +42,6 @@ char *kr_int_to_str_back(int n, char *ps)
 	if (sign < 0)  *ps-- = '-';
 
 	return ++ps;
-}
-
-char *kr_strncpy(char *dest, const char *source, size_t n)
-{
-	char *ret = dest;
-	while (n --> 0 && (*dest++ = *source++)) ;
-	*dest = '\0';
-	return ret;
-}
-
-char *kr_itoa(int n, char s[], int s_len)
-{
-	char sbuf[NUM_STR_LEN(int)];
-	char *istr = kr_int_to_str_back(n, sbuf + ARRAY_SIZE(sbuf)-1);
-	return kr_strncpy(s, istr, s_len);
 }
 
 //----------------------------------------------------------------------
@@ -99,14 +66,67 @@ const char *Status_string(StatusCode stat)
 
 
 //----------------------------------------------------------------------
+// strand Module
+
+bool strand_is_null(strand s)
+{
+	return s.begin == NULL;
+}
+
+bool strand_is_empty(strand s)
+{
+	return s.begin == s.end;
+}
+
+int strand_length(strand s)
+{
+	return s.end - s.begin;
+}
+
+bool strand_equals(strand a, strand b)
+{
+	if (strand_length(a) != strand_length(b))
+		return false;
+
+	return !strncmp(a.begin, b.begin, strand_length(a));
+}
+
+strand strand_copy(strand from, strbuf out)
+{
+	char *stop = out.begin + out.size - 1;
+	while (from.begin < from.end && out.end < stop)
+		*out.end++ = *from.begin++;
+	return (strand){ .begin = out.begin, .end = out.end };
+}
+
+strand strand_reverse(strand str, strbuf out)
+{
+	char *stop = out.begin + out.size - 1;
+
+	--str.end;
+	while (str.end >= str.begin && out.end < stop)
+		*out.end++ = *str.end--;
+
+	*out.end = '\0';
+	return (strand){ .begin = out.begin, .end = out.end };
+}
+
+strand strand_itoa(int n, strbuf out)
+{
+	char sbuf[NUM_STR_LEN(int)] = "**********";
+	char *istr = kr_int_to_str_back(n, sbuf + ARRAY_SIZE(sbuf)-1);
+	return strand_copy((strand){ .begin = istr, .end = sbuf+sizeof(sbuf)-1 }, out);
+}
+
+void strand_fputs(FILE *out, strand str)
+{
+	fprintf(out, "%.*s\n", strand_length(str), str.begin);
+}
+
+
+
+//----------------------------------------------------------------------
 // string Module
-
-typedef struct string {
-	size_t size;
-	size_t length;
-	char   str[];
-} string;
-
 
 string *string_create(size_t size)
 {
@@ -114,8 +134,8 @@ string *string_create(size_t size)
 	string *s = malloc(space);
 	if (s) {
 		s->size = size;
-		s->length = 0;
-		s->str[0] = '\0';
+		s->begin[0] = '\0';
+		s->end = s->begin;
 	}
 	return s;
 }
@@ -125,8 +145,8 @@ string *string_copy(const char *from)
 	size_t length = strlen(from);
 	string *s = string_create(length + 1);
 	if (s) {
-		kr_strncpy(s->str, from, length + 1);
-		s->length = length;
+		strncpy(s->begin, from, length+1);
+		s->end = s->begin + length;
 	}
 	return s;
 }
@@ -138,30 +158,25 @@ void string_dispose(string *s)
 
 size_t string_length(string *s)
 {
-	return s ? s->length : 0;
+	return s ? (s->end - s->begin) : 0;
 }
 
 bool string_equals(string *s, const char *cstr)
 {
 	if (s && cstr)
-		return !strcmp(s->str, cstr);
+		return !strcmp(s->begin, cstr);
 	else
 		return (!s && !cstr);
 }
 
 void string_puts(string *s)
 {
-	puts(s ? s->str : "empty string");
+	puts(s ? s->begin : "empty string");
 }
 
 bool string_is_empty(string *s) 
 {
-	return !s  ||  s->length == 0;
-}
-
-cspan   string_span(string *s)
-{
-	return (cspan)SPAN_INIT_N(s->str, string_length(s));
+	return !s  ||  string_length(s) == 0;
 }
 
 string *string_format(const char *format, ...)
@@ -176,8 +191,8 @@ string *string_format(const char *format, ...)
 
 	string *s = string_create(length + 1);
 	if (s && s->size > 1) {
-		vsnprintf(s->str, s->size, format, args);
-		s->length = length;
+		vsnprintf(s->begin, s->size, format, args);
+		s->end = s->begin + length;
 	}
 
 	va_end(args);
