@@ -66,7 +66,6 @@ int check_index(int i, int length);
 
 DEFINE_MAX_FUNC(char)
 DEFINE_MAX_FUNC(int)
-DEFINE_MAX_FUNC(long)
 DEFINE_MAX_FUNC(unsigned)
 DEFINE_MAX_FUNC(double)
 
@@ -74,7 +73,6 @@ DEFINE_MAX_FUNC(double)
 	_Generic((A_),   \
 		char:      char_max,      \
 		int:       int_max,       \
-		long:      long_max,      \
 		unsigned:  unsigned_max,  \
 		double:    double_max     \
 	) ((A_), (B_))
@@ -84,7 +82,6 @@ DEFINE_MAX_FUNC(double)
 
 DEFINE_MIN_FUNC(char)
 DEFINE_MIN_FUNC(int)
-DEFINE_MIN_FUNC(long)
 DEFINE_MIN_FUNC(unsigned)
 DEFINE_MIN_FUNC(double)
 
@@ -92,13 +89,31 @@ DEFINE_MIN_FUNC(double)
 	_Generic((A_),   \
 		char:      char_min,      \
 		int:       int_min,       \
-		long:      long_min,      \
 		unsigned:  unsigned_min,  \
 		double:    double_min     \
 	) ((A_), (B_))
 
+// Type-safe swap
 
-void cswap(char *a, char *b);
+#define DEFINE_SWAP_FUNC(TYPE_)  \
+	static inline void TYPE_##_swap(TYPE_ *a, TYPE_ *b) { \
+		TYPE_ c = *a; *a = *b; *b = c; }
+
+DEFINE_SWAP_FUNC(char)
+DEFINE_SWAP_FUNC(int)
+DEFINE_SWAP_FUNC(unsigned)
+DEFINE_SWAP_FUNC(double)
+DEFINE_SWAP_FUNC(bool)
+
+#define swap(A_, B_)  \
+	_Generic((A_),    \
+			char:     char_swap,  \
+			int:      int_swap,    \
+			unsigned: unsigned_swap, \
+			double:   double_swap,   \
+			bool:     bool_swap      \
+			) (&(A_), &(B_))
+
 
 // void function pointer
 typedef void (*void_fp)(void);

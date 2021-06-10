@@ -191,6 +191,25 @@ TEST_CASE(type_safe_min)
 	TEST(min(0.02341, 1.2345) == 0.02341);
 }
 
+TEST_CASE(type_safe_swap)
+{
+	int x = 320, y = 200;
+	swap(x, y);
+	TEST(x == 200 && y == 320);
+
+	char a = 'a', b = 'b';
+	swap(a,b);
+	TEST(a == 'b' && b == 'a');
+
+	double pi = 3.14159, e = 2.71828;
+	swap(pi, e);
+	TEST(pi == 2.71828 && e == 3.14159);
+
+	bool yes = true, no = false;
+	swap(yes, no);
+	TEST(yes == false && no == true);
+}
+
 //-----------------------------------------------------------------------------
 // Span Template
 //
