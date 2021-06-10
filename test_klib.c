@@ -134,10 +134,7 @@ TEST_CASE(num_chars_to_store_numbers)
 //-----------------------------------------------------------------------------
 // Primitive Utilities
 
-TEST_CASE(bytes_are_size_one)
-{
-	TEST(sizeof(byte) == 1);
-}
+_Static_assert(sizeof(byte) == 1, "byte must have sizeof 1");
 
 TEST_CASE(in_bounds_enums_and_arrays)
 {
@@ -168,6 +165,31 @@ TEST_CASE(in_bounds_enums_and_arrays)
 	TEST(!in_array_bounds(-1, array));
 }
 
+TEST_CASE(type_safe_max)
+{
+	TEST(max('a', 'z') == 'z');
+	TEST(max('n', 'm') == 'n');
+	
+	TEST(max(6,7) == 7);
+	TEST(max(14,9) == 14);
+	TEST(max(45,45) == 45);
+
+	TEST(max(3.1, 5.6) == 5.6);
+	TEST(max(3.14159, 2.71828) == 3.14159);
+	TEST(max(3.14159, 3.14159) == 3.14159);
+}
+
+TEST_CASE(type_safe_min)
+{
+	TEST(min('e', 'i') == 'e');
+	TEST(min('u', 'j') == 'j');
+
+	TEST(min(203984, 109234) == 109234);
+	TEST(min(-234, -4432) == -4432);
+
+	TEST(min(-23.34, 7243.7234) == -23.34);
+	TEST(min(0.02341, 1.2345) == 0.02341);
+}
 
 //-----------------------------------------------------------------------------
 // Span Template
@@ -197,33 +219,22 @@ TEST_CASE(init_span_from_arrays)
 	char letters[] = "abcdefghijklmnopqrstuvwxyz";
 	cspan cs = SPAN_INIT(letters);
 	TEST(SPAN_LENGTH(cs) == 27); // don't forget the null-terminator
-	TEST(cs.begin[5] == 'f');
+	TEST(cs.front[5] == 'f');
 
 	// Make a span from the array
 	int fibs[] = { 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 };
 	ispan nspan = SPAN_INIT(fibs, 8);
 	TEST(SPAN_LENGTH(nspan) == 8);
 	int i = 0;
-	TEST(nspan.begin[i++] ==  0);
-	TEST(nspan.begin[i++] ==  1);
-	TEST(nspan.begin[i++] ==  1);
-	TEST(nspan.begin[i++] ==  2);
-	TEST(nspan.begin[i++] ==  3);
-	TEST(nspan.begin[i++] ==  5);
-	TEST(nspan.begin[i++] ==  8);
-	TEST(nspan.begin[i++] == 13);
+	TEST(nspan.front[i++] ==  0);
+	TEST(nspan.front[i++] ==  1);
+	TEST(nspan.front[i++] ==  1);
+	TEST(nspan.front[i++] ==  2);
+	TEST(nspan.front[i++] ==  3);
+	TEST(nspan.front[i++] ==  5);
+	TEST(nspan.front[i++] ==  8);
+	TEST(nspan.front[i++] == 13);
 }
-
-static inline int check_index(int i, int length)
-{
-	if (i < 0)  i += length;
-	CHECK(i >= 0);
-	return i;
-}
-
-#define SLICE(SPAN_, START_, STOP_)  { \
-	.begin = (SPAN_).begin + check_index(START_, SPAN_LENGTH(SPAN_)),   \
-	.end   = (SPAN_).begin + check_index(STOP_,  SPAN_LENGTH(SPAN_)) }
 
 TEST_CASE(slice_span)
 {
@@ -233,17 +244,17 @@ TEST_CASE(slice_span)
 
 	ispan s1 = SLICE(fibspan, 3, 8);
 	TEST(SPAN_LENGTH(s1) == 5);
-	TEST(s1.begin[0] == 2);
-	TEST(s1.begin[1] == 3);
-	TEST(s1.begin[2] == 5);
-	TEST(s1.begin[3] == 8);
-	TEST(s1.begin[4] == 13);
+	TEST(s1.front[0] == 2);
+	TEST(s1.front[1] == 3);
+	TEST(s1.front[2] == 5);
+	TEST(s1.front[3] == 8);
+	TEST(s1.front[4] == 13);
 
 	ispan s2 = SLICE(fibspan, 6, -3);
 	TEST(SPAN_LENGTH(s2) == 3);
-	TEST(s2.begin[0] == 8);
-	TEST(s2.begin[1] == 13);
-	TEST(s2.begin[2] == 21);
+	TEST(s2.front[0] == 8);
+	TEST(s2.front[1] == 13);
+	TEST(s2.front[2] == 21);
 }
 
 TEST_CASE(vector_init)
@@ -365,11 +376,6 @@ TEST_CASE(convert_int_to_strand)
 	TEST(strand_equals(strand_itoa(INT_MIN, buf), STR( "-2147483648")));
 }
 
-TEST_CASE(print_strand_to_file)
-{
-	UNUSED(test_counter);
-	strand_fputs(stderr, STR("hello"));
-}
 
 //-----------------------------------------------------------------------------
 // string
@@ -415,11 +421,11 @@ TEST_CASE(string_lifecycle)
 	int i = 0;
 	strand schars = SLICE(*s, 0, 5);
 	TEST(strand_length(schars) == 5);
-	TEST(schars.begin[i++] == 'H');
-	TEST(schars.begin[i++] == 'e');
-	TEST(schars.begin[i++] == 'l');
-	TEST(schars.begin[i++] == 'l');
-	TEST(schars.begin[i++] == 'o');
+	TEST(schars.front[i++] == 'H');
+	TEST(schars.front[i++] == 'e');
+	TEST(schars.front[i++] == 'l');
+	TEST(schars.front[i++] == 'l');
+	TEST(schars.front[i++] == 'o');
 
 	string_dispose(s);
 }
@@ -433,6 +439,7 @@ TEST_CASE(create_formatted_string)
 
 	string_dispose(s);
 }
+
 
 //-----------------------------------------------------------------------------
 // Doubly Linked List

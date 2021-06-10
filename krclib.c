@@ -2,8 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
-#include "krclib.h"
+#include <setjmp.h>
 
+#include "krclib.h"
 
 //----------------------------------------------------------------------
 // Primitive Utilities
@@ -11,6 +12,13 @@
 bool in_bounds(int n, int lower, int upper)
 {
 	return (lower <= n) && (n <= upper);
+}
+
+int check_index(int i, int length)
+{
+	if (i < 0)  i += length;
+	CHECK(i >= 0);
+	return i;
 }
 
 int max_i(int a, int b)
@@ -70,17 +78,17 @@ const char *Status_string(StatusCode stat)
 
 bool strand_is_null(strand s)
 {
-	return s.begin == NULL;
+	return s.front == NULL;
 }
 
 bool strand_is_empty(strand s)
 {
-	return s.begin == s.end;
+	return s.front == s.back;
 }
 
 int strand_length(strand s)
 {
-	return s.end - s.begin;
+	return s.back - s.front;
 }
 
 bool strand_equals(strand a, strand b)
@@ -88,39 +96,39 @@ bool strand_equals(strand a, strand b)
 	if (strand_length(a) != strand_length(b))
 		return false;
 
-	return !strncmp(a.begin, b.begin, strand_length(a));
+	return !strncmp(a.front, b.front, strand_length(a));
 }
 
 strand strand_copy(strand from, strbuf out)
 {
-	char *stop = out.begin + out.size - 1;
-	while (from.begin < from.end && out.end < stop)
-		*out.end++ = *from.begin++;
-	return (strand){ .begin = out.begin, .end = out.end };
+	char *stop = out.front + out.size - 1;
+	while (from.front < from.back && out.back < stop)
+		*out.back++ = *from.front++;
+	return (strand){ .front = out.front, .back = out.back };
 }
 
 strand strand_reverse(strand str, strbuf out)
 {
-	char *stop = out.begin + out.size - 1;
+	char *stop = out.front + out.size - 1;
 
-	--str.end;
-	while (str.end >= str.begin && out.end < stop)
-		*out.end++ = *str.end--;
+	--str.back;
+	while (str.back >= str.front && out.back < stop)
+		*out.back++ = *str.back--;
 
-	*out.end = '\0';
-	return (strand){ .begin = out.begin, .end = out.end };
+	*out.back = '\0';
+	return (strand){ .front = out.front, .back = out.back };
 }
 
 strand strand_itoa(int n, strbuf out)
 {
 	char sbuf[NUM_STR_LEN(int)] = "**********";
 	char *istr = kr_int_to_str_back(n, sbuf + ARRAY_SIZE(sbuf)-1);
-	return strand_copy((strand){ .begin = istr, .end = sbuf+sizeof(sbuf)-1 }, out);
+	return strand_copy((strand){ .front = istr, .back = sbuf+sizeof(sbuf)-1 }, out);
 }
 
 void strand_fputs(FILE *out, strand str)
 {
-	fprintf(out, "%.*s\n", strand_length(str), str.begin);
+	fprintf(out, "%.*s\n", strand_length(str), str.front);
 }
 
 
@@ -130,12 +138,10 @@ void strand_fputs(FILE *out, strand str)
 
 string *string_create(size_t size)
 {
-	size_t space = sizeof(string) + (sizeof(char) * size);
-	string *s = malloc(space);
+	string *s = calloc(sizeof(string) + (sizeof(*s->front) * size), 1);
 	if (s) {
-		s->size = size;
-		s->begin[0] = '\0';
-		s->end = s->begin;
+		*deconst_size_t(&s->size) = size;
+		s->back = s->front;
 	}
 	return s;
 }
@@ -145,8 +151,8 @@ string *string_copy(const char *from)
 	size_t length = strlen(from);
 	string *s = string_create(length + 1);
 	if (s) {
-		strncpy(s->begin, from, length+1);
-		s->end = s->begin + length;
+		strncpy(deconst_char(s->front), from, length+1);
+		s->back = s->front + length;
 	}
 	return s;
 }
@@ -158,20 +164,20 @@ void string_dispose(string *s)
 
 size_t string_length(string *s)
 {
-	return s ? (s->end - s->begin) : 0;
+	return s ? (s->back - s->front) : 0;
 }
 
 bool string_equals(string *s, const char *cstr)
 {
 	if (s && cstr)
-		return !strcmp(s->begin, cstr);
+		return !strcmp(s->front, cstr);
 	else
 		return (!s && !cstr);
 }
 
 void string_puts(string *s)
 {
-	puts(s ? s->begin : "empty string");
+	puts(s ? s->front : "empty string");
 }
 
 bool string_is_empty(string *s) 
@@ -191,8 +197,8 @@ string *string_format(const char *format, ...)
 
 	string *s = string_create(length + 1);
 	if (s && s->size > 1) {
-		vsnprintf(s->begin, s->size, format, args);
-		s->end = s->begin + length;
+		vsnprintf(deconst_char(s->front), s->size, format, args);
+		s->back = s->front + length;
 	}
 
 	va_end(args);
@@ -390,8 +396,8 @@ uint64_t hash_fnv_1a_64bit(bspan data, uint64_t hash)
 {
 	const uint64_t fnv_1a_64bit_prime = 0x100000001B3;
 
-	const byte *end = data.end;
-	for (const byte *b = data.begin; b != end; ++b) {
+	const byte *end = data.back;
+	for (const byte *b = data.front; b != end; ++b) {
 		hash ^= (uint64_t)*b;
 		hash *= fnv_1a_64bit_prime;
 	}

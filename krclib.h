@@ -52,19 +52,68 @@ typedef unsigned char byte;
 
 bool in_bounds(int n, int lower, int upper);
 
-#define in_enum_bounds(VAL_, ENUM_) \
-    in_bounds((VAL_), (ENUM_##_First), (ENUM_##_Last))
+#define in_enum_bounds(VAL_, ENUM_)    in_bounds((VAL_), (ENUM_##_First), (ENUM_##_Last))
+#define in_array_bounds(I_, ARR_)      in_bounds((I_), 0, ARRAY_SIZE(ARR_)-1)
 
-#define in_array_bounds(I_, ARR_) \
-    in_bounds((I_), 0, ARRAY_SIZE(ARR_)-1)
+int check_index(int i, int length);
 
-int max_i(int a, int b);
-int min_i(int a, int b);
+// unsafe generic MIN and MAX
+#define MIN(A_, B_)   ((A_) < (B_) ? (A_) : (B_))
+
+// Type-safe min/max template
+#define DEFINE_MAX_FUNC(TYPE_) \
+	static inline TYPE_ TYPE_##_max(TYPE_ a, TYPE_ b) { return a > b ? a : b; }
+
+DEFINE_MAX_FUNC(char)
+DEFINE_MAX_FUNC(int)
+DEFINE_MAX_FUNC(long)
+DEFINE_MAX_FUNC(unsigned)
+DEFINE_MAX_FUNC(double)
+
+#define max(A_, B_)  \
+	_Generic((A_),   \
+		char:      char_max,      \
+		int:       int_max,       \
+		long:      long_max,      \
+		unsigned:  unsigned_max,  \
+		double:    double_max     \
+	) ((A_), (B_))
+
+#define DEFINE_MIN_FUNC(TYPE_) \
+	static inline TYPE_ TYPE_##_min(TYPE_ a, TYPE_ b) { return a < b ? a : b; }
+
+DEFINE_MIN_FUNC(char)
+DEFINE_MIN_FUNC(int)
+DEFINE_MIN_FUNC(long)
+DEFINE_MIN_FUNC(unsigned)
+DEFINE_MIN_FUNC(double)
+
+#define min(A_, B_)  \
+	_Generic((A_),   \
+		char:      char_min,      \
+		int:       int_min,       \
+		long:      long_min,      \
+		unsigned:  unsigned_min,  \
+		double:    double_min     \
+	) ((A_), (B_))
+
 
 void cswap(char *a, char *b);
 
 // void function pointer
 typedef void (*void_fp)(void);
+
+// Type-safe const casting
+#define DEFINE_DECONST_FUNC(TYPE_)  \
+static inline TYPE_ *deconst_##TYPE_(const TYPE_ *i) { return (TYPE_*)i; }
+
+DEFINE_DECONST_FUNC(char)
+DEFINE_DECONST_FUNC(int)
+DEFINE_DECONST_FUNC(long)
+DEFINE_DECONST_FUNC(unsigned)
+DEFINE_DECONST_FUNC(double)
+DEFINE_DECONST_FUNC(bool)
+DEFINE_DECONST_FUNC(size_t)
 
 
 //----------------------------------------------------------------------
@@ -110,14 +159,18 @@ void Assert_failed(SourceInfo source, const char *message);
 //----------------------------------------------------------------------
 //@module Span Template
 
-#define TSPAN(T_)  struct { T_ *begin, *end; }
+#define TSPAN(T_)  struct { T_ *front, *back; }
 
-#define SPAN_INIT_N(PTR_, LEN_, ...)  { .begin=(PTR_), .end=(PTR_)+(LEN_) }
+#define SPAN_INIT_N(PTR_, LEN_, ...)  { .front=(PTR_), .back=(PTR_)+(LEN_) }
 #define SPAN_INIT(...)   SPAN_INIT_N(__VA_ARGS__, ARRAY_SIZE(VA_PARAM_0(__VA_ARGS__)))
 
-#define SPAN_LENGTH(SPAN_)    (int)((SPAN_).end - (SPAN_).begin)
+#define SPAN_LENGTH(SPAN_)    (int)((SPAN_).back - (SPAN_).front)
 #define SPAN_IS_EMPTY(SPAN_)  (SPAN_LENGTH(SPAN_) <= 1)
-#define SPAN_IS_NULL(SPAN_)   ((SPAN_).begin == NULL)
+#define SPAN_IS_NULL(SPAN_)   ((SPAN_).front == NULL)
+
+#define SLICE(SPAN_, START_, STOP_)  { \
+	.front = (SPAN_).front + check_index(START_, SPAN_LENGTH(SPAN_)),   \
+	.back   = (SPAN_).front + check_index(STOP_,  SPAN_LENGTH(SPAN_)) }
 
 typedef TSPAN(char)     cspan;
 typedef TSPAN(int)      ispan;
@@ -142,12 +195,12 @@ typedef TSPAN(byte)     bspan;
 
 typedef struct {
 	size_t size;
-	char   *begin, *end;
+	char   *front, *back;
 } strbuf;
 
 static inline strbuf strbuf_init(char buf[], size_t size)
 {
-	return (strbuf){ .size = size, .begin = buf, .end = buf };
+	return (strbuf){ .size = size, .front = buf, .back = buf };
 }
 #define STRBUF_INIT(BUF_)  strbuf_init((BUF_), sizeof(BUF_))
 
@@ -156,7 +209,7 @@ typedef TSPAN(const char) strand;
 
 static inline strand strand_init(char *s, int length)
 {
-	return (strand){ .begin = s, .end = s + length };
+	return (strand){ .front = s, .back = s + length };
 }
 
 #define STR(LIT_)    strand_init((LIT_), sizeof(LIT_)-1)
@@ -175,9 +228,9 @@ void   strand_fputs(FILE *out, strand str);
 //@module string
 
 typedef struct {
-	size_t size;
-	char  *end;
-	char   begin[];
+	const size_t size;
+	const char  *back;
+	const char   front[];
 } string;
 
 string *string_create(size_t size);
@@ -254,7 +307,7 @@ char *timestamp(char *s, size_t num, struct tm *(*totime)(const time_t*));
 
 typedef struct { int cap, length; } ListDims;
 
-#define LIST(EL_TYPE)  struct { ListDims head; EL_TYPE begin[]; }
+#define LIST(EL_TYPE)  struct { ListDims head; EL_TYPE front[]; }
 
 #define LIST_BASE(L_)  ((ListDims*)L_)
 
@@ -264,7 +317,7 @@ void *List_grow(void *a, int sizeof_base, int sizeof_item, int min_cap, int add_
 	do{ (L_) = List_grow(             \
 				(L_),                 \
 				sizeof(*(L_)),        \
-				sizeof(*(L_)->begin), \
+				sizeof(*(L_)->front), \
 				(CAP_),               \
 				(ADD_));              \
 	}while(0)
@@ -278,7 +331,7 @@ void *List_grow(void *a, int sizeof_base, int sizeof_item, int min_cap, int add_
 #define LIST_PUSH(L_, VAL_) \
 	do{ \
 		LIST_ADD(L_, 1); \
-		(L_)->begin[(L_)->head.length-1] = (VAL_); \
+		(L_)->front[(L_)->head.length-1] = (VAL_); \
 	}while(0)
 
 static inline int List_capacity(void *l)
@@ -314,7 +367,7 @@ static inline int List_check(void *l, int i)
 	return i;
 }
 
-#define LIST_AT(L_, I_)   ((L_)->begin[List_check((L_), (I_))])
+#define LIST_AT(L_, I_)   ((L_)->front[List_check((L_), (I_))])
 #define LIST_LAST(L_)     LIST_AT(L_, -1)
 
 void List_dispose(void *l);

@@ -125,7 +125,7 @@ For example: max_i() and max_d() for a max function on int and double.
 - bag or baggage = pass-through object for callback function. 
 - fn, func = function
 
-## Matching Verb Pairs
+## Matching Pairs
 
 - init, dispose
 - create, destroy
@@ -141,6 +141,7 @@ For example: max_i() and max_d() for a max function on int and double.
 - insert, delete
 - enable, disable
 - load, save
+- enter, exit
 
 ## Formatting
 
