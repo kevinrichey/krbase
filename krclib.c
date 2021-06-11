@@ -76,6 +76,11 @@ const char *Status_string(StatusCode stat)
 //----------------------------------------------------------------------
 // strand Module
 
+char *strbuf_end(strbuf buf)
+{
+	return buf.front + buf.size - 1;
+}
+
 bool strand_is_null(strand s)
 {
 	return s.front == NULL;
@@ -101,22 +106,22 @@ bool strand_equals(strand a, strand b)
 
 strand strand_copy(strand from, strbuf out)
 {
-	char *stop = out.front + out.size - 1;
-	while (from.front < from.back && out.back < stop)
+	char *end = strbuf_end(out);
+	while (from.front < from.back && out.back < end)
 		*out.back++ = *from.front++;
 	return (strand){ .front = out.front, .back = out.back };
 }
 
-strand strand_reverse(strand str, strbuf out)
+strand strand_reverse(strand str, strbuf *out)
 {
-	char *stop = out.front + out.size - 1;
+	char *end = strbuf_end(*out);
 
 	--str.back;
-	while (str.back >= str.front && out.back < stop)
-		*out.back++ = *str.back--;
+	while (str.back >= str.front && out->back < end)
+		*out->back++ = *str.back--;
 
-	*out.back = '\0';
-	return (strand){ .front = out.front, .back = out.back };
+	*out->back = '\0';
+	return (strand){ .front = out->front, .back = out->back };
 }
 
 strand strand_itoa(int n, strbuf out)
@@ -140,7 +145,7 @@ string *string_create(size_t size)
 {
 	string *s = calloc(sizeof(string) + (sizeof(*s->front) * size), 1);
 	if (s) {
-		*deconst_size_t(&s->size) = size;
+		*deconst(size_t*, &s->size) = size;
 		s->back = s->front;
 	}
 	return s;
@@ -151,7 +156,7 @@ string *string_copy(const char *from)
 	size_t length = strlen(from);
 	string *s = string_create(length + 1);
 	if (s) {
-		strncpy(deconst_char(s->front), from, length+1);
+		strncpy(deconst(char*, s->front), from, length+1);
 		s->back = s->front + length;
 	}
 	return s;
@@ -197,7 +202,7 @@ string *string_format(const char *format, ...)
 
 	string *s = string_create(length + 1);
 	if (s && s->size > 1) {
-		vsnprintf(deconst_char(s->front), s->size, format, args);
+		vsnprintf(deconst(char*, s->front), s->size, format, args);
 		s->back = s->front + length;
 	}
 

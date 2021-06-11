@@ -50,6 +50,9 @@
 
 typedef unsigned char byte;
 
+// void function pointer
+typedef void (*void_fp)(void);
+
 bool in_bounds(int n, int lower, int upper);
 
 #define in_enum_bounds(VAL_, ENUM_)    in_bounds((VAL_), (ENUM_##_First), (ENUM_##_Last))
@@ -57,8 +60,6 @@ bool in_bounds(int n, int lower, int upper);
 
 int check_index(int i, int length);
 
-// unsafe generic MIN and MAX
-#define MIN(A_, B_)   ((A_) < (B_) ? (A_) : (B_))
 
 // Type-safe min/max template
 #define DEFINE_MAX_FUNC(TYPE_) \
@@ -114,13 +115,9 @@ DEFINE_SWAP_FUNC(bool)
 			bool:     bool_swap      \
 			) (&(A_), &(B_))
 
-
-// void function pointer
-typedef void (*void_fp)(void);
-
 // Type-safe const casting
 #define DEFINE_DECONST_FUNC(TYPE_)  \
-static inline TYPE_ *deconst_##TYPE_(const TYPE_ *i) { return (TYPE_*)i; }
+static inline TYPE_ *TYPE_##_deconst(const TYPE_ *i) { return (TYPE_*)i; }
 
 DEFINE_DECONST_FUNC(char)
 DEFINE_DECONST_FUNC(int)
@@ -129,6 +126,16 @@ DEFINE_DECONST_FUNC(unsigned)
 DEFINE_DECONST_FUNC(double)
 DEFINE_DECONST_FUNC(bool)
 DEFINE_DECONST_FUNC(size_t)
+
+#define deconst(T_, P_)  \
+	_Generic((T_)NULL,    \
+			char*:     char_deconst,  \
+			int*:      int_deconst,    \
+			unsigned*: unsigned_deconst, \
+			double*:   double_deconst,   \
+			bool*:     bool_deconst,      \
+			size_t*:   size_t_deconst     \
+			) (P_)
 
 
 //----------------------------------------------------------------------
@@ -213,6 +220,8 @@ typedef struct {
 	char   *front, *back;
 } strbuf;
 
+char *strbuf_end(strbuf buf);
+
 static inline strbuf strbuf_init(char buf[], size_t size)
 {
 	return (strbuf){ .size = size, .front = buf, .back = buf };
@@ -234,7 +243,7 @@ bool   strand_is_empty(strand s);
 int    strand_length(strand s);
 bool   strand_equals(strand a, strand b);
 strand strand_copy(strand from, strbuf out);
-strand strand_reverse(strand str, strbuf out);
+strand strand_reverse(strand str, strbuf *out);
 strand strand_itoa(int n, strbuf out);
 void   strand_fputs(FILE *out, strand str);
 

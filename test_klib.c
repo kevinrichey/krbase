@@ -210,6 +210,21 @@ TEST_CASE(type_safe_swap)
 	TEST(yes == false && no == true);
 }
 
+TEST_CASE(type_safe_const_cast)
+{
+	const char words[] = "can't change this";
+	char *s = deconst(char*, words);
+	TEST( ! strcmp(s, "can't change this"));
+
+	const int numbers[] = { 1,2,3,4,5 };
+	int *n = deconst(int*, numbers);
+	TEST(n[3] == 4);
+
+	const double decimals[] = { 3.14, 2.718, 4.6692, 1.6180339887 };
+	double *d = deconst(double*, decimals);
+	TEST(d[1] == 2.718);
+}
+
 //-----------------------------------------------------------------------------
 // Span Template
 //
@@ -373,11 +388,11 @@ TEST_CASE(reverse_copy_a_string)
 
 	char revbuff[25] = "************************";
 	strbuf buf = STRBUF_INIT(revbuff);
-	TEST( strand_equals(strand_reverse(str, buf), STR("gnirts siht esreveR")) );
+	TEST( strand_equals(strand_reverse(str, &buf), STR("gnirts siht esreveR")) );
 
 	char shorter[10] = "*********";
 	buf = STRBUF_INIT(shorter);
-	TEST( strand_equals(strand_reverse(str, buf), STR("gnirts si")) );
+	TEST( strand_equals(strand_reverse(str, &buf), STR("gnirts si")) );
 }
 
 TEST_CASE(convert_int_to_strand)
