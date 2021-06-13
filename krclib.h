@@ -181,7 +181,7 @@ void Assert_failed(SourceInfo source, const char *message);
 //----------------------------------------------------------------------
 //@module Span Template
 
-#define TSPAN(T_)  struct { T_ *front, *back; }
+#define TSPAN(T_)  struct { const T_ *front, *back; }
 
 #define SPAN_INIT_N(PTR_, LEN_, ...)  { .front=(PTR_), .back=(PTR_)+(LEN_) }
 #define SPAN_INIT(...)   SPAN_INIT_N(__VA_ARGS__, ARRAY_SIZE(VA_PARAM_0(__VA_ARGS__)))
@@ -192,13 +192,13 @@ void Assert_failed(SourceInfo source, const char *message);
 
 #define SLICE(SPAN_, START_, STOP_)  { \
 	.front = (SPAN_).front + check_index(START_, SPAN_LENGTH(SPAN_)),   \
-	.back   = (SPAN_).front + check_index(STOP_,  SPAN_LENGTH(SPAN_)) }
+	.back  = (SPAN_).front + check_index(STOP_,  SPAN_LENGTH(SPAN_)) }
 
-typedef TSPAN(char)     cspan;
-typedef TSPAN(int)      ispan;
-typedef TSPAN(double)   dspan;
-typedef TSPAN(void)     vspan;
-typedef TSPAN(byte)     bspan;
+typedef TSPAN(char)     char_span;
+typedef TSPAN(int)      int_span;
+typedef TSPAN(double)   dub_span;
+typedef TSPAN(void)     void_span;
+typedef TSPAN(byte)     byte_span;
 
 
 //----------------------------------------------------------------------
@@ -229,7 +229,7 @@ static inline strbuf strbuf_init(char buf[], size_t size)
 #define STRBUF_INIT(BUF_)  strbuf_init((BUF_), sizeof(BUF_))
 
 
-typedef TSPAN(const char) strand;
+typedef TSPAN(char) strand;
 
 static inline strand strand_init(char *s, int length)
 {
@@ -246,6 +246,9 @@ strand strand_copy(strand from, strbuf out);
 strand strand_reverse(strand str, strbuf *out);
 strand strand_itoa(int n, strbuf out);
 void   strand_fputs(FILE *out, strand str);
+strand strand_trim_back(strand s, int (*istype)(int));
+strand strand_trim_front(strand s, int (*istype)(int));
+strand strand_trim(strand s, int (*istype)(int));
 
 
 //----------------------------------------------------------------------
@@ -518,9 +521,9 @@ uint32_t Xorshift_rand(Xorshifter *state);
 
 //@module Hash Table
 
-uint64_t hash_fnv_1a_64bit(bspan data, uint64_t hash);
+uint64_t hash_fnv_1a_64bit(byte_span data, uint64_t hash);
 
-uint64_t hash(bspan data);
+uint64_t hash(byte_span data);
 
 //@module Fibonacci Sequence Iterator
 

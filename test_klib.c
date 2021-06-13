@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <setjmp.h>
 #include <limits.h>
+#include <ctype.h>
 
 #define USING_KR_NAMESPACE
 #include "test.h"
@@ -231,7 +232,7 @@ TEST_CASE(type_safe_const_cast)
 
 TEST_CASE(properties_of_null_span)
 {
-	ispan null_span = { NULL, NULL };
+	int_span null_span = { NULL, NULL };
 
 	TEST(SPAN_IS_NULL(null_span));
 	TEST(SPAN_IS_EMPTY(null_span));
@@ -241,7 +242,7 @@ TEST_CASE(properties_of_null_span)
 TEST_CASE(properties_of_empty_span)
 {
 	int a[] = {};
-	ispan empty_span = SPAN_INIT(a);
+	int_span empty_span = SPAN_INIT(a);
 
 	TEST(!SPAN_IS_NULL(empty_span));
 	TEST( SPAN_IS_EMPTY(empty_span));
@@ -251,13 +252,13 @@ TEST_CASE(properties_of_empty_span)
 TEST_CASE(init_span_from_arrays)
 {
 	char letters[] = "abcdefghijklmnopqrstuvwxyz";
-	cspan cs = SPAN_INIT(letters);
+	char_span cs = SPAN_INIT(letters);
 	TEST(SPAN_LENGTH(cs) == 27); // don't forget the null-terminator
 	TEST(cs.front[5] == 'f');
 
 	// Make a span from the array
 	int fibs[] = { 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 };
-	ispan nspan = SPAN_INIT(fibs, 8);
+	int_span nspan = SPAN_INIT(fibs, 8);
 	TEST(SPAN_LENGTH(nspan) == 8);
 	int i = 0;
 	TEST(nspan.front[i++] ==  0);
@@ -274,9 +275,9 @@ TEST_CASE(slice_span)
 {
 	//             0  1  2  3  4  5  6   7   8   9  10  11
 	int fibs[] = { 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 };
-	ispan fibspan = SPAN_INIT(fibs);
+	int_span fibspan = SPAN_INIT(fibs);
 
-	ispan s1 = SLICE(fibspan, 3, 8);
+	int_span s1 = SLICE(fibspan, 3, 8);
 	TEST(SPAN_LENGTH(s1) == 5);
 	TEST(s1.front[0] == 2);
 	TEST(s1.front[1] == 3);
@@ -284,7 +285,7 @@ TEST_CASE(slice_span)
 	TEST(s1.front[3] == 8);
 	TEST(s1.front[4] == 13);
 
-	ispan s2 = SLICE(fibspan, 6, -3);
+	int_span s2 = SLICE(fibspan, 6, -3);
 	TEST(SPAN_LENGTH(s2) == 3);
 	TEST(s2.front[0] == 8);
 	TEST(s2.front[1] == 13);
@@ -408,6 +409,33 @@ TEST_CASE(convert_int_to_strand)
 	TEST(strand_equals(strand_itoa(-1, buf), STR("-1")));
 	TEST(strand_equals(strand_itoa(-12345, buf), STR("-12345")));
 	TEST(strand_equals(strand_itoa(INT_MIN, buf), STR( "-2147483648")));
+}
+
+TEST_CASE(return_trimmed_span)
+{
+	char text[] = " \t\v\r\n  Trim trailing whitespace  \t\v\r\n   ";
+	strand s = STR(text);
+
+	strand trimmed = strand_trim_back(s, isspace);
+	TEST( strand_equals(trimmed, STR(" \t\v\r\n  Trim trailing whitespace")) );
+
+	trimmed = strand_trim_front(s, isspace);
+	TEST( strand_equals(trimmed, STR("Trim trailing whitespace  \t\v\r\n   ")) );
+
+	trimmed = strand_trim(s, isspace);
+	TEST( strand_equals(trimmed, STR("Trim trailing whitespace")) );
+
+	char empty_text[] = "";
+	strand empty = STR(empty_text);
+	TEST( strand_equals(strand_trim_back(empty, isspace), STR("")) );
+	TEST( strand_equals(strand_trim_front(empty, isspace), STR("")) );
+	TEST( strand_equals(strand_trim(empty, isspace), STR("")) );
+
+	char spaces_text[] = "  \t\v\r\n   ";
+	strand spaces = STR(spaces_text);
+	TEST( strand_equals(strand_trim_back(spaces, isspace), STR("")) );
+	TEST( strand_equals(strand_trim_front(spaces, isspace), STR("")) );
+	TEST( strand_equals(strand_trim(spaces, isspace), STR("")) );
 }
 
 

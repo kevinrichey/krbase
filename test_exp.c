@@ -83,29 +83,29 @@ TEST_CASE(object_life_cycle)
 
 
 #define Bytes_init_array(ARR_)  \
-			(bspan)SPAN_INIT((byte*)(ARR_), sizeof(ARR_))
+			(byte_span)SPAN_INIT((byte*)(ARR_), sizeof(ARR_))
 
 #define Bytes_init_var(VAR_)   \
-			(bspan)SPAN_INIT((byte*)&(VAR_), sizeof(VAR_))
+			(byte_span)SPAN_INIT((byte*)&(VAR_), sizeof(VAR_))
 
-bspan Bytes_init_str(char *s);
+byte_span Bytes_init_str(char *s);
 
 TEST_CASE(convert_things_to_bytes)
 {
 	int numbers[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-	bspan ns1 = Bytes_init_array(numbers);
+	byte_span ns1 = Bytes_init_array(numbers);
 	TEST(SPAN_LENGTH(ns1) == (10 * sizeof(int)));
 
 	int i = 101;
-	bspan ns2 = Bytes_init_var(i);
+	byte_span ns2 = Bytes_init_var(i);
 	TEST(SPAN_LENGTH(ns2) == sizeof(int));
 
 	double d = 3.14159;
-	bspan ns3 = Bytes_init_var(d);
+	byte_span ns3 = Bytes_init_var(d);
 	TEST(SPAN_LENGTH(ns3) == sizeof(double));
 
 	char s[100] = "Hello, World";
-	bspan ns4 = Bytes_init_str(s);
+	byte_span ns4 = Bytes_init_str(s);
 	TEST(SPAN_LENGTH(ns4) == 12);
 }
 

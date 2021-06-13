@@ -136,6 +136,25 @@ void strand_fputs(FILE *out, strand str)
 	fprintf(out, "%.*s\n", strand_length(str), str.front);
 }
 
+strand strand_trim_back(strand s, int (*istype)(int))
+{
+	while (s.back > s.front && istype(*(s.back-1))) 
+		--s.back;
+	return s;
+}
+
+strand strand_trim_front(strand s, int (*istype)(int))
+{
+	while (s.front < s.back && istype(*s.front)) 
+		++s.front;
+	return s;
+}
+
+strand strand_trim(strand s, int (*istype)(int))
+{
+	return strand_trim_back( strand_trim_front(s, istype), istype);
+}
+
 
 
 //----------------------------------------------------------------------
@@ -211,9 +230,9 @@ string *string_format(const char *format, ...)
 }
 
 
-bspan Bytes_init_str(char *s)
+byte_span Bytes_init_str(char *s)
 {
-	return (bspan)SPAN_INIT((byte*)s, strlen(s));
+	return (byte_span)SPAN_INIT((byte*)s, strlen(s));
 }
 
 
@@ -397,7 +416,7 @@ uint32_t Xorshift_rand(Xorshifter *state)
 	return state->x = x;
 }
 
-uint64_t hash_fnv_1a_64bit(bspan data, uint64_t hash)
+uint64_t hash_fnv_1a_64bit(byte_span data, uint64_t hash)
 {
 	const uint64_t fnv_1a_64bit_prime = 0x100000001B3;
 
@@ -410,7 +429,7 @@ uint64_t hash_fnv_1a_64bit(bspan data, uint64_t hash)
 	return hash;
 }
 
-uint64_t hash(bspan data)
+uint64_t hash(byte_span data)
 {
 	const uint64_t fnv_1a_64bit_offset_basis = 14695981039346656037llu;
 	return hash_fnv_1a_64bit(data, fnv_1a_64bit_offset_basis);
