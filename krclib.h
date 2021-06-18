@@ -69,13 +69,15 @@ DEFINE_MAX_FUNC(char)
 DEFINE_MAX_FUNC(int)
 DEFINE_MAX_FUNC(unsigned)
 DEFINE_MAX_FUNC(double)
+DEFINE_MAX_FUNC(size_t)
 
 #define max(A_, B_)  \
 	_Generic((A_),   \
 		char:      char_max,      \
 		int:       int_max,       \
 		unsigned:  unsigned_max,  \
-		double:    double_max     \
+		double:    double_max,     \
+		size_t:    size_t_max    \
 	) ((A_), (B_))
 
 #define DEFINE_MIN_FUNC(TYPE_) \
@@ -96,20 +98,20 @@ DEFINE_MIN_FUNC(double)
 
 // Type-safe swap
 
-#define DEFINE_SWAP_FUNC(TYPE_)  \
+#define KR_SWAP_TEMPLATE(TYPE_)  \
 	static inline void TYPE_##_swap(TYPE_ *a, TYPE_ *b) { \
 		TYPE_ c = *a; *a = *b; *b = c; }
 
-DEFINE_SWAP_FUNC(char)
-DEFINE_SWAP_FUNC(int)
-DEFINE_SWAP_FUNC(unsigned)
-DEFINE_SWAP_FUNC(double)
-DEFINE_SWAP_FUNC(bool)
+KR_SWAP_TEMPLATE(char)
+KR_SWAP_TEMPLATE(int)
+KR_SWAP_TEMPLATE(unsigned)
+KR_SWAP_TEMPLATE(double)
+KR_SWAP_TEMPLATE(bool)
 
 #define swap(A_, B_)  \
 	_Generic((A_),    \
-			char:     char_swap,  \
-			int:      int_swap,    \
+			char:     char_swap,     \
+			int:      int_swap,      \
 			unsigned: unsigned_swap, \
 			double:   double_swap,   \
 			bool:     bool_swap      \
@@ -249,25 +251,6 @@ void   strand_fputs(FILE *out, strand str);
 strand strand_trim_back(strand s, int (*istype)(int));
 strand strand_trim_front(strand s, int (*istype)(int));
 strand strand_trim(strand s, int (*istype)(int));
-
-
-//----------------------------------------------------------------------
-//@module string
-
-typedef struct {
-	const size_t size;
-	const char  *back;
-	const char   front[];
-} string;
-
-string *string_create(size_t size);
-void    string_dispose(string *s);
-size_t  string_length(string *s);
-bool    string_equals(string *s, const char *cstr);
-void    string_puts(string *s);
-bool    string_is_empty(string *s);
-string *string_copy(const char *from);
-string *string_format(const char *format, ...);
 
 
 //----------------------------------------------------------------------

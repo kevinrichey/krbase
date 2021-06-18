@@ -439,63 +439,53 @@ Return error code is not an option.
 - vector - fixed-length, named & random access
 - array  - size, flex array member
 
-## string
+# string & strand
 
-### String Requirements
+Requirements
 
 - any storage method
 - stores end pointer for faster concat & length
-- can be null/empty
-- function pass & return by value
+- can be null or empty
 - value member of arrays, lists, tables
 - overflow protection & bounds checking
-- minimize dynamic allocation
 
-// int-aligned fixed-length string
-union strand {
-	int data[4];
-	char characters[sizeof(int)*4];
-};
-
-
-### String Storage
+## String Storage
 
 - constant literal
-- char pointer + length
 - local array
 - compound literal array
-- internal short array
-- heap
-- memory pool
+- char pointer + length
+- heap alloc
 
-### String Composition
+## String Composition
 
-- formatting
-- concat
-- join
+- copy / dupe
+- printf-style formatting
+- concat / join
 - template
 - comprehension
 - fill
-- a-z range
 
-### String Operations
+## String Properties
 
-- length
+- length: # chars in value
+- size: # chars available for storage
+- not/null: whether it has a value or not
+- not/empty: whether the length > 0
 - not/equals, ignore case
 - compare
-- copy
 
-### Substring Operations
+## Substring Operations
 
 - slice(a,b) - substring from positions a to b.
-- left(n)  - slice 0 to n
-- right(n)  - slice -n to -1
-- contains(sub)  - has; true if string contains substring
+- front(n)  - slice 0 to n
+- back(n)  - slice -n to -1
+- contains(sub)  - true if string contains substring
 - find(c|sub, iter) - search for position of character or sub-str
 - split(sub)   - list of sub-strings delimited by sub
 - iterate
 
-### String Modifiers 
+## String Modifiers 
 
 Returns new string.
 
@@ -507,7 +497,6 @@ Returns new string.
 - replace(char|substr, iter)
 - delete(char|substr, iter)
 - [Ordering]
-
 
 # Sequences
 
