@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "krclib.h"
+#include "krstring.h"
 
 int main(int argc, char *argv[])
 {
@@ -7,7 +8,7 @@ int main(int argc, char *argv[])
 	string *longest = NULL;
 
 	string *s = NULL;
-	while ((s = string_fgetline(stdin, string_clear(s)))) {
+	while ((s = string_fgetline(stdin, s))) {
 		if (string_length(s) > string_length(longest)) {
 			string_swap(&longest, &s);
 			longest_no = lineno;
