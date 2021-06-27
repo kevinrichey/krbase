@@ -9,8 +9,13 @@ CFLAGS = -std=c17 -g -D DEBUG $(CWARNFLAGS)
 TESTCASES_C = $(wildcard test_*.c)
 TESTCASES_O = $(TESTCASES_C:.c=.o)
 
-run: test
+run: run_test maze
+	./maze
+
+run_test: test
 	./test
+
+maze: maze.o krclib.o
 
 test: test.o krclib.o krstring.o $(TESTCASES_O)
 
