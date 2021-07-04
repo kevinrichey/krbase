@@ -4,12 +4,80 @@
 #include <stdarg.h>
 #include <setjmp.h>
 #include <stddef.h>
+#include <assert.h>
+
 #include "test.h"
 #include "krclib.h"
 
 //
 // This is all experimental stuff
 //
+
+
+#define  VAR_SEL1(TYPE_)         TYPE_:1
+#define  VAR_SEL2(TYPE_, ...)    VAR_SEL1(__VA_ARGS__), TYPE_:2
+
+//#define  VAR_SELECT(TYPE_)  _Generic((TYPE_){0}, int:1, double:2)
+#define  VAR_SELECT(TYPE_)  _Generic((TYPE_){0}, VAR_SEL2(int, double))
+
+#define  VAR_MEMBER(TYPE_)      TYPE_##_val
+#define  VAR_MEM1(TYPE_)        TYPE_ VAR_MEMBER(TYPE_);
+#define  VAR_MEM2(TYPE_, ...)   VAR_MEM1(__VA_ARGS__) TYPE_ VAR_MEMBER(TYPE_);
+
+#define VARIANT_2(T1_, T2_)  \
+struct { union { VAR_MEM2(T1_, T2_) }; int type; }
+
+typedef VARIANT_2(int, double) var;
+
+
+#define var_init(TYPE_, VAL_)  { { .VAR_MEMBER(TYPE_) = (VAL_) }, .type = VAR_SELECT(TYPE_) }
+
+var var_int(int i)
+{
+	return (var){ { .VAR_MEMBER(int) = i }, .type = VAR_SELECT(int) };
+}
+
+bool var_is_set(var *v)
+{
+	return v && v->type > 0 && v->type <= 2;
+}
+
+#define var_is(V_, TYPE_)  ((V_).type == VAR_SELECT(TYPE_))
+
+bool var_type_is(var *v, int t)
+{
+	return v && v->type == t;
+}
+
+#define var_get(V_, TYPE_)   (assert((V_).type == VAR_SELECT(TYPE_)), (V_).VAR_MEMBER(TYPE_))
+
+int var_get_int(var *v)
+{
+	assert (v && v->type == 1);
+	return v->VAR_MEMBER(int);
+}
+
+double var_get_double(var *v)
+{
+	assert (v && v->type == 2);
+	return v->VAR_MEMBER(double);
+}
+
+TEST_CASE(set_value_in_variant)
+{
+	var v = var_init(int, 11);
+
+	TEST(var_is_set(&v));
+	TEST(var_is(v, int));
+	TEST(!var_is(v, double));
+	TEST(var_get(v, int) == 11);
+
+//	double d = var_get(v, double);
+//	TEST(d == 11.0);
+}
+
+
+
 
 struct Object;
 

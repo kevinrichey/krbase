@@ -10,7 +10,7 @@ TESTCASES_C = $(wildcard test_*.c)
 TESTCASES_O = $(TESTCASES_C:.c=.o)
 
 run: run_test maze
-	./maze
+	./maze $(ARGS)
 
 run_test: test
 	./test

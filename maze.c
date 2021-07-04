@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <limits.h>
 
 #include "krclib.h"
 
@@ -117,19 +120,79 @@ void maze_grid_draw_ascii(maze_grid *grid)
 }
 
 
+typedef struct {
+	int width;
+	int height;
+	unsigned  seed;
+} MazeOptions;
+
+
+//unsigned parse_uint_option(int argi, int argc, char *argv[], const char *name)
+unsigned parse_uint_option(int argi, str_span args, const char *name)
+{
+	if (argi >= SPAN_LENGTH(args)) {
+		fprintf(stderr, "ERROR: missing value for argument %s\n", name);
+		exit(0);
+	}
+
+	unsigned long n = strtoul(args.front[argi], NULL, 0);
+
+	if (errno) {
+		fprintf(stderr, "ERROR: argument %s: %s\n", name, strerror(errno));
+		exit(0);
+	}
+
+	if (n == 0) {
+		fprintf(stderr, "ERROR: %s must be a number greater than zero.\n", name);
+		exit(0);
+	} 
+
+	if (n > (unsigned long)UINT_MAX) {
+		fprintf(stderr, "ERROR: %s must be less than or equal to %u.\n", name, UINT_MAX);
+		exit(0);
+	}
+
+	return n; 
+}
+
+void MazeOptions_read(MazeOptions *options, int argc, char *argv[])
+{
+	str_span args = SPAN_INIT_N(argv, argc);
+
+	for (int i = 1; i < argc; ++i) {
+		if (!strcmp(argv[i], "-size"))
+			options->height = options->width = parse_uint_option(++i, args, "-size");
+		else if (!strcmp(argv[i], "-width"))
+			options->width = parse_uint_option(++i, args, "-width");
+		else if (!strcmp(argv[i], "-height"))
+			options->height = parse_uint_option(++i, args, "-height");
+		else if (!strcmp(argv[i], "-seed")) 
+			options->seed = parse_uint_option(++i, args, "-seed");
+		else {
+			fprintf(stderr, "ERROR: unknown argument %s\n", argv[i]);
+			exit(0);
+		}
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	UNUSED(argc);
 	UNUSED(argv);
 
+	MazeOptions options = {
+		.width = 8,
+		.height = 8,
+		.seed = 123456789
+	};
+
+	MazeOptions_read(&options, argc, argv);
+
 	puts("Hello maze");
 
-	int size = 8;
-	int seed = 432;
+	srand(options.seed);
 
-	srand(seed);
-
-	maze_grid *grid = maze_grid_create(size, size);
+	maze_grid *grid = maze_grid_create(options.height, options.width);
 
 	maze_cell *cell = &grid->cells[1];  // skip top-left cell
 	maze_cell *end  = grid->cells + (grid->ncols * grid->nrows);

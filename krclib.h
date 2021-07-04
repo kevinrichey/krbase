@@ -18,8 +18,9 @@
   EnumName_##_End,  \
   EnumName_##_Count = EnumName_##_End,  \
   EnumName_##_Last  = EnumName_##_End - 1, \
-  EnumName_##_First = 0,
+  EnumName_##_First = 0
 
+#define CONCAT(A,B)             A##B
 #define STRINGIFY(x)            #x
 #define STRINGIFY_EXPAND(x)     STRINGIFY(x)
 
@@ -183,7 +184,7 @@ void Assert_failed(SourceInfo source, const char *message);
 //----------------------------------------------------------------------
 //@module Span Template
 
-#define TSPAN(T_)  struct { const T_ *front, *back; }
+#define TSPAN(T_)  struct { T_* front; T_* back; }
 
 #define SPAN_INIT_N(PTR_, LEN_, ...)  { .front=(PTR_), .back=(PTR_)+(LEN_) }
 #define SPAN_INIT(...)   SPAN_INIT_N(__VA_ARGS__, ARRAY_SIZE(VA_PARAM_0(__VA_ARGS__)))
@@ -201,6 +202,7 @@ typedef TSPAN(int)      int_span;
 typedef TSPAN(double)   dub_span;
 typedef TSPAN(void)     void_span;
 typedef TSPAN(byte)     byte_span;
+typedef TSPAN(char*)    str_span;
 
 
 //----------------------------------------------------------------------
