@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdarg.h>
 
 #include "krstring.h"
 #include "krclib.h"
