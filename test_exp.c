@@ -29,16 +29,28 @@
 #define VA_FOREACH(WHAT_, ...)         VA_FOREACH_N(VA_NARGS(__VA_ARGS__), WHAT_, __VA_ARGS__)
 
 
+
+
 #define VAL_MEMBER_X(VAL_, I_)   VAL_ val##I_;
 #define VAL_MEMBER(VAL_, I_)     VAL_MEMBER_X(VAL_, I_)
 #define VARIANT_T(...)  struct { \
-	int     type; \
+	int type; \
 	union { VA_FOREACH(VAL_MEMBER, __VA_ARGS__) } value; }
 
+bool var_assert_type(int var_type, int typeid)
+{
+	assert(var_type == typeid);
+	return true;
+}
 
 #define VAR_TYPE_ID_X(TYPE_, I_)   TYPE_: I_,
 #define VAR_TYPE_ID(TYPE_, I_)     VAR_TYPE_ID_X(TYPE_, I_)
-#define VARIANT_TYPE_ID_T(VAL_, ...)     _Generic(((VAL_){0}), VA_FOREACH(VAR_TYPE_ID, __VA_ARGS__) default:-1 )
+#define VARIANT_TYPE_ID_T(TYPE_, ...)     _Generic(((TYPE_){0}), VA_FOREACH(VAR_TYPE_ID, __VA_ARGS__) default:-1 )
+
+#define VARIANT_VALUE_REF_T(ATTR_, TYPE_, ...)  \
+	(*(var_assert_type((ATTR_).type, VARIANT_TYPE_ID_T(TYPE_, __VA_ARGS__)), ((TYPE_*)&(ATTR_).value)))
+
+#define VARIANT_INIT_T(TYPE_, ...)   { .type = VARIANT_TYPE_ID_T(TYPE_, __VA_ARGS__) }
 
 
 
@@ -46,51 +58,31 @@
 typedef struct { int x; } dummy;
 
 #define ATTRIB_TYPES   int, char*, dummy
-
 typedef VARIANT_T(ATTRIB_TYPES) attrib;
-#define attrib_type(TYPE_)     VARIANT_TYPE_ID_T(TYPE_, ATTRIB_TYPES)
-
-
-
-#define attrib_init(TYPE_)  { .type = attrib_type(TYPE_) }
-
-#define attrib_is(ATTR_, TYPE_)   (attrib_type(TYPE_) == (ATTR_).type)
-
-
-#define attrib_val(ATTR_, TYPE_)  \
-	(*(attrib_assert_type(&(ATTR_), attrib_type(TYPE_)), ((TYPE_*)&(ATTR_).value)))
-
-bool attrib_assert_type(const attrib *a, int typeid)
-{
-	assert(a && a->type == typeid);
-	return true;
-}
-
-bool attrib_is_void(const attrib *attr)
-{
-	return !attr || attr->type == 0;
-}
+#define attrib_init(TYPE_)            VARIANT_INIT_T(TYPE_, ATTRIB_TYPES)
+#define attrib_typeid(TYPE_)       VARIANT_TYPE_ID_T(TYPE_, ATTRIB_TYPES)
+#define attrib_val(ATTR_, TYPE_)   VARIANT_VALUE_REF_T(ATTR_, TYPE_, ATTRIB_TYPES)
 
 
 TEST_CASE(create_attribute)
 {
 	attrib a = {0};
-	TEST(attrib_is_void(&a));
+	TEST(a.type == 0);
 
 	a = (attrib)attrib_init(dummy);
 
-	TEST(!attrib_is_void(&a));
-	TEST(attrib_is(a, dummy));
-	TEST(!attrib_is(a, int));
+	TEST(a.type != 0);
+	TEST(a.type == attrib_typeid(dummy));
+	TEST(a.type != attrib_typeid(int));
 
 	attrib_val(a, dummy).x = 99;
 
 	switch(a.type) {
-		case attrib_type(char*):
+		case attrib_typeid(char*):
 			fprintf(stderr, "a.value = %s\n", attrib_val(a, char*));
 			// ok!
 			break;
-		case attrib_type(dummy):
+		case attrib_typeid(dummy):
 			fprintf(stderr, "a.dummy.x = %d\n", attrib_val(a, dummy).x);
 			break;
 		default:
