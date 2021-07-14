@@ -233,6 +233,37 @@ Avoid Variable-Length Arrays
 : Set -Wvla option to detect VLAs.
 
 
+# Program Outline
+
+- Start
+- Init
+	- Parse arguments
+	- Parse environment
+	- Read config
+	- Init components
+- Process Loop
+	- Read input
+	- Setup/recycle
+	- Process
+	- Write output
+	- Cleanup
+- Teardown
+	- Close files, sockets, threads, etc
+
+- Cross-cut
+	- Error handling
+	- Logging & tracing
+	- Signal handling
+	- Memory management
+	- Config
+	- Localization
+	- Security
+
+- Unit Testing
+
+- Library
+
+
 # Build Modes
 
 - Test
@@ -618,4 +649,21 @@ operations -> new list/array
 - Structured data
 - Tabular data
 - Markup
+
+# Basic Software Engineer Skills
+
+- Compile a project
+- Build config like make
+- Source control: Git, Subversion
+- Unit Testing
+
+- Setup & connect Windows Remote Desktop Connection on remote machine
+- Open VPN connection to remote network
+- Up/download files over RDP
+- SSH into remote Linux machine
+- Basic Linux file system naviagation
+- SFTP to remote machine, up/download files
+- Create and mount encrypted file volume/drive
+- Create and run virtual machine
+
 
