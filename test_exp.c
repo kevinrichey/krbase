@@ -15,15 +15,15 @@
 //
 
 
-#define VA_ITER_1(WHAT_, VAL_, ...)    WHAT_(VAL_, 1)
-#define VA_ITER_2(WHAT_, VAL_, ...)    WHAT_(VAL_, 2) VA_ITER_1(WHAT_, __VA_ARGS__)
-#define VA_ITER_3(WHAT_, VAL_, ...)    WHAT_(VAL_, 3) VA_ITER_2(WHAT_, __VA_ARGS__)
-#define VA_ITER_4(WHAT_, VAL_, ...)    WHAT_(VAL_, 4) VA_ITER_3(WHAT_, __VA_ARGS__)
-#define VA_ITER_5(WHAT_, VAL_, ...)    WHAT_(VAL_, 5) VA_ITER_4(WHAT_, __VA_ARGS__)
-#define VA_ITER_6(WHAT_, VAL_, ...)    WHAT_(VAL_, 6) VA_ITER_5(WHAT_, __VA_ARGS__)
-#define VA_ITER_7(WHAT_, VAL_, ...)    WHAT_(VAL_, 7) VA_ITER_6(WHAT_, __VA_ARGS__)
-#define VA_ITER_8(WHAT_, VAL_, ...)    WHAT_(VAL_, 8) VA_ITER_7(WHAT_, __VA_ARGS__)
-#define VA_ITER_9(WHAT_, VAL_, ...)    WHAT_(VAL_, 9) VA_ITER_8(WHAT_, __VA_ARGS__)
+#define VA_ITER_1(WHAT_, VAL_, ...)    WHAT_(VAL_, 0)
+#define VA_ITER_2(WHAT_, VAL_, ...)    WHAT_(VAL_, 1) VA_ITER_1(WHAT_, __VA_ARGS__)
+#define VA_ITER_3(WHAT_, VAL_, ...)    WHAT_(VAL_, 2) VA_ITER_2(WHAT_, __VA_ARGS__)
+#define VA_ITER_4(WHAT_, VAL_, ...)    WHAT_(VAL_, 3) VA_ITER_3(WHAT_, __VA_ARGS__)
+#define VA_ITER_5(WHAT_, VAL_, ...)    WHAT_(VAL_, 4) VA_ITER_4(WHAT_, __VA_ARGS__)
+#define VA_ITER_6(WHAT_, VAL_, ...)    WHAT_(VAL_, 5) VA_ITER_5(WHAT_, __VA_ARGS__)
+#define VA_ITER_7(WHAT_, VAL_, ...)    WHAT_(VAL_, 6) VA_ITER_6(WHAT_, __VA_ARGS__)
+#define VA_ITER_8(WHAT_, VAL_, ...)    WHAT_(VAL_, 7) VA_ITER_7(WHAT_, __VA_ARGS__)
+#define VA_ITER_9(WHAT_, VAL_, ...)    WHAT_(VAL_, 8) VA_ITER_8(WHAT_, __VA_ARGS__)
 
 #define VA_FOREACH_N(N_, WHAT_, ...)   CONCAT(VA_ITER_,N_)(WHAT_, __VA_ARGS__)
 #define VA_FOREACH(WHAT_, ...)         VA_FOREACH_N(VA_NARGS(__VA_ARGS__), WHAT_, __VA_ARGS__)
@@ -31,8 +31,7 @@
 
 
 
-#define VAL_MEMBER_X(VAL_, I_)   VAL_ val##I_;
-#define VAL_MEMBER(VAL_, I_)     VAL_MEMBER_X(VAL_, I_)
+#define VAL_MEMBER(VAL_, I_)     VAL_ CONCAT(val, I_);
 #define VARIANT_T(...)  struct { \
 	int type; \
 	union { VA_FOREACH(VAL_MEMBER, __VA_ARGS__) } value; }
@@ -40,20 +39,22 @@
 bool var_assert_type(int var_type, int typeid)
 {
 	assert(var_type == typeid);
-	return true;
+	return var_type == typeid;
 }
 
-#define VAR_TYPE_ID_X(TYPE_, I_)   TYPE_: I_,
+#define VARIANT_UNKNOWN_TYPE    -1
+#define VARIANT_VOID_TYPE        0
+
+#define VAR_TYPE_ID_X(TYPE_, I_)   TYPE_: I_+1,
 #define VAR_TYPE_ID(TYPE_, I_)     VAR_TYPE_ID_X(TYPE_, I_)
-#define VARIANT_TYPE_ID_T(TYPE_, ...)     _Generic(((TYPE_){0}), VA_FOREACH(VAR_TYPE_ID, __VA_ARGS__) default:-1 )
+#define VARIANT_TYPE_ID_T(TYPE_, ...)     _Generic(((TYPE_){0}), VA_FOREACH(VAR_TYPE_ID, __VA_ARGS__) default:VARIANT_UNKNOWN_TYPE )
 
 #define VARIANT_VALUE_REF_T(ATTR_, TYPE_, ...)  \
 	(*(var_assert_type((ATTR_).type, VARIANT_TYPE_ID_T(TYPE_, __VA_ARGS__)), ((TYPE_*)&(ATTR_).value)))
 
 #define VARIANT_INIT_T(TYPE_, ...)   { .type = VARIANT_TYPE_ID_T(TYPE_, __VA_ARGS__) }
 
-
-
+#define variant_init_void()    { .type = VARIANT_VOID_TYPE }
 
 typedef struct { int x; } dummy;
 
@@ -63,15 +64,38 @@ typedef VARIANT_T(ATTRIB_TYPES) attrib;
 #define attrib_typeid(TYPE_)       VARIANT_TYPE_ID_T(TYPE_, ATTRIB_TYPES)
 #define attrib_val(ATTR_, TYPE_)   VARIANT_VALUE_REF_T(ATTR_, TYPE_, ATTRIB_TYPES)
 
+typedef VARIANT_T(ATTRIB_TYPES) testvar;
+#define testvar_init(TYPE_)            VARIANT_INIT_T(TYPE_, ATTRIB_TYPES)
+#define testvar_typeid(TYPE_)       VARIANT_TYPE_ID_T(TYPE_, ATTRIB_TYPES)
+#define testvar_val(ATTR_, TYPE_)   VARIANT_VALUE_REF_T(ATTR_, TYPE_, ATTRIB_TYPES)
 
-TEST_CASE(create_attribute)
+TEST_CASE(variant_private_typeids)
+{
+	// This is testing implementation details. 
+	// Client should not depend on the exact typeid values.
+	TEST(testvar_typeid(int) == 3);
+	TEST(testvar_typeid(char*) == 2);
+	TEST(testvar_typeid(dummy) == 1);
+
+	TEST(testvar_typeid(double) == VARIANT_UNKNOWN_TYPE);
+}
+
+TEST_CASE(variant_initial_state)
+{
+	testvar v = variant_init_void();
+	TEST(v.type == VARIANT_VOID_TYPE);
+	TEST(v.type != testvar_typeid(int));
+	TEST(v.type != testvar_typeid(char*));
+	TEST(v.type != testvar_typeid(dummy));
+}
+
+TEST_CASE(create_variant)
 {
 	attrib a = {0};
 	TEST(a.type == 0);
 
 	a = (attrib)attrib_init(dummy);
 
-	TEST(a.type != 0);
 	TEST(a.type == attrib_typeid(dummy));
 	TEST(a.type != attrib_typeid(int));
 
