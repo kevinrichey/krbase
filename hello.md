@@ -2,6 +2,11 @@
 
 Create a C library to make it easier, safer, more fun to code. 
 
+# Issues & Todo
+
+string_reserve() doesn't resize properly when bigger size is less than 2x current size.
+
+
 # Outline
 
 - Concurrency & Parallelism, multi-threading & forking
