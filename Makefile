@@ -9,6 +9,7 @@ CFLAGS = -std=c17 -g -D DEBUG $(CWARNFLAGS)
 TESTCASES_C = $(wildcard test_*.c)
 TESTCASES_O = $(TESTCASES_C:.c=.o)
 
+
 run: run_test maze
 	./maze $(ARGS)
 

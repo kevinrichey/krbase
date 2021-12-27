@@ -1,3 +1,4 @@
+#include <setjmp.h>
 #include "test.h"
 
 // Declare all test case functions.
@@ -16,6 +17,24 @@ TestCaseRecord all_test_cases[] = {
 	{ NULL, "" }
 };
 
+void do_test_case(TestCaseRecord *rec, TestCounter *counter)
+{
+	volatile const char *test_name = counter->test_name;
+
+	ExceptFrame frame;
+	except_begin(&frame);
+
+	if (setjmp(frame.env) == 0) {
+		rec->test_case(counter);
+	}
+	else {
+		debug_print(stdout, DEBUG_ASSERT, frame.source, "%s in test case %s\n", frame.str, test_name);
+		++counter->failure_count;
+	}
+
+	except_end();
+}
+
 int main(int argc, char *argv[])
 {
 	UNUSED(argc);
@@ -27,7 +46,7 @@ int main(int argc, char *argv[])
 	int i;
 	for (i = 0; all_test_cases[i].test_case; ++i) {
 		test_counter.test_name = all_test_cases[i].test_name;
-		all_test_cases[i].test_case(&test_counter);
+		do_test_case(all_test_cases+i, &test_counter);
 	}
 
 	if (test_counter.failure_count)

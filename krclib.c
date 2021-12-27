@@ -14,31 +14,6 @@ bool in_bounds(int n, int lower, int upper)
 	return (lower <= n) && (n <= upper);
 }
 
-int check_index(int i, int length)
-{
-	if (i < 0)  i += length;
-	CHECK(i >= 0);
-	return i;
-}
-
-int max_i(int a, int b)
-{
-	return (a > b) ? a: b;
-}
-
-int min_i(int a, int b)
-{
-	return (a < b) ? a: b;
-}
-
-void cswap(char *a, char *b)
-{
-	char t = *a;
-	*a = *b;
-	*b = t;
-}
-
-
 static char *kr_int_to_str_back(int n, char *ps)
 {
 	int sign = n < 0 ? -1 : 1;
@@ -55,20 +30,127 @@ static char *kr_int_to_str_back(int n, char *ps)
 //----------------------------------------------------------------------
 // Error Module
 
-void Assert_failed(SourceInfo source, const char *message)
+const char *DebugCategory_string(DebugCategory cat)
 {
-	fprintf(stderr, "%s:%d: %s: %s\n", source.file, source.line, Status_string(Status_Assert_Failure), message); 
-	abort();
+	if (!in_bounds_enum(cat, DEBUG))
+		return "Unknown DebugCategory";
+
+#define X(EnumName)  [DEBUG_##EnumName] = #EnumName,
+	return (const char*[]) { KR_DEBUG_CAT_X_TABLE } [cat];
+#undef X
 }
 
-const char *Status_string(StatusCode stat)
+const char *StatusCode_string(StatusCode stat)
 {
-	if (!in_enum_bounds(stat, Status))
+	if (!in_bounds_enum(stat, STATUS))
 		return "Unknown Status";
 
-#define X(EnumName)  [Status_##EnumName] = #EnumName,
+#define X(EnumName)  [STATUS_##EnumName] = #EnumName,
 	return (const char*[]) { STATUS_X_TABLE } [stat];
 #undef X
+}
+
+void debug_vfprint(FILE *out, DebugCategory cat, DebugInfo db, const char *message, va_list args)
+{
+	if (!out)  out = stderr;
+
+	fprintf(out, "%s:%d: %s: ", db.file, db.line, DebugCategory_string(cat));
+	if (message)
+		vfprintf(out, message, args);
+	fputc('\n', out);
+}
+
+void debug_print(FILE *out, DebugCategory cat, DebugInfo db, const char *message, ...)
+{
+	if (!out)  out = stderr;
+
+	fprintf(out, "%s:%d: %s: ", db.file, db.line, DebugCategory_string(cat));
+	if (message) {
+		va_list args;
+		va_start(args, message);
+		vfprintf(out, message, args);
+		va_end(args);
+	}
+	fputc('\n', out);
+}
+
+int assert_nop(DebugInfo db, const char *s)
+{
+	UNUSED(db);
+	UNUSED(s);
+	return false;
+}
+
+int assert_exit(DebugInfo db, const char *s)
+{
+	debug_print(stderr, DEBUG_ASSERT, db, s);
+	exit(EXIT_FAILURE);
+	return false;
+}
+
+static AssertHandler_fp KR_ASSERT_HANDLER = assert_exit;
+
+AssertHandler_fp set_assert_handler(AssertHandler_fp new_handler)
+{
+	AssertHandler_fp old_handler = KR_ASSERT_HANDLER;
+	KR_ASSERT_HANDLER = new_handler;
+	return old_handler;
+}
+
+void assert_failure(DebugInfo source, const char *s)
+{
+	KR_ASSERT_HANDLER(source, s);
+}
+
+static ExceptFrame *top_frame = NULL;
+
+void except_begin(ExceptFrame *frame)
+{
+	frame->back = top_frame;
+	frame->str  = NULL;
+
+	top_frame = frame;
+}
+
+void except_end(void)
+{
+	free(top_frame->str);
+	top_frame = top_frame->back;
+}
+
+void except_throw(DebugInfo dbi, char *str)
+{
+	if (top_frame == NULL) {
+		debug_print(stderr, DEBUG_ABORT, dbi, "unhandled exception: %s.\n", str);
+		abort();
+	}
+
+	top_frame->source = dbi;
+	top_frame->str = str;
+	longjmp(top_frame->env, 1);
+}
+
+void fail(DebugInfo dbg, const char *message, ...)
+{
+	va_list args;
+	va_start(args, message);
+	int len = vsnprintf(NULL, 0, message, args) + 1;
+	char *str = malloc(len * sizeof(char));
+	vsnprintf(str, len, message, args);
+//	debug_vfprint(stderr, DEBUG_ERROR, dbg, message, args);
+	va_end(args);
+
+	except_throw(dbg, str);
+}
+
+int check_index(int i, int length, DebugInfo dbg)
+{
+	if (i < -length || i >= length) {
+		fail(dbg, "index %d out of bounds, length %d", i, length);
+	}
+
+	if (i < 0)  i += length;
+	return i;
 }
 
 
@@ -160,7 +242,7 @@ strand strand_trim(strand s, int (*istype)(int))
 
 byte_span Bytes_init_str(char *s)
 {
-	return (byte_span)SPAN_INIT((byte*)s, strlen(s));
+	return (byte_span)SPAN_INIT((Byte*)s, strlen(s));
 }
 
 
@@ -174,11 +256,11 @@ void *List_grow(void *l, int sizeof_base, int sizeof_item, int min_cap, int add_
 	ListDims *b = l;
 
 	int new_length = List_length(l) + add_length;
-	min_cap = max_i(min_cap, new_length);
+	min_cap = int_max(min_cap, new_length);
 
 	if (List_capacity(l) < min_cap) {
-		min_cap = max_i(min_cap, List_capacity(l) * 2);
-		min_cap = max_i(min_cap, LIST_MIN_CAPACITY);
+		min_cap = int_max(min_cap, List_capacity(l) * 2);
+		min_cap = int_max(min_cap, LIST_MIN_CAPACITY);
 		b = realloc(l, sizeof_base + sizeof_item * min_cap);
 		b->cap = min_cap;
 	}
@@ -294,7 +376,7 @@ void Chain_appends(Chain *chain, ...)
 void *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int offset)
 {
 	for (Link *n = chain->head.next; n && n != &chain->head; n = n->next)
-		fn(baggage, (byte*)n + offset);
+		fn(baggage, (Byte*)n + offset);
 	return baggage;
 }
 
@@ -306,7 +388,7 @@ void *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int of
 char *timestamp(char *s, size_t num, struct tm *(*totime)(const time_t*))
 {
 	time_t now = time(NULL);
-	strftime(s, num, "%Y-%m-%d %H:%M:%S %Z", totime(&now));
+	strftime(s, num, "%Y-%m-%d %H.%M.%S %Z", totime(&now));
 	return s;
 }
 
@@ -348,8 +430,8 @@ uint64_t hash_fnv_1a_64bit(byte_span data, uint64_t hash)
 {
 	const uint64_t fnv_1a_64bit_prime = 0x100000001B3;
 
-	const byte *end = data.back;
-	for (const byte *b = data.front; b != end; ++b) {
+	const Byte *end = data.back;
+	for (const Byte *b = data.front; b != end; ++b) {
 		hash ^= (uint64_t)*b;
 		hash *= fnv_1a_64bit_prime;
 	}

@@ -15,7 +15,7 @@ string *string_create(const char *from)
 	size_t length = strlen(from);
 	string *s = string_reserve(NULL, length + 1);
 	if (s) {
-		strncpy(deconst(char*, s->front), from, length+1);
+		strncpy(ch_deconst(s->front), from, length+1);
 		s->back = s->front + length;
 	}
 	return s;
@@ -34,7 +34,7 @@ string *string_reserve(string *s, size_t bigger)
 	else if (s && s->size >= bigger)
 		return s;
 
-	bigger = max(bigger, 8);
+	bigger = size_t_max(bigger, 8);
 
 	size_t length = string_length(s);
 	string *new_s = realloc(s, sizeof(string) + bigger);
@@ -113,7 +113,7 @@ string *string_format(const char *format, ...)
 
 	string *s = string_reserve(NULL, length + 1);
 	if (s && s->size > 1) {
-		vsnprintf(deconst(char*, s->front), s->size, format, args);
+		vsnprintf(ch_deconst(s->front), s->size, format, args);
 		s->back = s->front + length;
 	}
 

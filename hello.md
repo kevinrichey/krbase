@@ -9,6 +9,16 @@ string_reserve() doesn't resize properly when bigger size is less than 2x curren
 
 # Outline
 
+- Assertions
+- Unit testing
+- Error handling
+- Tracing & logging
+- Memory debugging
+- Signal handling
+- Configuration
+	- Command line args
+	- Config files
+	- Environment variables
 - Concurrency & Parallelism, multi-threading & forking
 - Networking, Inter-Process Communication
 - Security
@@ -82,15 +92,12 @@ Types (struct, union, enum, typedef)
 Variables, parameters, struct & union members
 : Lower case with underscores: `variable_name`.
 
-Enumerations
-: Enum type name: `UpperCamelCase`.
-: Enumerators: lowercase with underscores, prefixed by enum type. `EnumName_enumerator`
+Constants, Enumerations, Preproc symbols
+: Upper case with underscores.
+: Enumerations prefixed by module or enum type name.
 
 Functions
 : Lower case with underscores: `function_name()`
-
-Preprocessor symbols
-: Upper case with underscores: `PREPROC_SYMBOL`.
 
 Preprocessor macros
 : Upper case with underscores: `MACRO_CASE()`
@@ -108,27 +115,24 @@ Modules
 : Module enums are named as `ModuleName_EnumName`.
 : Enum members are `ModuleName_EnumName_MemberName`.
 
-## Function and Type Suffixes
+## Function and Type Abbreviations
 
-Functions that have multiple versions for different types use a 
-type abbreviation following an underscore.
-For example: max_i() and max_d() for a max function on int and double.
+Functions that have multiple versions for different types use an abbreviated type prefix. 
+For example: int_max() and fl_min().
 
-- i - int
-- d - double
-- c - char
-- b - bool
-- a - array
-- s - string
-- v - void
-- p - pointer
-- n - number/length/count
-- v - variable arguments
+- char - ch
+- int - int
+- double - fl
+- bool - bool
+- string - str
+- array - arr
+- pointer - p
+- number/length/count - n
+- file pointer - fp
+- variable arguments - va
+- function pointer - fp
+- unsigned - prefix 'u', as in 'uint'
 
-## Commonly Used Names
-
-- bag or baggage = pass-through object for callback function. 
-- fn, func = function
 
 ## Matching Pairs
 
@@ -240,26 +244,13 @@ Avoid Variable-Length Arrays
 
 # Build Modes
 
-- Test
-- Debug
-- Release
+- Test - unit testing
+- Debug - debugging
+- Release - production
 
-enum & global constant for current build mode.
+Enum, global constant, pre-proc symbols for current build mode.
 
-# Layers of Abstraction
-
-- Hardware
-- Machine code
-	- Processor op codes
-	- numeric representation, 2s compliment
-	- assembly
-- Primitive data types
-- Data structurs
-- Abstract data types
-- Domain
-	- domain modelling
-	- business logic
-
+Select build mode at compile time with define symbols.
 
 # Unit testing
 
@@ -348,13 +339,6 @@ Information about specific error.
 - Status code
 - Message
 - Debug info: file & line
-
-Operations
-
-- init
-- is OK
-- is error
-- print error
 
 ## Diagnostics Module
 

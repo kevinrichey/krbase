@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <time.h>
+#include <setjmp.h>
 
 //@library Kevin Richey's C Library
 
@@ -15,10 +16,10 @@
 #define UNUSED(VAR_)  (void)(VAR_)
 
 #define STANDARD_ENUM_VALUES(EnumName_) \
-  EnumName_##_End,  \
-  EnumName_##_Count = EnumName_##_End,  \
-  EnumName_##_Last  = EnumName_##_End - 1, \
-  EnumName_##_First = 0
+  EnumName_##_END,  \
+  EnumName_##_COUNT = EnumName_##_END,  \
+  EnumName_##_LAST  = EnumName_##_END - 1, \
+  EnumName_##_FIRST = 0
 
 #define CONCAT(A,B)             A##B
 #define STRINGIFY(x)            #x
@@ -40,7 +41,7 @@
 #define ARRAY_SIZE(A_)    (sizeof(A_) / sizeof(*(A_)))
 
 #define MEMBER_TO_STRUCT_PTR(PTR_, TYPE_, MEMBER_)  \
-	(TYPE_*)((byte*)(PTR_) - offsetof(TYPE_, MEMBER_))
+	(TYPE_*)((Byte*)(PTR_) - offsetof(TYPE_, MEMBER_))
 
 #define FAMSIZE(OBJ_, FAM_, LENGTH_)  (sizeof((OBJ_)) + sizeof(*(OBJ_).FAM_) * (LENGTH_))
 #define NUM_STR_LEN(T_)  (3*sizeof(T_)+2)
@@ -49,137 +50,139 @@
 //----------------------------------------------------------------------
 //@module Primitive Utilities
 
-typedef unsigned char byte;
+typedef unsigned char Byte;
 
 // void function pointer
-typedef void (*void_fp)(void);
+typedef void (*Void_fp)(void);
 
 bool in_bounds(int n, int lower, int upper);
 
-#define in_enum_bounds(VAL_, ENUM_)    in_bounds((VAL_), (ENUM_##_First), (ENUM_##_Last))
-#define in_array_bounds(I_, ARR_)      in_bounds((I_), 0, ARRAY_SIZE(ARR_)-1)
-
-int check_index(int i, int length);
+#define in_bounds_enum(VAL_, ENUM_)    in_bounds((VAL_), (ENUM_##_FIRST), (ENUM_##_LAST))
+#define in_bounds_array(I_, ARR_)      in_bounds((I_), 0, ARRAY_SIZE(ARR_)-1)
 
 
 // Type-safe min/max template
-#define DEFINE_MAX_FUNC(TYPE_) \
-	static inline TYPE_ TYPE_##_max(TYPE_ a, TYPE_ b) { return a > b ? a : b; }
+#define DEFINE_MAX_FUNC(TYPE_, PRE_) \
+	static inline TYPE_ PRE_##_max(TYPE_ a, TYPE_ b) { return a > b ? a : b; }
 
-DEFINE_MAX_FUNC(char)
-DEFINE_MAX_FUNC(int)
-DEFINE_MAX_FUNC(unsigned)
-DEFINE_MAX_FUNC(double)
-DEFINE_MAX_FUNC(size_t)
+DEFINE_MAX_FUNC(char, ch)
+DEFINE_MAX_FUNC(int, int)
+DEFINE_MAX_FUNC(unsigned, uint)
+DEFINE_MAX_FUNC(double, fl)
+DEFINE_MAX_FUNC(size_t, size_t)
 
-#define max(A_, B_)  \
-	_Generic((A_),   \
-		char:      char_max,      \
-		int:       int_max,       \
-		unsigned:  unsigned_max,  \
-		double:    double_max,     \
-		size_t:    size_t_max    \
-	) ((A_), (B_))
 
-#define DEFINE_MIN_FUNC(TYPE_) \
-	static inline TYPE_ TYPE_##_min(TYPE_ a, TYPE_ b) { return a < b ? a : b; }
+#define DEFINE_MIN_FUNC(TYPE_, PRE_) \
+	static inline TYPE_ PRE_##_min(TYPE_ a, TYPE_ b) { return a < b ? a : b; }
 
-DEFINE_MIN_FUNC(char)
-DEFINE_MIN_FUNC(int)
-DEFINE_MIN_FUNC(unsigned)
-DEFINE_MIN_FUNC(double)
+DEFINE_MIN_FUNC(char, ch)
+DEFINE_MIN_FUNC(int, int)
+DEFINE_MIN_FUNC(unsigned, uint)
+DEFINE_MIN_FUNC(double, fl)
 
-#define min(A_, B_)  \
-	_Generic((A_),   \
-		char:      char_min,      \
-		int:       int_min,       \
-		unsigned:  unsigned_min,  \
-		double:    double_min     \
-	) ((A_), (B_))
 
 // Type-safe swap
 
-#define KR_SWAP_TEMPLATE(TYPE_)  \
-	static inline void TYPE_##_swap(TYPE_ *a, TYPE_ *b) { \
+#define KR_SWAP_TEMPLATE(TYPE_, PRE_)  \
+	static inline void PRE_##_swap(TYPE_ *a, TYPE_ *b) { \
 		TYPE_ c = *a; *a = *b; *b = c; }
 
-KR_SWAP_TEMPLATE(char)
-KR_SWAP_TEMPLATE(int)
-KR_SWAP_TEMPLATE(unsigned)
-KR_SWAP_TEMPLATE(double)
-KR_SWAP_TEMPLATE(bool)
+KR_SWAP_TEMPLATE(char, ch)
+KR_SWAP_TEMPLATE(int, int)
+KR_SWAP_TEMPLATE(unsigned, uint)
+KR_SWAP_TEMPLATE(double, fl)
+KR_SWAP_TEMPLATE(bool, bool)
 
-#define swap(A_, B_)  \
-	_Generic((A_),    \
-			char:     char_swap,     \
-			int:      int_swap,      \
-			unsigned: unsigned_swap, \
-			double:   double_swap,   \
-			bool:     bool_swap      \
-			) (&(A_), &(B_))
 
 // Type-safe const casting
-#define DEFINE_DECONST_FUNC(TYPE_)  \
-static inline TYPE_ *TYPE_##_deconst(const TYPE_ *i) { return (TYPE_*)i; }
+#define DEFINE_DECONST_FUNC(TYPE_, PRE_)  \
+static inline TYPE_ *PRE_##_deconst(const TYPE_ *i) { return (TYPE_*)i; }
 
-DEFINE_DECONST_FUNC(char)
-DEFINE_DECONST_FUNC(int)
-DEFINE_DECONST_FUNC(long)
-DEFINE_DECONST_FUNC(unsigned)
-DEFINE_DECONST_FUNC(double)
-DEFINE_DECONST_FUNC(bool)
-DEFINE_DECONST_FUNC(size_t)
-
-#define deconst(T_, P_)  \
-	_Generic((T_)NULL,    \
-			char*:     char_deconst,  \
-			int*:      int_deconst,    \
-			unsigned*: unsigned_deconst, \
-			double*:   double_deconst,   \
-			bool*:     bool_deconst,      \
-			size_t*:   size_t_deconst     \
-			) (P_)
+DEFINE_DECONST_FUNC(char, ch)
+DEFINE_DECONST_FUNC(int, int)
+DEFINE_DECONST_FUNC(long, long)
+DEFINE_DECONST_FUNC(unsigned, uint)
+DEFINE_DECONST_FUNC(double, fl)
+DEFINE_DECONST_FUNC(bool, bool)
+DEFINE_DECONST_FUNC(size_t, size_t)
 
 
 //----------------------------------------------------------------------
 //@module Debugging & Error Checking
 
-typedef struct SourceInfo {
+
+#define KR_DEBUG_CAT_X_TABLE \
+	X(ERROR) \
+	X(ASSERT) \
+	X(WATCH) \
+	X(TRACE) \
+	X(TEST)  \
+	X(ABORT) 
+  
+
+#define X(EnumName_)  DEBUG_##EnumName_,
+typedef enum {
+	KR_DEBUG_CAT_X_TABLE 
+    STANDARD_ENUM_VALUES(DEBUG)
+} DebugCategory;
+#undef X
+
+const char *DebugCategory_string(DebugCategory cat);
+
+
+typedef struct DebugInfo {
 	const char *file;
 	int         line;
-} SourceInfo;
+} DebugInfo;
 
-#define SOURCE_INFO_INIT   { .file = __FILE__, .line = __LINE__ }
-#define SOURCE_HERE        (SourceInfo)SOURCE_INFO_INIT   
+#define DEBUG_INFO_INIT   { .file = __FILE__, .line = __LINE__ }
+#define DEBUG_INFO_HERE   (DebugInfo)DEBUG_INFO_INIT
+
 
 
 #define STATUS_X_TABLE \
   X(OK) \
-  X(Test_Failure) \
-  X(Error)  \
-  X(Alloc_Error) \
-  X(Assert_Failure) \
-  X(Unknown_Error) \
+  X(TEST_FAILURE) \
+  X(ERROR)  \
+  X(ALLOC_ERROR) \
+  X(ASSERT_FAILURE) \
+  X(UNKNOWN_ERROR) \
 
-#define X(EnumName_)  Status_##EnumName_,
+#define X(EnumName_)  STATUS_##EnumName_,
 typedef enum {
     STATUS_X_TABLE
-    STANDARD_ENUM_VALUES(Status)
+    STANDARD_ENUM_VALUES(STATUS)
 } StatusCode;
 #undef X
 
-const char *Status_string(StatusCode stat);
+const char *StatusCode_string(StatusCode stat);
+
+void debug_print(FILE *out, DebugCategory cat, DebugInfo db, const char *message, ...);
+
+typedef int (*AssertHandler_fp)(DebugInfo, const char *);
+AssertHandler_fp set_assert_handler(AssertHandler_fp new_handler);
+
+int  assert_nop(DebugInfo db, const char *s);
+int  assert_exit(DebugInfo db, const char *s);
+void assert_failure(DebugInfo source, const char *s);
+
+#define REQUIRE(CONDITION_)   \
+	do{ if (CONDITION_); else assert_failure(DEBUG_INFO_HERE, #CONDITION_); } while(0)
 
 
-void Assert_failed(SourceInfo source, const char *message);
+int check_index(int i, int length, DebugInfo dbg);
 
-#define CHECK(CONDITION_)   \
-	do{ if (CONDITION_); else Assert_failed(SOURCE_HERE, #CONDITION_); } while(0)
+#define CHECK(I_, LEN_)  check_index((I_), (LEN_), DEBUG_INFO_HERE)
 
-#define STR_WATCH(S_)  do{ fprintf(stderr, #S_" = %s, strlen %d\n", (S_), (int)strlen(S_)); }while(0)
-#define I_WATCH(I_)    do{ fprintf(stderr, #I_" = %d\n", (int)(I_)); }while(0)
-#define P_WATCH(V_)    do{ fprintf(stderr, #V_" = %p\n", (V_)); }while(0)
-#define B_WATCH(V_)    do{ fprintf(stderr, #V_" = %s\n", (V_) ? "true" : "false"); }while(0)
+typedef struct ExceptFrame {
+	struct ExceptFrame *back;
+	jmp_buf env;
+	DebugInfo source;
+	char *str;
+} ExceptFrame;
+
+void except_begin(ExceptFrame *frame);
+void except_end(void);
 
 //----------------------------------------------------------------------
 //@module Span Template
@@ -194,14 +197,14 @@ void Assert_failed(SourceInfo source, const char *message);
 #define SPAN_IS_NULL(SPAN_)   ((SPAN_).front == NULL)
 
 #define SLICE(SPAN_, START_, STOP_)  { \
-	.front = (SPAN_).front + check_index(START_, SPAN_LENGTH(SPAN_)),   \
-	.back  = (SPAN_).front + check_index(STOP_,  SPAN_LENGTH(SPAN_)) }
+	.front = (SPAN_).front + CHECK(START_, SPAN_LENGTH(SPAN_)),   \
+	.back  = (SPAN_).front + CHECK(STOP_,  SPAN_LENGTH(SPAN_)) }
 
 typedef TSPAN(char)     char_span;
 typedef TSPAN(int)      int_span;
 typedef TSPAN(double)   dub_span;
 typedef TSPAN(void)     void_span;
-typedef TSPAN(byte)     byte_span;
+typedef TSPAN(Byte)     byte_span;
 typedef TSPAN(char*)    str_span;
 
 
@@ -296,7 +299,7 @@ void  *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int o
 //@module Logging
 //
 
-#define TIMESTAMP_FORMAT  "YYYY-MM-DD HH:MM:SS TMZ"
+#define TIMESTAMP_FORMAT  "YYYY-MM-DD HH.MM.SS TMZ"
 #define TIMESTAMP_SIZE    sizeof(TIMESTAMP_FORMAT)
 
 char *timestamp(char *s, size_t num, struct tm *(*totime)(const time_t*));

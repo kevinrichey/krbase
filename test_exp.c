@@ -92,7 +92,7 @@ typedef struct {
 typedef struct Object {
 	TypeInfo *type;
 	struct Object *next;
-	SourceInfo source;
+	DebugInfo source;
 	const char *name;
 } Object;
 
@@ -104,7 +104,7 @@ void Object_dispose(Object *object)
 DECLARE_TYPE(Object);
 
 
-Object *Object_create_dbg(const char *name, Object *top, SourceInfo source)
+Object *Object_create_dbg(const char *name, Object *top, DebugInfo source)
 {
 	Object *o = malloc(sizeof(*o));
 	o->next = top;
@@ -114,7 +114,7 @@ Object *Object_create_dbg(const char *name, Object *top, SourceInfo source)
 	return o;
 }
 
-#define Object_create(NAME_, TOP_)   Object_create_dbg((NAME_), (TOP_), SOURCE_HERE)
+#define Object_create(NAME_, TOP_)   Object_create_dbg((NAME_), (TOP_), DEBUG_INFO_HERE)
 
 void dispose(Object *object)
 {
@@ -151,10 +151,10 @@ TEST_CASE(object_life_cycle)
 
 
 #define Bytes_init_array(ARR_)  \
-			(byte_span)SPAN_INIT((byte*)(ARR_), sizeof(ARR_))
+			(byte_span)SPAN_INIT((Byte*)(ARR_), sizeof(ARR_))
 
 #define Bytes_init_var(VAR_)   \
-			(byte_span)SPAN_INIT((byte*)&(VAR_), sizeof(VAR_))
+			(byte_span)SPAN_INIT((Byte*)&(VAR_), sizeof(VAR_))
 
 byte_span Bytes_init_str(char *s);
 
@@ -198,7 +198,7 @@ TEST_CASE(FNV_hash_test)
 
 void fill(void *data, int length, void *set, int e_size)
 {
-	byte *b = data;
+	Byte *b = data;
 
 	while (length --> 0) {
 		memcpy(b, set, e_size);

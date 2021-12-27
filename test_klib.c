@@ -136,7 +136,7 @@ TEST_CASE(num_chars_to_store_numbers)
 //-----------------------------------------------------------------------------
 // Primitive Utilities
 
-_Static_assert(sizeof(byte) == 1, "byte must have sizeof 1");
+_Static_assert(sizeof(Byte) == 1, "byte must have sizeof 1");
 
 TEST_CASE(in_bounds_enums_and_arrays)
 {
@@ -153,78 +153,91 @@ TEST_CASE(in_bounds_enums_and_arrays)
 		STANDARD_ENUM_VALUES(Bounds)
 	};
 
-	TEST(in_enum_bounds(Bounds_One, Bounds));
-	TEST(in_enum_bounds(Bounds_Two, Bounds));
-	TEST(in_enum_bounds(Bounds_Three, Bounds));
-	TEST(!in_enum_bounds(-1, Bounds));
-	TEST(!in_enum_bounds(99, Bounds));
+	TEST(in_bounds_enum(Bounds_One, Bounds));
+	TEST(in_bounds_enum(Bounds_Two, Bounds));
+	TEST(in_bounds_enum(Bounds_Three, Bounds));
+	TEST(!in_bounds_enum(-1, Bounds));
+	TEST(!in_bounds_enum(99, Bounds));
 
 	int array[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-	TEST(in_array_bounds(0, array));
-	TEST(in_array_bounds(5, array));
-	TEST(in_array_bounds(8, array));
-	TEST(!in_array_bounds(9, array));
-	TEST(!in_array_bounds(-1, array));
+	TEST(in_bounds_array(0, array));
+	TEST(in_bounds_array(5, array));
+	TEST(in_bounds_array(8, array));
+	TEST(!in_bounds_array(9, array));
+	TEST(!in_bounds_array(-1, array));
 }
 
 TEST_CASE(type_safe_max)
 {
-	TEST(max('a', 'z') == 'z');
-	TEST(max('n', 'm') == 'n');
+	TEST(ch_max('a', 'z') == 'z');
+	TEST(ch_max('n', 'm') == 'n');
 	
-	TEST(max(6,7) == 7);
-	TEST(max(14,9) == 14);
-	TEST(max(45,45) == 45);
+	TEST(int_max(6,7) == 7);
+	TEST(int_max(14,9) == 14);
+	TEST(int_max(45,45) == 45);
 
-	TEST(max(3.1, 5.6) == 5.6);
-	TEST(max(3.14159, 2.71828) == 3.14159);
-	TEST(max(3.14159, 3.14159) == 3.14159);
+	TEST(fl_max(3.1, 5.6) == 5.6);
+	TEST(fl_max(3.14159, 2.71828) == 3.14159);
+	TEST(fl_max(3.14159, 3.14159) == 3.14159);
 }
 
 TEST_CASE(type_safe_min)
 {
-	TEST(min('e', 'i') == 'e');
-	TEST(min('u', 'j') == 'j');
+	TEST(ch_min('e', 'i') == 'e');
+	TEST(ch_min('u', 'j') == 'j');
 
-	TEST(min(203984, 109234) == 109234);
-	TEST(min(-234, -4432) == -4432);
+	TEST(int_min(203984, 109234) == 109234);
+	TEST(int_min(-234, -4432) == -4432);
 
-	TEST(min(-23.34, 7243.7234) == -23.34);
-	TEST(min(0.02341, 1.2345) == 0.02341);
+	TEST(fl_min(-23.34, 7243.7234) == -23.34);
+	TEST(fl_min(0.02341, 1.2345) == 0.02341);
 }
 
 TEST_CASE(type_safe_swap)
 {
 	int x = 320, y = 200;
-	swap(x, y);
+	int_swap(&x, &y);
 	TEST(x == 200 && y == 320);
 
 	char a = 'a', b = 'b';
-	swap(a,b);
+	ch_swap(&a, &b);
 	TEST(a == 'b' && b == 'a');
 
 	double pi = 3.14159, e = 2.71828;
-	swap(pi, e);
+	fl_swap(&pi, &e);
 	TEST(pi == 2.71828 && e == 3.14159);
 
 	bool yes = true, no = false;
-	swap(yes, no);
+	bool_swap(&yes, &no);
 	TEST(yes == false && no == true);
 }
 
 TEST_CASE(type_safe_const_cast)
 {
 	const char words[] = "can't change this";
-	char *s = deconst(char*, words);
+	char *s = ch_deconst(words);
 	TEST( ! strcmp(s, "can't change this"));
 
 	const int numbers[] = { 1,2,3,4,5 };
-	int *n = deconst(int*, numbers);
+	int *n = int_deconst(numbers);
 	TEST(n[3] == 4);
 
 	const double decimals[] = { 3.14, 2.718, 4.6692, 1.6180339887 };
-	double *d = deconst(double*, decimals);
+	double *d = fl_deconst(decimals);
 	TEST(d[1] == 2.718);
+}
+
+//-----------------------------------------------------------------------------
+// Debugging
+//
+
+TEST_CASE(check_index_failure)
+{
+	int length = 10;
+
+//	except_end();
+	int i = CHECK(11, length);
+	TEST(i == 11);
 }
 
 //-----------------------------------------------------------------------------
@@ -604,16 +617,16 @@ TEST_CASE(prepent_links_to_chain)
 
 TEST_CASE(Status_to_string)
 {
-	TEST( !strcmp(Status_string(Status_First), "OK") );
-	TEST( !strcmp(Status_string(Status_OK), "OK") );
-	TEST( !strcmp(Status_string(Status_Error), "Error") );
-	TEST( !strcmp(Status_string(Status_End), "Unknown Status") );
-	TEST( !strcmp(Status_string(-1), "Unknown Status") );
-	TEST( !strcmp(Status_string(100000), "Unknown Status") );
+	TEST( !strcmp(StatusCode_string(STATUS_FIRST), "OK") );
+	TEST( !strcmp(StatusCode_string(STATUS_OK), "OK") );
+	TEST( !strcmp(StatusCode_string(STATUS_ERROR), "ERROR") );
+	TEST( !strcmp(StatusCode_string(STATUS_END), "Unknown Status") );
+	TEST( !strcmp(StatusCode_string(-1), "Unknown Status") );
+	TEST( !strcmp(StatusCode_string(100000), "Unknown Status") );
 }
 
 static void 
-source_info_test_fn(TestCounter *test_counter, int line, SourceInfo source)
+source_info_test_fn(TestCounter *test_counter, int line, DebugInfo source)
 {
 	TEST(!strcmp(source.file, "test_klib.c"));
 	TEST(source.line == line);
@@ -622,7 +635,7 @@ source_info_test_fn(TestCounter *test_counter, int line, SourceInfo source)
 TEST_CASE(pass_source_info_parameter)
 {
 	int line = __LINE__ + 1;
-	source_info_test_fn(test_counter, line, SOURCE_HERE);
+	source_info_test_fn(test_counter, line, DEBUG_INFO_HERE);
 }
 
 
