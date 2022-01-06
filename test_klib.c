@@ -235,7 +235,6 @@ TEST_CASE(check_index_failure)
 {
 	int length = 10;
 
-//	except_end();
 	int i = CHECK(11, length);
 	TEST(i == 11);
 }

@@ -122,6 +122,7 @@ DEFINE_DECONST_FUNC(size_t, size_t)
 
 #define X(EnumName_)  DEBUG_##EnumName_,
 typedef enum {
+	DEBUG_ZERO,
 	KR_DEBUG_CAT_X_TABLE 
     STANDARD_ENUM_VALUES(DEBUG)
 } DebugCategory;
@@ -146,6 +147,7 @@ typedef struct DebugInfo {
   X(ERROR)  \
   X(ALLOC_ERROR) \
   X(ASSERT_FAILURE) \
+  X(OUT_OF_BOUNDS) \
   X(UNKNOWN_ERROR) \
 
 #define X(EnumName_)  STATUS_##EnumName_,
@@ -177,12 +179,11 @@ int check_index(int i, int length, DebugInfo dbg);
 typedef struct ExceptFrame {
 	struct ExceptFrame *back;
 	jmp_buf env;
-	DebugInfo source;
-	char *str;
 } ExceptFrame;
 
 void except_begin(ExceptFrame *frame);
-void except_end(void);
+void except_end(ExceptFrame *frame);
+void except_clear(ExceptFrame *frame);
 
 //----------------------------------------------------------------------
 //@module Span Template

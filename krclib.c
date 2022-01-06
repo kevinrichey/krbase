@@ -62,16 +62,10 @@ void debug_vfprint(FILE *out, DebugCategory cat, DebugInfo db, const char *messa
 
 void debug_print(FILE *out, DebugCategory cat, DebugInfo db, const char *message, ...)
 {
-	if (!out)  out = stderr;
-
-	fprintf(out, "%s:%d: %s: ", db.file, db.line, DebugCategory_string(cat));
-	if (message) {
-		va_list args;
-		va_start(args, message);
-		vfprintf(out, message, args);
-		va_end(args);
-	}
-	fputc('\n', out);
+	va_list args;
+	va_start(args, message);
+	debug_vfprint(out, cat, db, message, args);
+	va_end(args);
 }
 
 int assert_nop(DebugInfo db, const char *s)
@@ -102,51 +96,77 @@ void assert_failure(DebugInfo source, const char *s)
 	KR_ASSERT_HANDLER(source, s);
 }
 
-static ExceptFrame *top_frame = NULL;
+static struct {
+	ExceptFrame *top;
+	StatusCode status;
+	DebugInfo source;
+} except_stack = { .top=NULL, .status=STATUS_OK };
+
+static void except_stack_push(ExceptFrame *frame)
+{
+	frame->back = except_stack.top;
+	except_stack.top = frame;
+}
+
+#define KR_AUTO(NAME_, VAR_) typeof(VAR_) NAME_ = VAR_
+
+static ExceptFrame *except_stack_pop(void)
+{
+	KR_AUTO(frame, except_stack.top);
+//	typeof(except_stack.top) frame = except_stack.top;
+	return except_stack.top = frame->back, frame;
+}
 
 void except_begin(ExceptFrame *frame)
 {
-	frame->back = top_frame;
-	frame->str  = NULL;
-
-	top_frame = frame;
+	except_stack.status = STATUS_OK;
+	except_stack_push(frame);
 }
 
-void except_end(void)
+void except_rethrow(void)
 {
-	free(top_frame->str);
-	top_frame = top_frame->back;
-}
-
-void except_throw(DebugInfo dbi, char *str)
-{
-	if (top_frame == NULL) {
-		debug_print(stderr, DEBUG_ABORT, dbi, "unhandled exception: %s.\n", str);
+	ExceptFrame *frame = except_stack_pop();
+	if (frame == NULL) {
+		debug_print(stderr, DEBUG_ABORT, except_stack.source, "unhandled exception.\n");
 		abort();
 	}
-
-	top_frame->source = dbi;
-	top_frame->str = str;
-	longjmp(top_frame->env, 1);
+	longjmp(frame->env, (int)except_stack.status);
 }
 
-void fail(DebugInfo dbg, const char *message, ...)
+void except_throw(StatusCode status, DebugInfo dbi)
+{
+	except_stack.status = status;
+	except_stack.source = dbi;
+	except_rethrow();
+}
+
+void except_end(ExceptFrame *frame)
+{
+	UNUSED(frame);
+	if (except_stack.status != STATUS_OK)
+		except_rethrow();
+}
+
+void except_clear(ExceptFrame *frame)
+{
+	UNUSED(frame);
+	except_stack.status = STATUS_OK;
+}
+
+void fail(StatusCode status, DebugInfo dbg, const char *message, ...)
 {
 	va_list args;
 	va_start(args, message);
-	int len = vsnprintf(NULL, 0, message, args) + 1;
-	char *str = malloc(len * sizeof(char));
-	vsnprintf(str, len, message, args);
-//	debug_vfprint(stderr, DEBUG_ERROR, dbg, message, args);
+	debug_vfprint(stderr, DEBUG_ERROR, dbg, message, args);
 	va_end(args);
-
-	except_throw(dbg, str);
+	
+	except_throw(status, dbg);
 }
 
 int check_index(int i, int length, DebugInfo dbg)
 {
 	if (i < -length || i >= length) {
-		fail(dbg, "index %d out of bounds, length %d", i, length);
+		fail(STATUS_OUT_OF_BOUNDS, dbg, "index %d out of bounds, length %d", i, length);
 	}
 
 	if (i < 0)  i += length;

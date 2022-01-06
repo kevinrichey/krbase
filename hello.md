@@ -9,26 +9,31 @@ string_reserve() doesn't resize properly when bigger size is less than 2x curren
 
 # Outline
 
-- Assertions
-- Unit testing
-- Error handling
-- Tracing & logging
-- Memory debugging
+- Build Config
+	- Build mode: test, debug, release
+	- Versioning
+- Instrumentation & Debugging
+	- Assertions
+	- Unit testing
+	- Error handling
+	- Exceptions
+	- Tracing & logging
+	- Memory debugging
 - Signal handling
 - Configuration
 	- Command line args
 	- Config files
 	- Environment variables
-- Concurrency & Parallelism, multi-threading & forking
+- Documentation
+- Concurrency & Parallelism
+	- Forking
+	- Event-driven FSM
 - Networking, Inter-Process Communication
 - Security
-	- bounds checking
-	- Vulnerability prevention
 	- Encryption
-	- authentication
+	- Authentication & Authorization
 - Localization
 - Storage, de/serialization
-- Documentation
 - Code generation & meta-programming tools
 
 ## Things Every C Programmer Needs to Know
@@ -91,6 +96,7 @@ Types (struct, union, enum, typedef)
 
 Variables, parameters, struct & union members
 : Lower case with underscores: `variable_name`.
+: Use array notation (`type varname[]`) for passing arrays.
 
 Constants, Enumerations, Preproc symbols
 : Upper case with underscores.
@@ -140,17 +146,28 @@ For example: int_max() and fl_min().
 - create, destroy
 - start, stop
 - begin, end
+- enter, exit / leave
+- acquire, release
 - first, last
 - front, back
 - head, tail
-- put, get
+- get, put
 - set, unset
-- add, remove
+- add, remove / subtract
 - push, pop
+- enqueue, dequeue
 - insert, delete
 - enable, disable
 - load, save
-- enter, exit
+- import, export
+- open, close
+
+See also [Max Truxa's Antonym List](https://gist.github.com/maxtruxa/b2ca551e42d3aead2b3d)
+
+## Common Function Name Meanings
+
+- initialize - put object into a known default usable state.
+
 
 ## Formatting
 

@@ -19,20 +19,20 @@ TestCaseRecord all_test_cases[] = {
 
 void do_test_case(TestCaseRecord *rec, TestCounter *counter)
 {
-	volatile const char *test_name = counter->test_name;
-
-	ExceptFrame frame;
+	ExceptFrame frame = {0};
 	except_begin(&frame);
 
-	if (setjmp(frame.env) == 0) {
-		rec->test_case(counter);
-	}
-	else {
-		debug_print(stdout, DEBUG_ASSERT, frame.source, "%s in test case %s\n", frame.str, test_name);
-		++counter->failure_count;
+	switch (setjmp(frame.env)) {
+		case 0:
+			rec->test_case(counter);
+			break;
+
+		default:
+			counter->failure_count += 1;
+			except_clear(&frame);
 	}
 
-	except_end();
+	except_end(&frame);
 }
 
 int main(int argc, char *argv[])
