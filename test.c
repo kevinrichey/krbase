@@ -29,7 +29,6 @@ void do_test_case(TestCaseRecord *rec, TestCounter *counter)
 
 		default:
 			counter->failure_count += 1;
-			except_clear(&frame);
 	}
 
 	except_end(&frame);

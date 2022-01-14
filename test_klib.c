@@ -235,8 +235,50 @@ TEST_CASE(check_index_failure)
 {
 	int length = 10;
 
-	int i = CHECK(11, length);
-	TEST(i == 11);
+	int i = CHECK(9, length);
+	TEST(i == 9);
+}
+
+
+// %f - file name
+// %l - line number
+// %d - time-date stamp
+// %c - debug category
+// %s - status code
+void debug_format(FILE *out, const char *format, const DebugInfo *dbi)
+{
+	for ( ; *format; ++format)
+		if (*format == '%')
+			switch (*++format) {
+				case 'F':
+					fputs(dbi->file, out);
+					break;
+				case 'L': {
+					unsigned n = dbi->line;
+					char *s = (char[NUM_STR_LEN(int)]){} + NUM_STR_LEN(int) - 1;
+					for (*s-- = '\0'; *s = '0' + n % 10, n /= 10; --s) ;
+					while (*s) fputc(*s++, out);
+					//fprintf(out, "%d", dbi->line);
+					break;
+				}
+				case 'G':
+					fputs(TIMESTAMP_GMT(), out);
+					break;
+				case '%':
+					fputc('%', out);
+					break;
+			}
+		else
+			fputc(*format, out);
+}
+
+TEST_CASE(printer_delegate_file_or_string)
+{
+	UNUSED(test_counter);
+
+	DebugInfo info = DEBUG_INFO_INIT;
+	debug_format(stderr, "%F:%L: [%G] hello\n", &info);
+
 }
 
 //-----------------------------------------------------------------------------
@@ -618,7 +660,7 @@ TEST_CASE(Status_to_string)
 {
 	TEST( !strcmp(StatusCode_string(STATUS_FIRST), "OK") );
 	TEST( !strcmp(StatusCode_string(STATUS_OK), "OK") );
-	TEST( !strcmp(StatusCode_string(STATUS_ERROR), "ERROR") );
+	TEST( !strcmp(StatusCode_string(STATUS_ASSERT_FAILURE), "ASSERT_FAILURE") );
 	TEST( !strcmp(StatusCode_string(STATUS_END), "Unknown Status") );
 	TEST( !strcmp(StatusCode_string(-1), "Unknown Status") );
 	TEST( !strcmp(StatusCode_string(100000), "Unknown Status") );

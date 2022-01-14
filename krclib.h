@@ -110,17 +110,17 @@ DEFINE_DECONST_FUNC(size_t, size_t)
 //----------------------------------------------------------------------
 //@module Debugging & Error Checking
 
-
 #define KR_DEBUG_CAT_X_TABLE \
-	X(ERROR) \
-	X(ASSERT) \
-	X(WATCH) \
-	X(TRACE) \
-	X(TEST)  \
-	X(ABORT) 
+	X(FATAL,   "Fatal") \
+	X(ERROR,   "Error") \
+	X(ASSERT,  "Assert") \
+	X(DEBUG,   "Debug") \
+	X(TRACE,   "Trace") \
+	X(WATCH,   "Watch") \
+	X(TEST,    "Test")  
   
 
-#define X(EnumName_)  DEBUG_##EnumName_,
+#define X(EnumName_, _)  DEBUG_##EnumName_,
 typedef enum {
 	DEBUG_ZERO,
 	KR_DEBUG_CAT_X_TABLE 
@@ -131,6 +131,25 @@ typedef enum {
 const char *DebugCategory_string(DebugCategory cat);
 
 
+
+#define KR_STATUS_X_TABLE \
+  X(OK) \
+  X(TEST_FAILURE) \
+  X(ALLOC_ERROR) \
+  X(ASSERT_FAILURE) \
+  X(OUT_OF_BOUNDS) \
+  X(UNKNOWN_ERROR) \
+
+#define X(EnumName_)  STATUS_##EnumName_,
+typedef enum {
+    KR_STATUS_X_TABLE
+    STANDARD_ENUM_VALUES(STATUS)
+} StatusCode;
+#undef X
+
+const char *StatusCode_string(StatusCode stat);
+
+
 typedef struct DebugInfo {
 	const char *file;
 	int         line;
@@ -139,27 +158,10 @@ typedef struct DebugInfo {
 #define DEBUG_INFO_INIT   { .file = __FILE__, .line = __LINE__ }
 #define DEBUG_INFO_HERE   (DebugInfo)DEBUG_INFO_INIT
 
-
-
-#define STATUS_X_TABLE \
-  X(OK) \
-  X(TEST_FAILURE) \
-  X(ERROR)  \
-  X(ALLOC_ERROR) \
-  X(ASSERT_FAILURE) \
-  X(OUT_OF_BOUNDS) \
-  X(UNKNOWN_ERROR) \
-
-#define X(EnumName_)  STATUS_##EnumName_,
-typedef enum {
-    STATUS_X_TABLE
-    STANDARD_ENUM_VALUES(STATUS)
-} StatusCode;
-#undef X
-
-const char *StatusCode_string(StatusCode stat);
-
 void debug_print(FILE *out, DebugCategory cat, DebugInfo db, const char *message, ...);
+
+
+
 
 typedef int (*AssertHandler_fp)(DebugInfo, const char *);
 AssertHandler_fp set_assert_handler(AssertHandler_fp new_handler);
@@ -176,14 +178,16 @@ int check_index(int i, int length, DebugInfo dbg);
 
 #define CHECK(I_, LEN_)  check_index((I_), (LEN_), DEBUG_INFO_HERE)
 
+
+
 typedef struct ExceptFrame {
 	struct ExceptFrame *back;
 	jmp_buf env;
 } ExceptFrame;
 
 void except_begin(ExceptFrame *frame);
+void except_throw(StatusCode status, DebugInfo dbi);
 void except_end(ExceptFrame *frame);
-void except_clear(ExceptFrame *frame);
 
 //----------------------------------------------------------------------
 //@module Span Template
@@ -305,8 +309,8 @@ void  *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int o
 
 char *timestamp(char *s, size_t num, struct tm *(*totime)(const time_t*));
 
-#define TIMESTAMP_GMT  timestamp((char[TIMESTAMP_SIZE]){}, TIMESTAMP_SIZE, gmtime)
-#define TIMESTAMP_LOC  timestamp((char[TIMESTAMP_SIZE]){}, TIMESTAMP_SIZE, localtime)
+#define TIMESTAMP_GMT()  timestamp((char[TIMESTAMP_SIZE]){}, TIMESTAMP_SIZE, gmtime)
+#define TIMESTAMP_LOC()  timestamp((char[TIMESTAMP_SIZE]){}, TIMESTAMP_SIZE, localtime)
 
 
 

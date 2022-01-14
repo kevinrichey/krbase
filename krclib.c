@@ -35,7 +35,7 @@ const char *DebugCategory_string(DebugCategory cat)
 	if (!in_bounds_enum(cat, DEBUG))
 		return "Unknown DebugCategory";
 
-#define X(EnumName)  [DEBUG_##EnumName] = #EnumName,
+#define X(Enum_, Name_)  [DEBUG_##Enum_] = Name_,
 	return (const char*[]) { KR_DEBUG_CAT_X_TABLE } [cat];
 #undef X
 }
@@ -46,7 +46,7 @@ const char *StatusCode_string(StatusCode stat)
 		return "Unknown Status";
 
 #define X(EnumName)  [STATUS_##EnumName] = #EnumName,
-	return (const char*[]) { STATUS_X_TABLE } [stat];
+	return (const char*[]) { KR_STATUS_X_TABLE } [stat];
 #undef X
 }
 
@@ -67,6 +67,8 @@ void debug_print(FILE *out, DebugCategory cat, DebugInfo db, const char *message
 	debug_vfprint(out, cat, db, message, args);
 	va_end(args);
 }
+
+
 
 int assert_nop(DebugInfo db, const char *s)
 {
@@ -96,83 +98,75 @@ void assert_failure(DebugInfo source, const char *s)
 	KR_ASSERT_HANDLER(source, s);
 }
 
-static struct {
+static struct except_stack {
 	ExceptFrame *top;
 	StatusCode status;
 	DebugInfo source;
-} except_stack = { .top=NULL, .status=STATUS_OK };
+} except_stack = { .top=NULL };
+
+#define kr_postset(S_, N_)  ({ typeof(S_) t = S_; S_ = N_; t; })
 
 static void except_stack_push(ExceptFrame *frame)
 {
-	frame->back = except_stack.top;
+	if (frame)  frame->back = except_stack.top;
 	except_stack.top = frame;
 }
 
-#define KR_AUTO(NAME_, VAR_) typeof(VAR_) NAME_ = VAR_
-
 static ExceptFrame *except_stack_pop(void)
 {
-	KR_AUTO(frame, except_stack.top);
-//	typeof(except_stack.top) frame = except_stack.top;
-	return except_stack.top = frame->back, frame;
+	ExceptFrame *popped = except_stack.top;
+	if (popped)  except_stack.top = popped->back;
+	return popped;
 }
 
 void except_begin(ExceptFrame *frame)
 {
-	except_stack.status = STATUS_OK;
 	except_stack_push(frame);
-}
-
-void except_rethrow(void)
-{
-	ExceptFrame *frame = except_stack_pop();
-	if (frame == NULL) {
-		debug_print(stderr, DEBUG_ABORT, except_stack.source, "unhandled exception.\n");
-		abort();
-	}
-	longjmp(frame->env, (int)except_stack.status);
 }
 
 void except_throw(StatusCode status, DebugInfo dbi)
 {
-	except_stack.status = status;
 	except_stack.source = dbi;
-	except_rethrow();
+
+	ExceptFrame *frame = except_stack_pop();
+	if (frame == NULL) {
+		debug_print(stderr, DEBUG_FATAL, except_stack.source, "unhandled exception.\n");
+		abort();
+	}
+	longjmp(frame->env, (int)status);
 }
 
 void except_end(ExceptFrame *frame)
 {
-	UNUSED(frame);
-	if (except_stack.status != STATUS_OK)
-		except_rethrow();
-}
-
-void except_clear(ExceptFrame *frame)
-{
-	UNUSED(frame);
-	except_stack.status = STATUS_OK;
+	except_stack.top = frame->back;
 }
 
 void fail(StatusCode status, DebugInfo dbg, const char *message, ...)
 {
+	UNUSED(status);
+
 	va_list args;
 	va_start(args, message);
 	debug_vfprint(stderr, DEBUG_ERROR, dbg, message, args);
 	va_end(args);
 	
-	except_throw(status, dbg);
+	abort();
+//	except_throw(status, dbg);
 }
 
 int check_index(int i, int length, DebugInfo dbg)
 {
 	if (i < -length || i >= length) {
-		fail(STATUS_OUT_OF_BOUNDS, dbg, "index %d out of bounds, length %d", i, length);
+		fprintf(stderr, "%s:%d: %s: ", dbg.file, dbg.line, DebugCategory_string(DEBUG_ASSERT));
+		fprintf(stderr, "STATUS_OUT_OF_BOUNDS (E-%05d): ", STATUS_OUT_OF_BOUNDS);
+		fprintf(stderr, "index %d out of bounds [%d..%d)\n", i, -length, length);
+//		fail(STATUS_OUT_OF_BOUNDS, dbg, "index %d out of bounds, length %d", i, length);
+		abort();
 	}
 
 	if (i < 0)  i += length;
 	return i;
 }
-
 
 
 //----------------------------------------------------------------------
