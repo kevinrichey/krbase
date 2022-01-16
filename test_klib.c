@@ -228,8 +228,34 @@ TEST_CASE(type_safe_const_cast)
 }
 
 //-----------------------------------------------------------------------------
-// Debugging
+// Debug module
 //
+
+TEST_CASE(convert_status_enum_to_str)
+{
+	TEST( !strcmp(status_string(STATUS_FIRST), "OK") );
+	TEST( !strcmp(status_string(STATUS_OK), "OK") );
+	TEST( !strcmp(status_string(STATUS_ASSERT_FAILURE), "ASSERT_FAILURE") );
+	TEST( !strcmp(status_string(STATUS_END), "Unknown Status") );
+	TEST( !strcmp(status_string(-1), "Unknown Status") );
+	TEST( !strcmp(status_string(100000), "Unknown Status") );
+}
+
+TEST_CASE(capture_debug_context_info)
+{
+	struct debug_info dbi = DEBUG_INFO_INIT;
+
+	TEST(!strcmp(dbi.file, "test_klib.c"));
+	TEST(dbi.line == (__LINE__-3));
+	TEST(!strcmp(dbi.funcname, TEST_NAME_STR(capture_debug_context_info)));
+}
+
+TEST_CASE(assertion_failure)
+{
+	int x = 1;
+	REQUIRE(x == 2);
+	TEST(x != 2);
+}
 
 TEST_CASE(check_index_failure)
 {
@@ -245,7 +271,7 @@ TEST_CASE(check_index_failure)
 // %d - time-date stamp
 // %c - debug category
 // %s - status code
-void debug_format(FILE *out, const char *format, const DebugInfo *dbi)
+void debug_format(FILE *out, const char *format, const struct debug_info *dbi)
 {
 	for ( ; *format; ++format)
 		if (*format == '%')
@@ -276,8 +302,8 @@ TEST_CASE(printer_delegate_file_or_string)
 {
 	UNUSED(test_counter);
 
-	DebugInfo info = DEBUG_INFO_INIT;
-	debug_format(stderr, "%F:%L: [%G] hello\n", &info);
+//	DebugInfo info = DEBUG_INFO_INIT;
+//	debug_format(stderr, "%F:%L: [%G] hello\n", &info);
 
 }
 
@@ -494,66 +520,66 @@ TEST_CASE(return_trimmed_span)
 }
 
 //-----------------------------------------------------------------------------
-// Doubly Linked List
+// Doubly linked List
 //
 
 TEST_CASE(attach_two_links)
 {
 	// Given two empty links
-	Link a = LINK_INIT();
-	Link b = LINK_INIT();
-	TEST(Link_not_attached(&a));
-	TEST(Link_not_attached(&b));
+	struct link a = LINK_INIT();
+	struct link b = LINK_INIT();
+	TEST(link_not_attached(&a));
+	TEST(link_not_attached(&b));
 	
 	// When they're linked
-	Link_attach(&a, &b);
+	link_attach(&a, &b);
 
 	// They are attached and adjacent
-	TEST(Links_are_attached(&a, &b));
-	TEST(Link_next(&a) == &b);
-	TEST(Link_prev(&b) == &a);
+	TEST(links_are_attached(&a, &b));
+	TEST(link_next(&a) == &b);
+	TEST(link_prev(&b) == &a);
 }
 
 TEST_CASE(insert_link)
 {
 	// Given two linked and one solo nodes
-	Link a = LINK_INIT();
-	Link b = LINK_INIT();
-	Link c = LINK_INIT();
-	Link_attach(&a, &b);
-	TEST(Links_are_attached(&a, &b));
-	TEST(Link_not_attached(&c) );
+	struct link a = LINK_INIT();
+	struct link b = LINK_INIT();
+	struct link c = LINK_INIT();
+	link_attach(&a, &b);
+	TEST(links_are_attached(&a, &b));
+	TEST(link_not_attached(&c) );
 
 	// When node c inserted before b
-	Link_insert(&c, &b);
+	link_insert(&c, &b);
 
 	// Then a.right is c and c.right is b
-	TEST(Links_are_attached(&a, &c) );
-	TEST(Links_are_attached(&c, &b) );
+	TEST(links_are_attached(&a, &c) );
+	TEST(links_are_attached(&c, &b) );
 }
 
 TEST_CASE(link_remove_node)
 {
 	// Given chain a:b:c
-	Link a = LINK_INIT();
-	Link b = LINK_INIT();
-	Link c = LINK_INIT();
-	Link_attach(&a, &b);
-	Link_attach(&b, &c);
+	struct link a = LINK_INIT();
+	struct link b = LINK_INIT();
+	struct link c = LINK_INIT();
+	link_attach(&a, &b);
+	link_attach(&b, &c);
 
 	// When b is removed
-	Link_remove(&b);
+	link_remove(&b);
 
 	// Then a is linked to c and b is unlinked
-	TEST(Link_not_attached(&b));
-	TEST(Links_are_attached(&a, &c));
+	TEST(link_not_attached(&b));
+	TEST(links_are_attached(&a, &c));
 }
 
 TEST_CASE(chain_multiple_links)
 {
 	// Given empty chain and several links
 	Chain chain = CHAIN_INIT(chain);
-	Link a = LINK_INIT(), 
+	struct link a = LINK_INIT(), 
 	     b = LINK_INIT(),
 	     c = LINK_INIT(),
 	     d = LINK_INIT(),
@@ -564,13 +590,13 @@ TEST_CASE(chain_multiple_links)
 	Chain_appends(&chain, &a, &b, &c, &d, &e, &f, NULL);
 
 	// Each attached to the next
-	Link *l = Chain_first(&chain);
+	struct link *l = Chain_first(&chain);
 	TEST(l == &a);
-	TEST((l = Link_next(l)) == &b);
-	TEST((l = Link_next(l)) == &c);
-	TEST((l = Link_next(l)) == &d);
-	TEST((l = Link_next(l)) == &e);
-	TEST((l = Link_next(l)) == &f);
+	TEST((l = link_next(l)) == &b);
+	TEST((l = link_next(l)) == &c);
+	TEST((l = link_next(l)) == &d);
+	TEST((l = link_next(l)) == &e);
+	TEST((l = link_next(l)) == &f);
 	TEST(l == Chain_last(&chain));
 }
 
@@ -579,7 +605,7 @@ TEST_CASE(link_foreach)
 	Chain chain = CHAIN_INIT(chain);
 
 	struct test_node {
-		Link link;
+		struct link link;
 		int i;
 	} a = LINK_INIT(.i = 1), 
 	  b = LINK_INIT(.i = 2),
@@ -607,23 +633,23 @@ TEST_CASE(add_links_to_empty_chain)
 	TEST(Chain_empty(&chain));
 
 	// Append links to chain
-	Link a = LINK_INIT();
+	struct link a = LINK_INIT();
 	Chain_append(&chain, &a);
-	TEST(Links_are_attached(&chain.head, &a));
-	TEST(Links_are_attached(&a, &chain.head));
+	TEST(links_are_attached(&chain.head, &a));
+	TEST(links_are_attached(&a, &chain.head));
 
-	Link b = LINK_INIT();
+	struct link b = LINK_INIT();
 	Chain_append(&chain, &b);
-	TEST(Links_are_attached(&chain.head, &a));
-	TEST(Links_are_attached(&a, &b));
-	TEST(Links_are_attached(&b, &chain.head));
+	TEST(links_are_attached(&chain.head, &a));
+	TEST(links_are_attached(&a, &b));
+	TEST(links_are_attached(&b, &chain.head));
 
-	Link c = LINK_INIT();
+	struct link c = LINK_INIT();
 	Chain_append(&chain, &c);
-	TEST(Links_are_attached(&chain.head, &a));
-	TEST(Links_are_attached(&a, &b));
-	TEST(Links_are_attached(&b, &c));
-	TEST(Links_are_attached(&c, &chain.head));
+	TEST(links_are_attached(&chain.head, &a));
+	TEST(links_are_attached(&a, &b));
+	TEST(links_are_attached(&b, &c));
+	TEST(links_are_attached(&c, &chain.head));
 }
 
 TEST_CASE(prepent_links_to_chain)
@@ -633,51 +659,28 @@ TEST_CASE(prepent_links_to_chain)
 	TEST(Chain_empty(&chain));
 
 	// Prepend links to chain
-	Link a = LINK_INIT();
+	struct link a = LINK_INIT();
 	Chain_prepend(&chain, &a);
-	TEST(Links_are_attached(&a, &chain.head));
-	TEST(Links_are_attached(&chain.head, &a));
+	TEST(links_are_attached(&a, &chain.head));
+	TEST(links_are_attached(&chain.head, &a));
 
-	Link b = LINK_INIT();
+	struct link b = LINK_INIT();
 	Chain_prepend(&chain, &b);
-	TEST(Links_are_attached(&chain.head, &b));
-	TEST(Links_are_attached(&b, &a));
-	TEST(Links_are_attached(&a, &chain.head));
+	TEST(links_are_attached(&chain.head, &b));
+	TEST(links_are_attached(&b, &a));
+	TEST(links_are_attached(&a, &chain.head));
 
-	Link c = LINK_INIT();
+	struct link c = LINK_INIT();
 	Chain_prepend(&chain, &c);
-	TEST(Links_are_attached(&chain.head, &c));
-	TEST(Links_are_attached(&c, &b));
-	TEST(Links_are_attached(&b, &a));
-	TEST(Links_are_attached(&a, &chain.head));
+	TEST(links_are_attached(&chain.head, &c));
+	TEST(links_are_attached(&c, &b));
+	TEST(links_are_attached(&b, &a));
+	TEST(links_are_attached(&a, &chain.head));
 }
 
 
 //-----------------------------------------------------------------------------
 // Error Module
-
-TEST_CASE(Status_to_string)
-{
-	TEST( !strcmp(StatusCode_string(STATUS_FIRST), "OK") );
-	TEST( !strcmp(StatusCode_string(STATUS_OK), "OK") );
-	TEST( !strcmp(StatusCode_string(STATUS_ASSERT_FAILURE), "ASSERT_FAILURE") );
-	TEST( !strcmp(StatusCode_string(STATUS_END), "Unknown Status") );
-	TEST( !strcmp(StatusCode_string(-1), "Unknown Status") );
-	TEST( !strcmp(StatusCode_string(100000), "Unknown Status") );
-}
-
-static void 
-source_info_test_fn(TestCounter *test_counter, int line, DebugInfo source)
-{
-	TEST(!strcmp(source.file, "test_klib.c"));
-	TEST(source.line == line);
-}
-
-TEST_CASE(pass_source_info_parameter)
-{
-	int line = __LINE__ + 1;
-	source_info_test_fn(test_counter, line, DEBUG_INFO_HERE);
-}
 
 
 //-----------------------------------------------------------------------------

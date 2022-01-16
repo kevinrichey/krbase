@@ -120,15 +120,15 @@ DEFINE_DECONST_FUNC(size_t, size_t)
 	X(TEST,    "Test")  
   
 
-#define X(EnumName_, _)  DEBUG_##EnumName_,
-typedef enum {
-	DEBUG_ZERO,
+#define X(EnumName_, _)  DBCAT_##EnumName_,
+enum debug_cat {
+	DBCAT_ZERO,
 	KR_DEBUG_CAT_X_TABLE 
     STANDARD_ENUM_VALUES(DEBUG)
-} DebugCategory;
+};
 #undef X
 
-const char *DebugCategory_string(DebugCategory cat);
+const char *debug_cat_string(enum debug_cat cat);
 
 
 
@@ -141,53 +141,54 @@ const char *DebugCategory_string(DebugCategory cat);
   X(UNKNOWN_ERROR) \
 
 #define X(EnumName_)  STATUS_##EnumName_,
-typedef enum {
+enum status {
     KR_STATUS_X_TABLE
     STANDARD_ENUM_VALUES(STATUS)
-} StatusCode;
+};
 #undef X
 
-const char *StatusCode_string(StatusCode stat);
+const char *status_string(enum status stat);
 
 
-typedef struct DebugInfo {
+struct debug_info {
 	const char *file;
-	int         line;
-} DebugInfo;
+	unsigned    line;
+	const char *funcname;
+};
 
-#define DEBUG_INFO_INIT   { .file = __FILE__, .line = __LINE__ }
-#define DEBUG_INFO_HERE   (DebugInfo)DEBUG_INFO_INIT
+#define DEBUG_INFO_INIT   { .file=__FILE__, .line=__LINE__, .funcname=__func__ }
+#define DEBUG_INFO_HERE   (struct debug_info)DEBUG_INFO_INIT
 
-void debug_print(FILE *out, DebugCategory cat, DebugInfo db, const char *message, ...);
-
-
+void debug_print(FILE *out, struct debug_info db);
 
 
-typedef int (*AssertHandler_fp)(DebugInfo, const char *);
+
+
+typedef int (*AssertHandler_fp)(struct debug_info, const char *);
 AssertHandler_fp set_assert_handler(AssertHandler_fp new_handler);
 
-int  assert_nop(DebugInfo db, const char *s);
-int  assert_exit(DebugInfo db, const char *s);
-void assert_failure(DebugInfo source, const char *s);
+int  assert_abort(struct debug_info db, const char *s);
+int  assert_exit(struct debug_info db, const char *s);
+void assert_fail(struct debug_info source, const char *s);
 
 #define REQUIRE(CONDITION_)   \
-	do{ if (CONDITION_); else assert_failure(DEBUG_INFO_HERE, #CONDITION_); } while(0)
+	do{ if (CONDITION_); else assert_fail(DEBUG_INFO_HERE, #CONDITION_); } while(0)
 
 
-int check_index(int i, int length, DebugInfo dbg);
+int check_index(int i, int length, struct debug_info dbg);
 
 #define CHECK(I_, LEN_)  check_index((I_), (LEN_), DEBUG_INFO_HERE)
 
 
 
-typedef struct ExceptFrame {
-	struct ExceptFrame *back;
+struct except_frame {
+	struct except_frame *back;
 	jmp_buf env;
-} ExceptFrame;
+};
 
-void except_begin(ExceptFrame *frame);
-void except_throw(StatusCode status, DebugInfo dbi);
-void except_end(ExceptFrame *frame);
+void except_begin(struct except_frame *frame);
+void except_throw(enum status status, struct debug_info dbi);
+void except_end(struct except_frame *frame);
 
 //----------------------------------------------------------------------
 //@module Span Template
@@ -266,24 +267,24 @@ strand strand_trim(strand s, int (*istype)(int));
 //----------------------------------------------------------------------
 //@module Chain - Double Linked List
 
-typedef struct Link {
-	struct Link *next, *prev;
-} Link;
+struct link {
+	struct link *next, *prev;
+};
 
 #define LINK_INIT(...)   {0, __VA_ARGS__ }
 
-Link  *Link_next(Link *n);
-Link  *Link_prev(Link *b);
-bool   Link_is_attached(Link *n);
-bool   Link_not_attached(Link *n);
-bool   Links_are_attached(Link *a, Link *b);
-Link  *Link_attach(Link *a, Link *b);
-void   Link_insert(Link *new_link, Link *before_this);
-void   Link_append(Link *after_this, Link *new_link);
-void   Link_remove(Link *n);
+struct link *link_next(struct link *n);
+struct link *link_prev(struct link *b);
+bool         link_is_attached(struct link *n);
+bool         link_not_attached(struct link *n);
+bool         links_are_attached(struct link *a, struct link *b);
+struct link *link_attach(struct link *a, struct link *b);
+void         link_insert(struct link *new_link, struct link *before_this);
+void         link_append(struct link *after_this, struct link *new_link);
+void         link_remove(struct link *n);
 
 typedef struct Chain {
-	Link head;
+	struct link head;
 } Chain;
 
 // Use: 
@@ -292,10 +293,10 @@ typedef struct Chain {
 #define CHAIN_INIT(C_)   { .head = { .next = &(C_).head, .prev = &(C_).head } }
 
 bool   Chain_empty(const Chain * const chain);
-Link  *Chain_first(Chain *chain);
-Link  *Chain_last(Chain *chain);
-void   Chain_prepend(Chain *c, Link *l);
-void   Chain_append(Chain *c, Link *l);
+struct link  *Chain_first(Chain *chain);
+struct link  *Chain_last(Chain *chain);
+void   Chain_prepend(Chain *c, struct link *l);
+void   Chain_append(Chain *c, struct link *l);
 void   Chain_appends(Chain *chain, ...);
 void  *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int offset);
 

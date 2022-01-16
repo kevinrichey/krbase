@@ -91,12 +91,12 @@ Error handling strategy
 
 ## Naming Conventions
 
-Types (struct, union, enum, typedef)
-: Capialized: `UpperCamelCase`
-
-Variables, parameters, struct & union members
-: Lower case with underscores: `variable_name`.
+Variables, parameters, struct, union, enum, members
+: Lower case with underscores: `lower_snake_case`.
 : Use array notation (`type varname[]`) for passing arrays.
+
+typedefs
+: `PascalCase`
 
 Constants, Enumerations, Preproc symbols
 : Upper case with underscores.
@@ -111,7 +111,6 @@ Preprocessor macros
 : Parameters are upper case with trailing underscore: `VAR_`
 
 Global Constants
-: Just don't.
 : Upper case with underscores: `MODULE_CONSTANT_NAME`
 
 Modules

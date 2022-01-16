@@ -92,7 +92,7 @@ typedef struct {
 typedef struct Object {
 	TypeInfo *type;
 	struct Object *next;
-	DebugInfo source;
+	struct debug_info source;
 	const char *name;
 } Object;
 
@@ -104,7 +104,7 @@ void Object_dispose(Object *object)
 DECLARE_TYPE(Object);
 
 
-Object *Object_create_dbg(const char *name, Object *top, DebugInfo source)
+Object *Object_create_dbg(const char *name, Object *top, struct debug_info source)
 {
 	Object *o = malloc(sizeof(*o));
 	o->next = top;

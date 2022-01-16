@@ -10,8 +10,12 @@ typedef struct {
 
 typedef void (*TestCase)(TestCounter*);
 
+#define TEST_CASE_NAME(TEST_NAME_) CONCAT(TestCase_, TEST_NAME_)
+
+#define TEST_NAME_STR(NAME_)  "TestCase_" STRINGIFY(capture_debug_context_info)
+
 #define TEST_CASE(TEST_NAME_) \
-	void TestCase_##TEST_NAME_(TestCounter *test_counter)
+	void TEST_CASE_NAME(TEST_NAME_)(TestCounter *test_counter)
 
 void Test_assert(bool condition, TestCounter *counter, const char *file, int line, const char *msg);
 

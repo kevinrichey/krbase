@@ -19,7 +19,7 @@ TestCaseRecord all_test_cases[] = {
 
 void do_test_case(TestCaseRecord *rec, TestCounter *counter)
 {
-	ExceptFrame frame = {0};
+	struct except_frame frame = {0};
 	except_begin(&frame);
 
 	switch (setjmp(frame.env)) {
