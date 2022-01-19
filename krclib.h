@@ -53,7 +53,7 @@
 typedef unsigned char Byte;
 
 // void function pointer
-typedef void (*Void_fp)(void);
+typedef void (*VoidFunc)();
 
 bool in_bounds(int n, int lower, int upper);
 
@@ -164,20 +164,19 @@ void debug_print(FILE *out, struct debug_info db);
 
 
 
-typedef int (*AssertHandler_fp)(struct debug_info, const char *);
-AssertHandler_fp set_assert_handler(AssertHandler_fp new_handler);
+typedef void (*AssertHandler)(struct debug_info, const char *);
+AssertHandler set_assert_handler(AssertHandler new_handler);
 
-int  assert_abort(struct debug_info db, const char *s);
-int  assert_exit(struct debug_info db, const char *s);
+void assert_abort(struct debug_info db, const char *s);
+void assert_exit(struct debug_info db, const char *s);
 void assert_fail(struct debug_info source, const char *s);
 
 #define REQUIRE(CONDITION_)   \
 	do{ if (CONDITION_); else assert_fail(DEBUG_INFO_HERE, #CONDITION_); } while(0)
 
+int check_index(int i, int length, const char *v, struct debug_info dbg);
 
-int check_index(int i, int length, struct debug_info dbg);
-
-#define CHECK(I_, LEN_)  check_index((I_), (LEN_), DEBUG_INFO_HERE)
+#define CHECK(I_, LEN_)  check_index((I_), (LEN_), #I_, DEBUG_INFO_HERE)
 
 
 
@@ -527,7 +526,7 @@ typedef struct Fibonacci_struct {
 
 #define FIB_LITERAL   (Fibonacci){ .f0 = 0, .f1 = 1 }
 
-static inline Fibonacci Fib_begin()
+static inline Fibonacci Fib_begin(void)
 {
 	return FIB_LITERAL;
 }

@@ -33,7 +33,6 @@ Failure
 
 
 
-
 # Categories
 
 - Assertion
@@ -61,6 +60,4 @@ Failure
 		- Output
 	- End
 	- Shutdown
-
-
 

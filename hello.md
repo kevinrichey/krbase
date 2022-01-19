@@ -293,7 +293,73 @@ Process returns 0 on all success, non-zero on any failures.
 - test_assert_eq_T("a", a, "b", b, file, line, fmt, ...)
 - test_failure(file, line, fmt, ...)
 
+# Categories
+
+- Assertion
+	- Precondition
+	- Postcondition
+	- Invariant
+- Item not found (in container)
+- Error
+- Warning
+- Trace
+	- Debug
+	- Watch
+	- Info
+	- Scope begin/end
+- Profile
+    - Timer
+    - Sample
+    - Count
+- Breakpoint
+- Process Loop
+	- Startup
+	- Begin
+	- Input
+	- Process
+	- Output
+	- End
+	- Shutdown
+- Allocation
+- Undefined Behavior
+- Bad input
+- Test
+
+# Assertions
+
+- check bool conditions
+- on failure, condition is false:
+	- collect error info: file, line #, expression, message
+	- call assert handler
+- configure assert handler on app init
+
+Categories
+
+- precondition
+- postcondition
+- invariant
+
+Failure Handling
+
+- print/log
+- ignore
+- halt
+- throw/long jump
+- breakpoint
+
+Return error code is not an option.
+
 # Error Handling 
+
+Fault
+: Root cause of the error. The bug or defect in code.
+
+Error
+: Deviation of program state from a known and correct state, caused by a Fault.
+
+Failure
+: Observably incorrect behavior or output caused by an Error.
+
 
 - do nothing, ignore, off/disabled
 - print/log a message
@@ -319,16 +385,6 @@ Release Mode
 : Print to log
 : Inform user
 
-## Error Categories
-
-- Error
-- Assertion
-- Debug
-- Allocation
-- Undefined Behavior
-- Bad input
-- Testing
-
 ## Status codes
 
 - OK, no error
@@ -348,58 +404,13 @@ Operations
 
 - status to string
 
-## Error 
+## Error Info
 
 Information about specific error.
 
+- Debug info: file & line
 - Status code
 - Message
-- Debug info: file & line
-
-## Diagnostics Module
-
-- List of handler functions for each category
-- Error stack
-- tracing/logging output stream
-- long jump on/off, location
-
-Operations
-
-- init
-- set handler
-- dispose
-- has error
-- push error
-- pop error
-- clear errors
-- print error
-- print error stack
-- set jump
-- set stream
-
-## Assertions
-
-- check bool conditions
-- on failure, condition is false:
-	- collect error info: file, line #, expression, message
-	- call assert handler
-- configure assert handler on app init
-
-Categories
-
-- precondition
-- postcondition
-- invariant
-
-Failure Handling
-
-- print/log
-- ignore
-- halt
-- throw/long jump
-- breakpoint
-
-Return error code is not an option.
 
 # Memory Integrity
 

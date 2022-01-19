@@ -250,18 +250,41 @@ TEST_CASE(capture_debug_context_info)
 	TEST(!strcmp(dbi.funcname, TEST_NAME_STR(capture_debug_context_info)));
 }
 
+static bool mock_assert_called = false;
+static const char *mock_assert_str = NULL;
+
+static void mock_assert_handler(struct debug_info dbi, const char *s)
+{
+	UNUSED(dbi);
+	mock_assert_called = true;
+	mock_assert_str = s;
+}
+
 TEST_CASE(assertion_failure)
 {
+	AssertHandler old_handler = set_assert_handler(mock_assert_handler);
+	TEST(!mock_assert_called);
+
 	int x = 1;
 	REQUIRE(x == 2);
-	TEST(x != 2);
+
+	TEST(mock_assert_called);
+	TEST(!strcmp(mock_assert_str, "x == 2"));
+
+	set_assert_handler(old_handler);
 }
 
 TEST_CASE(check_index_failure)
 {
 	int length = 10;
 
-	int i = CHECK(9, length);
+	TEST(CHECK( 0, length) == 0);
+	TEST(CHECK( 9, length) == 9);
+	TEST(CHECK(-1, length) == 9);
+	TEST(CHECK(-9, length) == 1);
+
+	int x = 11;
+	int i = CHECK(x, length);
 	TEST(i == 9);
 }
 
@@ -298,14 +321,6 @@ void debug_format(FILE *out, const char *format, const struct debug_info *dbi)
 			fputc(*format, out);
 }
 
-TEST_CASE(printer_delegate_file_or_string)
-{
-	UNUSED(test_counter);
-
-//	DebugInfo info = DEBUG_INFO_INIT;
-//	debug_format(stderr, "%F:%L: [%G] hello\n", &info);
-
-}
 
 //-----------------------------------------------------------------------------
 // Span Template

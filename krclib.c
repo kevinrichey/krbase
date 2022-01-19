@@ -53,33 +53,29 @@ const char *status_string(enum status stat)
 
 void debug_print(FILE *out, struct debug_info db)
 {
-	if (!out)  out = stderr;
-	fprintf(out, "%s:%d: %s: ", db.file, db.line, db.funcname);
+	fprintf(out ? out : stderr, "%s:%d: %s(): ", db.file, db.line, db.funcname);
 }
 
 
-int  assert_abort(struct debug_info db, const char *s)
+void assert_abort(struct debug_info db, const char *s)
+{
+	debug_print(stderr, db);
+	fprintf(stderr, "Assertion failed: '%s'\n", s);
+	abort();
+}
+
+void assert_exit(struct debug_info db, const char *s)
 {
 	debug_print(stderr, db);
 	fprintf(stderr, "Assertion failed: '%s'\n", s);
 	exit(EXIT_FAILURE);
-	return false;
 }
 
-int assert_exit(struct debug_info db, const char *s)
+static AssertHandler KR_ASSERT_HANDLER = assert_exit;
 
+AssertHandler set_assert_handler(AssertHandler new_handler)
 {
-	debug_print(stderr, db);
-	fprintf(stderr, "Assertion failed: '%s'\n", s);
-	exit(EXIT_FAILURE);
-	return false;
-}
-
-static AssertHandler_fp KR_ASSERT_HANDLER = assert_exit;
-
-AssertHandler_fp set_assert_handler(AssertHandler_fp new_handler)
-{
-	AssertHandler_fp old_handler = KR_ASSERT_HANDLER;
+	AssertHandler old_handler = KR_ASSERT_HANDLER;
 	KR_ASSERT_HANDLER = new_handler;
 	return old_handler;
 }
@@ -88,10 +84,18 @@ void assert_fail(struct debug_info source, const char *s)
 {
 	if (KR_ASSERT_HANDLER)
 		KR_ASSERT_HANDLER(source, s);
-
-	assert_abort(source, s);
 }
 
+int check_index(int i, int length, const char *v, struct debug_info dbg)
+{
+	if (i < -length || i >= length) {
+		char buf[100] = "";
+		snprintf(buf, 100, "%s = %d is out of bounds [%d..%d)", v, i, -length, length);
+		assert_fail(dbg, buf);
+	}
+
+	return (i > 0) ? i : (i += length);
+}
 
 
 static struct except_stack {
@@ -99,8 +103,6 @@ static struct except_stack {
 	enum status status;
 	struct debug_info source;
 } except_stack = { .top=NULL };
-
-#define kr_postset(S_, N_)  ({ typeof(S_) t = S_; S_ = N_; t; })
 
 static void except_stack_push(struct except_frame *frame)
 {
@@ -141,21 +143,6 @@ void except_end(struct except_frame *frame)
 
 
 
-
-int check_index(int i, int length, struct debug_info dbg)
-{
-	if (i < -length || i >= length) {
-		fprintf(stderr, "%s:%d: %s: ", dbg.file, dbg.line, debug_cat_string(DBCAT_ASSERT));
-		fprintf(stderr, "STATUS_OUT_OF_BOUNDS (E-%05d): ", STATUS_OUT_OF_BOUNDS);
-		fprintf(stderr, "index %d out of bounds [%d..%d)\n", i, -length, length);
-		abort();
-	}
-
-	if (i < 0)  i += length;
-	return i;
-}
-
-
 //----------------------------------------------------------------------
 // strand Module
 
@@ -163,6 +150,7 @@ char *strbuf_end(strbuf buf)
 {
 	return buf.front + buf.size - 1;
 }
+
 
 bool strand_is_null(strand s)
 {
