@@ -55,10 +55,10 @@ typedef unsigned char Byte;
 // void function pointer
 typedef void (*VoidFunc)();
 
-bool in_bounds(int n, int lower, int upper);
-
-#define in_bounds_enum(VAL_, ENUM_)    in_bounds((VAL_), (ENUM_##_FIRST), (ENUM_##_LAST))
-#define in_bounds_array(I_, ARR_)      in_bounds((I_), 0, ARRAY_SIZE(ARR_)-1)
+static inline void *if_null(void *p, void *d)
+{
+	return p ? p : d;
+}
 
 
 // Type-safe min/max template
@@ -110,37 +110,59 @@ DEFINE_DECONST_FUNC(size_t, size_t)
 //----------------------------------------------------------------------
 //@module Debugging & Error Checking
 
-#define KR_DEBUG_CAT_X_TABLE \
-	X(FATAL,   "Fatal") \
-	X(ERROR,   "Error") \
-	X(ASSERT,  "Assert") \
-	X(DEBUG,   "Debug") \
-	X(TRACE,   "Trace") \
-	X(WATCH,   "Watch") \
-	X(TEST,    "Test")  
-  
+enum debug_level 
+{
+	DEBUG_LEVEL_ALWAYS = 0,
+	DEBUG_LEVEL_MIN, 
 
-#define X(EnumName_, _)  DBCAT_##EnumName_,
-enum debug_cat {
-	DBCAT_ZERO,
-	KR_DEBUG_CAT_X_TABLE 
-    STANDARD_ENUM_VALUES(DEBUG)
+	DEBUG_LEVEL_LOW,
+	DEBUG_LEVEL_LOW_1,
+	DEBUG_LEVEL_LOW_2,
+	DEBUG_LEVEL_LOW_3,
+	DEBUG_LEVEL_LOW_4,
+	DEBUG_LEVEL_LOW_5,
+	DEBUG_LEVEL_LOW_6,
+	DEBUG_LEVEL_LOW_7,
+	DEBUG_LEVEL_LOW_8,
+	DEBUG_LEVEL_LOW_9,
+
+	DEBUG_LEVEL_MEDIUM,
+	DEBUG_LEVEL_MEDIUM_1,
+	DEBUG_LEVEL_MEDIUM_2,
+	DEBUG_LEVEL_MEDIUM_3,
+	DEBUG_LEVEL_MEDIUM_4,
+	DEBUG_LEVEL_MEDIUM_5,
+	DEBUG_LEVEL_MEDIUM_6,
+	DEBUG_LEVEL_MEDIUM_7,
+	DEBUG_LEVEL_MEDIUM_8,
+	DEBUG_LEVEL_MEDIUM_9,
+
+	DEBUG_LEVEL_HIGH,
+	DEBUG_LEVEL_HIGH_1,
+	DEBUG_LEVEL_HIGH_2,
+	DEBUG_LEVEL_HIGH_3,
+	DEBUG_LEVEL_HIGH_4,
+	DEBUG_LEVEL_HIGH_5,
+	DEBUG_LEVEL_HIGH_6,
+	DEBUG_LEVEL_HIGH_7,
+	DEBUG_LEVEL_HIGH_8,
+	DEBUG_LEVEL_HIGH_9,
+
+	DEBUG_LEVEL_MAX,
 };
-#undef X
 
-const char *debug_cat_string(enum debug_cat cat);
-
+void debug_set_volume(enum debug_level level);
 
 
 #define KR_STATUS_X_TABLE \
-  X(OK) \
-  X(TEST_FAILURE) \
-  X(ALLOC_ERROR) \
-  X(ASSERT_FAILURE) \
-  X(OUT_OF_BOUNDS) \
-  X(UNKNOWN_ERROR) \
+			X(OK,               "OK") \
+			X(ERROR,            "Error") \
+			X(FATAL,            "Fatal error") \
+			X(ASSERT_FAILURE,   "Assertion failed") \
+			X(PRECON_FAIL,      "Precondition failed") \
+			X(TEST_FAILURE,     "Test failed")
 
-#define X(EnumName_)  STATUS_##EnumName_,
+#define X(EnumName_, _)  STATUS_##EnumName_,
 enum status {
     KR_STATUS_X_TABLE
     STANDARD_ENUM_VALUES(STATUS)
@@ -150,44 +172,73 @@ enum status {
 const char *status_string(enum status stat);
 
 
-struct debug_info {
+struct source_location 
+{
 	const char *file;
 	unsigned    line;
-	const char *funcname;
+	const char *func;
 };
 
-#define DEBUG_INFO_INIT   { .file=__FILE__, .line=__LINE__, .funcname=__func__ }
-#define DEBUG_INFO_HERE   (struct debug_info)DEBUG_INFO_INIT
+#define SOURCE_LOCATION_INIT  { .file=__FILE__, .line=__LINE__, .func=__func__ }
+#define CURRENT_LOCATION      (struct source_location)SOURCE_LOCATION_INIT
 
-void debug_print(FILE *out, struct debug_info db);
+struct error 
+{ 
+	struct source_location  source;
+	enum status             status;
+	const char             *message;
+};
+
+void error_fprint(FILE *out, const struct error *error);
+void error_fatal(const struct error *error, const char *str, ...);
+
+void assert_failure(struct source_location source, enum debug_level level, const char *msg);
+
+#define PRECON(Condition_, Level_) \
+	do{ if (Condition_); else assert_failure(CURRENT_LOCATION, (Level_), #Condition_); } while(0)
+
+#define REQUIRE(Condition_)  PRECON(Condition_, DEBUG_LEVEL_LOW) 
 
 
+#define TEST_CASE(TEST_NAME_)  void TestCase_##TEST_NAME_(void)
+#define TEST(CONDITION_)       test_assert((CONDITION_), CURRENT_LOCATION, "'" #CONDITION_ "'")
+void test_assert(bool condition, struct source_location source, const char *msg);
 
 
-typedef void (*AssertHandler)(struct debug_info, const char *);
-AssertHandler set_assert_handler(AssertHandler new_handler);
-
-void assert_abort(struct debug_info db, const char *s);
-void assert_exit(struct debug_info db, const char *s);
-void assert_fail(struct debug_info source, const char *s);
-
-#define REQUIRE(CONDITION_)   \
-	do{ if (CONDITION_); else assert_fail(DEBUG_INFO_HERE, #CONDITION_); } while(0)
-
-int check_index(int i, int length, const char *v, struct debug_info dbg);
-
-#define CHECK(I_, LEN_)  check_index((I_), (LEN_), #I_, DEBUG_INFO_HERE)
-
+#define CHECK(I_, LEN_)  check_index((I_), (LEN_), CURRENT_LOCATION)
+int check_index(int i, int length, struct source_location dbg);
 
 
 struct except_frame {
-	struct except_frame *back;
-	jmp_buf env;
+	volatile struct { jmp_buf env; };
 };
 
-void except_begin(struct except_frame *frame);
-void except_throw(enum status status, struct debug_info dbi);
-void except_end(struct except_frame *frame);
+void except_throw(struct except_frame *frame, enum status status, struct source_location dbi);
+
+
+//----------------------------------------------------------------------
+//@module Vector - tuple with named and random access
+
+#define TVector(TYPE_, ...) \
+	union { \
+		struct { TYPE_ __VA_ARGS__; }; \
+		TYPE_ at[VA_NARGS(__VA_ARGS__)]; \
+	}
+
+#define VECT_LENGTH(V_)    (int)(ARRAY_SIZE((V_).at))
+
+//----------------------------------------------------------------------
+//@module range
+
+struct range
+{
+	int start, stop;
+};
+
+static inline bool range_has(struct range r, int i)
+{
+	return (r.start <= i  &&  i < r.stop);
+}
 
 //----------------------------------------------------------------------
 //@module Span Template
@@ -212,18 +263,6 @@ typedef TSPAN(void)     void_span;
 typedef TSPAN(Byte)     byte_span;
 typedef TSPAN(char*)    str_span;
 
-
-//----------------------------------------------------------------------
-//@module Vector - tuple with named and random access
-
-#define TVector(TYPE_, ...) \
-	union { \
-		struct { TYPE_ __VA_ARGS__; }; \
-		TYPE_ at[VA_NARGS(__VA_ARGS__)]; \
-	}
-
-#define VECT_LENGTH(V_)    (int)(ARRAY_SIZE((V_).at))
-
 //----------------------------------------------------------------------
 //@module strand
 
@@ -241,9 +280,9 @@ static inline strbuf strbuf_init(char buf[], size_t size)
 #define STRBUF_INIT(BUF_)  strbuf_init((BUF_), sizeof(BUF_))
 
 
-typedef TSPAN(char) strand;
+typedef TSPAN(const char) strand;
 
-static inline strand strand_init(char *s, int length)
+static inline strand strand_init(const char *s, int length)
 {
 	return (strand){ .front = s, .back = s + length };
 }
@@ -542,3 +581,4 @@ static inline Fibonacci Fib_next(Fibonacci fib)
 }
 
 #endif
+// vim: ft=c

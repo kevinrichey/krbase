@@ -7,7 +7,7 @@
 #include <ctype.h>
 
 #define USING_KR_NAMESPACE
-#include "test.h"
+#include "krclib.h"
 #include "krstring.h"
 
 //-----------------------------------------------------------------------------
@@ -40,9 +40,6 @@ TEST_CASE(assume_numeric_limits)
 
 TEST_CASE(UNUSED_prevents_compiler_warnings)
 {
-	// All test cases have a hidden parameter named "test_counter".
-	UNUSED(test_counter);
-
 	// Unused local variable should cause compiler warning
 	int x = 1;
 
@@ -138,33 +135,14 @@ TEST_CASE(num_chars_to_store_numbers)
 
 _Static_assert(sizeof(Byte) == 1, "byte must have sizeof 1");
 
-TEST_CASE(in_bounds_enums_and_arrays)
+TEST_CASE(if_null_default_pointer)
 {
-	TEST(in_bounds(3, 1, 5));
-	TEST(in_bounds(1, 1, 5));
-	TEST(in_bounds(5, 1, 5));
-	TEST(!in_bounds(0, 1, 5));
-	TEST(!in_bounds(6, 1, 5));
+	char s[] = "default ptr";
+	TEST(if_null(NULL, s) == s);
 
-	enum TestBoundsEnum {
-		Bounds_One,
-		Bounds_Two,
-		Bounds_Three,
-		STANDARD_ENUM_VALUES(Bounds)
-	};
-
-	TEST(in_bounds_enum(Bounds_One, Bounds));
-	TEST(in_bounds_enum(Bounds_Two, Bounds));
-	TEST(in_bounds_enum(Bounds_Three, Bounds));
-	TEST(!in_bounds_enum(-1, Bounds));
-	TEST(!in_bounds_enum(99, Bounds));
-
-	int array[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-	TEST(in_bounds_array(0, array));
-	TEST(in_bounds_array(5, array));
-	TEST(in_bounds_array(8, array));
-	TEST(!in_bounds_array(9, array));
-	TEST(!in_bounds_array(-1, array));
+	void *d = &(int){100};
+	void *p = s;
+	TEST(if_null(p, d) == s);
 }
 
 TEST_CASE(type_safe_max)
@@ -235,7 +213,7 @@ TEST_CASE(convert_status_enum_to_str)
 {
 	TEST( !strcmp(status_string(STATUS_FIRST), "OK") );
 	TEST( !strcmp(status_string(STATUS_OK), "OK") );
-	TEST( !strcmp(status_string(STATUS_ASSERT_FAILURE), "ASSERT_FAILURE") );
+	TEST( !strcmp(status_string(STATUS_ASSERT_FAILURE), "Assertion failed") );
 	TEST( !strcmp(status_string(STATUS_END), "Unknown Status") );
 	TEST( !strcmp(status_string(-1), "Unknown Status") );
 	TEST( !strcmp(status_string(100000), "Unknown Status") );
@@ -243,50 +221,17 @@ TEST_CASE(convert_status_enum_to_str)
 
 TEST_CASE(capture_debug_context_info)
 {
-	struct debug_info dbi = DEBUG_INFO_INIT;
+	struct source_location dbi = SOURCE_LOCATION_INIT;
 
 	TEST(!strcmp(dbi.file, "test_klib.c"));
 	TEST(dbi.line == (__LINE__-3));
-	TEST(!strcmp(dbi.funcname, TEST_NAME_STR(capture_debug_context_info)));
+	TEST(!strcmp(dbi.func, "TestCase_capture_debug_context_info"));
 }
 
-static bool mock_assert_called = false;
-static const char *mock_assert_str = NULL;
 
-static void mock_assert_handler(struct debug_info dbi, const char *s)
-{
-	UNUSED(dbi);
-	mock_assert_called = true;
-	mock_assert_str = s;
-}
 
-TEST_CASE(assertion_failure)
-{
-	AssertHandler old_handler = set_assert_handler(mock_assert_handler);
-	TEST(!mock_assert_called);
 
-	int x = 1;
-	REQUIRE(x == 2);
 
-	TEST(mock_assert_called);
-	TEST(!strcmp(mock_assert_str, "x == 2"));
-
-	set_assert_handler(old_handler);
-}
-
-TEST_CASE(check_index_failure)
-{
-	int length = 10;
-
-	TEST(CHECK( 0, length) == 0);
-	TEST(CHECK( 9, length) == 9);
-	TEST(CHECK(-1, length) == 9);
-	TEST(CHECK(-9, length) == 1);
-
-	int x = 11;
-	int i = CHECK(x, length);
-	TEST(i == 9);
-}
 
 
 // %f - file name
@@ -294,7 +239,7 @@ TEST_CASE(check_index_failure)
 // %d - time-date stamp
 // %c - debug category
 // %s - status code
-void debug_format(FILE *out, const char *format, const struct debug_info *dbi)
+void debug_format(FILE *out, const char *format, const struct source_location *dbi)
 {
 	for ( ; *format; ++format)
 		if (*format == '%')
@@ -321,6 +266,47 @@ void debug_format(FILE *out, const char *format, const struct debug_info *dbi)
 			fputc(*format, out);
 }
 
+//-----------------------------------------------------------------------------
+// exceptions
+//
+
+
+void this_func_throws_up(struct except_frame *xf)
+{
+	except_throw(xf, STATUS_ERROR, CURRENT_LOCATION);
+}
+
+TEST_CASE(func_throws_exception)
+{
+	struct except_frame xf;
+
+	switch (setjmp(xf.env)) {
+		case 0:
+			this_func_throws_up(&xf);
+			TEST(false && "Exception not thrown");
+			break;
+		case STATUS_ERROR:
+			// okay - this is where we should be
+			break;
+		default:
+			TEST(false && "Wrong exception thrown");
+	}
+}
+
+//-----------------------------------------------------------------------------
+// range
+//
+
+TEST_CASE(ints_in_range)
+{
+	struct range r = { 0, 10 };
+	
+	TEST(!range_has(r, -1));
+	TEST( range_has(r,  0));
+	TEST( range_has(r,  5));
+	TEST( range_has(r,  9));
+	TEST(!range_has(r, 10));
+}
 
 //-----------------------------------------------------------------------------
 // Span Template
@@ -333,16 +319,6 @@ TEST_CASE(properties_of_null_span)
 	TEST(SPAN_IS_NULL(null_span));
 	TEST(SPAN_IS_EMPTY(null_span));
 	TEST(SPAN_LENGTH(null_span) == 0);
-}
-
-TEST_CASE(properties_of_empty_span)
-{
-	int a[] = {};
-	int_span empty_span = SPAN_INIT(a);
-
-	TEST(!SPAN_IS_NULL(empty_span));
-	TEST( SPAN_IS_EMPTY(empty_span));
-	TEST( SPAN_LENGTH(empty_span) == 0);
 }
 
 TEST_CASE(init_span_from_arrays)
@@ -622,12 +598,12 @@ TEST_CASE(link_foreach)
 	struct test_node {
 		struct link link;
 		int i;
-	} a = LINK_INIT(.i = 1), 
-	  b = LINK_INIT(.i = 2),
-	  c = LINK_INIT(.i = 3),
-	  d = LINK_INIT(.i = 4),
-	  e = LINK_INIT(.i = 5),
-	  f = LINK_INIT(.i = 6);
+	} a = {.i = 1}, 
+	  b = {.i = 2},
+	  c = {.i = 3},
+	  d = {.i = 4},
+	  e = {.i = 5},
+	  f = {.i = 6};
 
 	// Given chain a:b:c:d:e:f
 	Chain_appends(&chain, &a, &b, &c, &d, &e, &f, NULL);
@@ -834,7 +810,6 @@ TEST_CASE(add_item_to_empty_list)
 
 TEST_CASE(Xorshift_random_numbers)
 {
-	UNUSED(test_counter);
 	return;
 
 	uint32_t seed = 0xAFAFAFAF;

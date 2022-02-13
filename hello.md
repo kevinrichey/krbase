@@ -293,17 +293,34 @@ Process returns 0 on all success, non-zero on any failures.
 - test_assert_eq_T("a", a, "b", b, file, line, fmt, ...)
 - test_failure(file, line, fmt, ...)
 
-# Categories
+# Debug Categories
 
+Types of errors.
+
+- Input
+	- Bad data
+	- User input
+	- Malicious
+- System
+	- Failed malloc
+	- File open/acces
+	- OS service failure
+- Defects
+	- Programmer error, "bugs"
+
+
+
+- Terminal
 - Assertion
 	- Precondition
 	- Postcondition
 	- Invariant
-- Item not found (in container)
+- Failure
 - Error
+	- Item not found (in container)
 - Warning
-- Trace
-	- Debug
+- Debug
+	- Trace
 	- Watch
 	- Info
 	- Scope begin/end
@@ -321,33 +338,38 @@ Process returns 0 on all success, non-zero on any failures.
 	- End
 	- Shutdown
 - Allocation
-- Undefined Behavior
 - Bad input
 - Test
 
 # Assertions
 
-- check bool conditions
-- on failure, condition is false:
-	- collect error info: file, line #, expression, message
-	- call assert handler
-- configure assert handler on app init
+- Detect failed assertion
+- Collect debug info: source line, assertion, message, error code
+- Trace/log assertion failure details.
+- Display user error message
+- abruptly terminate program
+- enable/disable asserts by level
+- call custom assert handler
 
-Categories
+Other options
 
+- trigger breakpoint in debugger
+- test failure in unit test mode
+
+## Assertion Names & Types
+
+- require
+- ensure
+- expect
+- check
 - precondition
+- prereq
 - postcondition
 - invariant
+- given
+- depend-on
+- assume
 
-Failure Handling
-
-- print/log
-- ignore
-- halt
-- throw/long jump
-- breakpoint
-
-Return error code is not an option.
 
 # Error Handling 
 
@@ -362,28 +384,14 @@ Failure
 
 
 - do nothing, ignore, off/disabled
-- print/log a message
+- trace/log a message
 - pause, prompt user
-- return error code to client
-- set error state
-- longjmp/exception
+- return error code
+- exception
 - halt program
 - breakpoint
 - raise signal
 
-Unit Test Mode
-: Print to stderr
-: Propagate error up to test case
-: Test failure if test case does not handle error
-: Test passes if test case handles error
-
-Debug Mode
-: Print to stderr
-: Break in debugger
-
-Release Mode
-: Print to log
-: Inform user
 
 ## Status codes
 

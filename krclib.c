@@ -3,16 +3,12 @@
 #include <string.h>
 #include <stdarg.h>
 #include <setjmp.h>
+#include <ctype.h>
 
 #include "krclib.h"
 
 //----------------------------------------------------------------------
 // Primitive Utilities
-
-bool in_bounds(int n, int lower, int upper)
-{
-	return (lower <= n) && (n <= upper);
-}
 
 static char *kr_int_to_str_back(int n, char *ps)
 {
@@ -30,117 +26,96 @@ static char *kr_int_to_str_back(int n, char *ps)
 //----------------------------------------------------------------------
 // Error Module
 
-const char *debug_cat_string(enum debug_cat cat)
-{
-	if (!in_bounds_enum(cat, DEBUG))
-		return "Unknown DebugCategory";
+//static const enum debug_level DEBUG_LEVEL_DEFAULT = DEBUG_LEVEL_LOW;
 
-#define X(Enum_, Name_)  [DBCAT_##Enum_] = Name_,
-	return (const char*[]) { KR_DEBUG_CAT_X_TABLE } [cat];
-#undef X
+static enum debug_level ASSERT_VOLUME = DEBUG_LEVEL_MEDIUM;
+
+void debug_set_volume(enum debug_level level)
+{
+	ASSERT_VOLUME = level;
 }
 
 const char *status_string(enum status stat)
 {
-	if (!in_bounds_enum(stat, STATUS))
+	static const struct range status_range = {
+		.start = STATUS_FIRST, .stop = STATUS_END };
+
+	if (!range_has(status_range, stat))
 		return "Unknown Status";
 
-#define X(EnumName)  [STATUS_##EnumName] = #EnumName,
-	return (const char*[]) { KR_STATUS_X_TABLE } [stat];
+#define X(Enum_, Name_)  [STATUS_##Enum_] = Name_,
+	static const char *status_names[] = { KR_STATUS_X_TABLE };
 #undef X
+
+	return status_names[stat];
 }
 
-
-void debug_print(FILE *out, struct debug_info db)
+void error_fprint(FILE *out, const struct error *error)
 {
-	fprintf(out ? out : stderr, "%s:%d: %s(): ", db.file, db.line, db.funcname);
+	out = if_null(out, stderr);
+
+	fprintf(out, "%s:%d: %s in %s(): %s\n", 
+	        error->source.file, error->source.line,
+			status_string(error->status),
+			error->source.func,
+			error->message ? error->message : "");
 }
 
-
-void assert_abort(struct debug_info db, const char *s)
+void error_fatal(const struct error *error, const char *str, ...)
 {
-	debug_print(stderr, db);
-	fprintf(stderr, "Assertion failed: '%s'\n", s);
+	error_fprint(stderr, error);
+
+	if (str)
+	{
+		fputc('\t', stderr);
+		va_list args;
+		va_start(args, str);
+		vfprintf(stderr, str, args);
+		va_end(args);
+		fputc('\n', stderr);
+	}
+
 	abort();
 }
 
-void assert_exit(struct debug_info db, const char *s)
+void assert_failure(
+		struct source_location source,
+		enum debug_level level, 
+		const char *msg)
 {
-	debug_print(stderr, db);
-	fprintf(stderr, "Assertion failed: '%s'\n", s);
-	exit(EXIT_FAILURE);
+	if (level <= ASSERT_VOLUME)
+	{
+		struct error error = {
+			.source = source,
+			.status = STATUS_ASSERT_FAILURE,
+		};
+		error_fatal(&error, ">>> '%s'", msg);
+	}
 }
 
-static AssertHandler KR_ASSERT_HANDLER = assert_exit;
-
-AssertHandler set_assert_handler(AssertHandler new_handler)
-{
-	AssertHandler old_handler = KR_ASSERT_HANDLER;
-	KR_ASSERT_HANDLER = new_handler;
-	return old_handler;
-}
-
-void assert_fail(struct debug_info source, const char *s)
-{
-	if (KR_ASSERT_HANDLER)
-		KR_ASSERT_HANDLER(source, s);
-}
-
-int check_index(int i, int length, const char *v, struct debug_info dbg)
+int check_index(int i, int length, struct source_location dbg)
 {
 	if (i < -length || i >= length) {
 		char buf[100] = "";
-		snprintf(buf, 100, "%s = %d is out of bounds [%d..%d)", v, i, -length, length);
-		assert_fail(dbg, buf);
+		snprintf(buf, 100, "%d is out of bounds [%d..%d)", i, -length, length);
+		assert_failure(dbg, DEBUG_LEVEL_MIN, buf);
 	}
 
-	return (i > 0) ? i : (i += length);
+	return (i < 0) ? (i += length) : i;
 }
 
 
-static struct except_stack {
-	struct except_frame *top;
-	enum status status;
-	struct debug_info source;
-} except_stack = { .top=NULL };
-
-static void except_stack_push(struct except_frame *frame)
+void except_throw(struct except_frame *frame, enum status status, struct source_location source)
 {
-	if (frame)  frame->back = except_stack.top;
-	except_stack.top = frame;
-}
-
-static struct except_frame *except_stack_pop(void)
-{
-	struct except_frame *popped = except_stack.top;
-	if (popped)  except_stack.top = popped->back;
-	return popped;
-}
-
-void except_begin(struct except_frame *frame)
-{
-	except_stack_push(frame);
-}
-
-void except_throw(enum status status, struct debug_info dbi)
-{
-	except_stack.source = dbi;
-
-	struct except_frame *frame = except_stack_pop();
 	if (frame == NULL) {
-		debug_print(stderr, except_stack.source);
-		fprintf(stderr, "%s: %s\n", debug_cat_string(DBCAT_FATAL), "unhandled exception.\n");
-		abort();
+		struct error error = {
+			.source = source,
+			.status = status,
+		};
+		error_fatal(&error, "Unhandled exception");
 	}
 	longjmp(frame->env, (int)status);
 }
-
-void except_end(struct except_frame *frame)
-{
-	except_stack.top = frame->back;
-}
-
-
 
 
 //----------------------------------------------------------------------

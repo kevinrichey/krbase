@@ -1,15 +1,19 @@
 
-CC = clang
-CWARNFLAGS = -Wall -Wextra -Werror \
-			 -Wno-missing-field-initializers \
-			 -Wno-missing-braces \
-			 -fno-delete-null-pointer-checks
-CFLAGS = -g -D DEBUG $(CWARNFLAGS)
-#CFLAGS = -std=c17 -g -D DEBUG $(CWARNFLAGS)
-#CFLAGS = -std=c11 -g -D DEBUG -I/mingw64/include/SDL2  -MMD $(CWARNFLAGS)
+CC = tcc
+
+CWARNFLAGS = -Wall \
+			 -Wunsupported \
+			 -Wwrite-strings \
+			 -Wimplicit-function-declaration \
+			 -Wdiscarded-qualifiers
+
+CFLAGS = -g -D DEBUG -bt8 -Werror $(CWARNFLAGS)
+
+SOURCE = krstring.c krclib.c
+HEADERS = $(SOURCE:.c=.h)
+
 TESTCASES_C = $(wildcard test_*.c)
 TESTCASES_O = $(TESTCASES_C:.c=.o)
-
 
 run: run_test maze
 	./maze $(ARGS)
@@ -17,23 +21,23 @@ run: run_test maze
 run_test: test
 	./test
 
-maze: maze.o krclib.o
+test: test.c test.h $(SOURCE) $(HEADERS) $(TESTCASES_C)
 
-test: test.o krclib.o krstring.o $(TESTCASES_O)
+maze: maze.c krclib.c
 
-testcases.inc testcases.h: $(TESTCASES_C)
+testcases.h: discover_tests.awk $(TESTCASES_C)
 	awk -f discover_tests.awk $(TESTCASES_C)
 
-depfile.mk: testcases.h
-	clang -MM *.c > depfile.mk
+depfile.mk: $(SOURCE) $(HEADERS) $(TESTCASES_C) testcases.h
+	$(CC) -MM -MF depfile.mk $(SOURCE) $(TESTCASES_C)
 
 include depfile.mk
 
-doc: doc.awk *.c
-	awk -f doc.awk *.h > klib.md
+#doc: doc.awk *.c
+#	awk -f doc.awk *.h > klib.md
 
 clean:
 	rm -f test *.o depfile.mk testcases.*
 
-.PHONY: run clean
+.PHONY: run clean 
 

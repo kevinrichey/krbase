@@ -1,5 +1,5 @@
 #define USING_KR_NAMESPACE
-#include "test.h"
+#include "krclib.h"
 #include "krstring.h"
 
 TEST_CASE(null_string_is_empty)
