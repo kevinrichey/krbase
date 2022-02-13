@@ -21,7 +21,7 @@ run: run_test maze
 run_test: test
 	./test
 
-test: test.c test.h $(SOURCE) $(HEADERS) $(TESTCASES_C)
+test: test.c $(SOURCE) $(HEADERS) $(TESTCASES_C)
 
 maze: maze.c krclib.c
 

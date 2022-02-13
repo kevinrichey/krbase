@@ -1,6 +1,0 @@
-#ifndef KRCLIB_TEST_H_INCLUDED
-#define KRCLIB_TEST_H_INCLUDED
-
-
-
-#endif
