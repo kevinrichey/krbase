@@ -38,11 +38,11 @@ string_reserve() doesn't resize properly when bigger size is less than 2x curren
 
 ## Things Every C Programmer Needs to Know
 
-- Scope: function, block, file/translation unit, function proto
-- Namespaces: tags, members, labels, identifiers
-- Calling conventions & return values
-- Stack & heap
+- Translation units
+- Linkage: internal & external, static & external keywords
+- Scope:  file/translation unit,function, block, function proto
 - Storage class & duration
+- Namespaces: tags, members, labels, identifiers
 - Pointers
 - Undefined behavior
 - Preprocessor
