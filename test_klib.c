@@ -7,7 +7,7 @@
 #include <ctype.h>
 
 #define USING_KR_NAMESPACE
-#include "test.h"
+#include "krclib.h"
 #include "krstring.h"
 
 //-----------------------------------------------------------------------------
@@ -40,9 +40,6 @@ TEST_CASE(assume_numeric_limits)
 
 TEST_CASE(UNUSED_prevents_compiler_warnings)
 {
-	// All test cases have a hidden parameter named "test_counter".
-	UNUSED(test_counter);
-
 	// Unused local variable should cause compiler warning
 	int x = 1;
 
@@ -138,33 +135,14 @@ TEST_CASE(num_chars_to_store_numbers)
 
 _Static_assert(sizeof(Byte) == 1, "byte must have sizeof 1");
 
-TEST_CASE(in_bounds_enums_and_arrays)
+TEST_CASE(if_null_default_pointer)
 {
-	TEST(in_bounds(3, 1, 5));
-	TEST(in_bounds(1, 1, 5));
-	TEST(in_bounds(5, 1, 5));
-	TEST(!in_bounds(0, 1, 5));
-	TEST(!in_bounds(6, 1, 5));
+	char s[] = "default ptr";
+	TEST(if_null(NULL, s) == s);
 
-	enum TestBoundsEnum {
-		Bounds_One,
-		Bounds_Two,
-		Bounds_Three,
-		STANDARD_ENUM_VALUES(Bounds)
-	};
-
-	TEST(in_bounds_enum(Bounds_One, Bounds));
-	TEST(in_bounds_enum(Bounds_Two, Bounds));
-	TEST(in_bounds_enum(Bounds_Three, Bounds));
-	TEST(!in_bounds_enum(-1, Bounds));
-	TEST(!in_bounds_enum(99, Bounds));
-
-	int array[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-	TEST(in_bounds_array(0, array));
-	TEST(in_bounds_array(5, array));
-	TEST(in_bounds_array(8, array));
-	TEST(!in_bounds_array(9, array));
-	TEST(!in_bounds_array(-1, array));
+	void *d = &(int){100};
+	void *p = s;
+	TEST(if_null(p, d) == s);
 }
 
 TEST_CASE(type_safe_max)
@@ -228,15 +206,106 @@ TEST_CASE(type_safe_const_cast)
 }
 
 //-----------------------------------------------------------------------------
-// Debugging
+// Debug module
 //
 
-TEST_CASE(check_index_failure)
+TEST_CASE(convert_status_enum_to_str)
 {
-	int length = 10;
+	TEST( !strcmp(status_string(STATUS_FIRST), "OK") );
+	TEST( !strcmp(status_string(STATUS_OK), "OK") );
+	TEST( !strcmp(status_string(STATUS_ASSERT_FAILURE), "Assertion failed") );
+	TEST( !strcmp(status_string(STATUS_END), "Unknown Status") );
+	TEST( !strcmp(status_string(-1), "Unknown Status") );
+	TEST( !strcmp(status_string(100000), "Unknown Status") );
+}
 
-	int i = CHECK(11, length);
-	TEST(i == 11);
+TEST_CASE(capture_debug_context_info)
+{
+	struct source_location dbi = SOURCE_LOCATION_INIT;
+
+	TEST(!strcmp(dbi.file, "test_klib.c"));
+	TEST(dbi.line == (__LINE__-3));
+	TEST(!strcmp(dbi.func, "TestCase_capture_debug_context_info"));
+}
+
+
+
+
+
+
+
+// %f - file name
+// %l - line number
+// %d - time-date stamp
+// %c - debug category
+// %s - status code
+void debug_format(FILE *out, const char *format, const struct source_location *dbi)
+{
+	for ( ; *format; ++format)
+		if (*format == '%')
+			switch (*++format) {
+				case 'F':
+					fputs(dbi->file, out);
+					break;
+				case 'L': {
+					unsigned n = dbi->line;
+					char *s = (char[NUM_STR_LEN(int)]){} + NUM_STR_LEN(int) - 1;
+					for (*s-- = '\0'; *s = '0' + n % 10, n /= 10; --s) ;
+					while (*s) fputc(*s++, out);
+					//fprintf(out, "%d", dbi->line);
+					break;
+				}
+				case 'G':
+					fputs(TIMESTAMP_GMT(), out);
+					break;
+				case '%':
+					fputc('%', out);
+					break;
+			}
+		else
+			fputc(*format, out);
+}
+
+//-----------------------------------------------------------------------------
+// exceptions
+//
+
+
+void this_func_throws_up(struct except_frame *xf)
+{
+	except_throw(xf, STATUS_ERROR, CURRENT_LOCATION);
+}
+
+TEST_CASE(func_throws_exception)
+{
+	struct except_frame xf;
+
+	switch (setjmp(xf.env)) {
+		case 0:
+			this_func_throws_up(&xf);
+			TEST(false && "Exception not thrown");
+			break;
+		case STATUS_ERROR:
+			// okay - this is where we should be
+			break;
+		default:
+			TEST(false && "Wrong exception thrown");
+	}
+}
+
+//-----------------------------------------------------------------------------
+// range
+//
+
+TEST_CASE(ints_in_range)
+{
+	struct range r = { 0, 10 };
+	
+	TEST(!range_has(r, -1));
+	TEST( range_has(r,  0));
+	TEST( range_has(r,  5));
+	TEST( range_has(r,  9));
+	TEST(!range_has(r, 10));
 }
 
 //-----------------------------------------------------------------------------
@@ -250,16 +319,6 @@ TEST_CASE(properties_of_null_span)
 	TEST(SPAN_IS_NULL(null_span));
 	TEST(SPAN_IS_EMPTY(null_span));
 	TEST(SPAN_LENGTH(null_span) == 0);
-}
-
-TEST_CASE(properties_of_empty_span)
-{
-	int a[] = {};
-	int_span empty_span = SPAN_INIT(a);
-
-	TEST(!SPAN_IS_NULL(empty_span));
-	TEST( SPAN_IS_EMPTY(empty_span));
-	TEST( SPAN_LENGTH(empty_span) == 0);
 }
 
 TEST_CASE(init_span_from_arrays)
@@ -452,66 +511,66 @@ TEST_CASE(return_trimmed_span)
 }
 
 //-----------------------------------------------------------------------------
-// Doubly Linked List
+// Doubly linked List
 //
 
 TEST_CASE(attach_two_links)
 {
 	// Given two empty links
-	Link a = LINK_INIT();
-	Link b = LINK_INIT();
-	TEST(Link_not_attached(&a));
-	TEST(Link_not_attached(&b));
+	struct link a = LINK_INIT();
+	struct link b = LINK_INIT();
+	TEST(link_not_attached(&a));
+	TEST(link_not_attached(&b));
 	
 	// When they're linked
-	Link_attach(&a, &b);
+	link_attach(&a, &b);
 
 	// They are attached and adjacent
-	TEST(Links_are_attached(&a, &b));
-	TEST(Link_next(&a) == &b);
-	TEST(Link_prev(&b) == &a);
+	TEST(links_are_attached(&a, &b));
+	TEST(link_next(&a) == &b);
+	TEST(link_prev(&b) == &a);
 }
 
 TEST_CASE(insert_link)
 {
 	// Given two linked and one solo nodes
-	Link a = LINK_INIT();
-	Link b = LINK_INIT();
-	Link c = LINK_INIT();
-	Link_attach(&a, &b);
-	TEST(Links_are_attached(&a, &b));
-	TEST(Link_not_attached(&c) );
+	struct link a = LINK_INIT();
+	struct link b = LINK_INIT();
+	struct link c = LINK_INIT();
+	link_attach(&a, &b);
+	TEST(links_are_attached(&a, &b));
+	TEST(link_not_attached(&c) );
 
 	// When node c inserted before b
-	Link_insert(&c, &b);
+	link_insert(&c, &b);
 
 	// Then a.right is c and c.right is b
-	TEST(Links_are_attached(&a, &c) );
-	TEST(Links_are_attached(&c, &b) );
+	TEST(links_are_attached(&a, &c) );
+	TEST(links_are_attached(&c, &b) );
 }
 
 TEST_CASE(link_remove_node)
 {
 	// Given chain a:b:c
-	Link a = LINK_INIT();
-	Link b = LINK_INIT();
-	Link c = LINK_INIT();
-	Link_attach(&a, &b);
-	Link_attach(&b, &c);
+	struct link a = LINK_INIT();
+	struct link b = LINK_INIT();
+	struct link c = LINK_INIT();
+	link_attach(&a, &b);
+	link_attach(&b, &c);
 
 	// When b is removed
-	Link_remove(&b);
+	link_remove(&b);
 
 	// Then a is linked to c and b is unlinked
-	TEST(Link_not_attached(&b));
-	TEST(Links_are_attached(&a, &c));
+	TEST(link_not_attached(&b));
+	TEST(links_are_attached(&a, &c));
 }
 
 TEST_CASE(chain_multiple_links)
 {
 	// Given empty chain and several links
 	Chain chain = CHAIN_INIT(chain);
-	Link a = LINK_INIT(), 
+	struct link a = LINK_INIT(), 
 	     b = LINK_INIT(),
 	     c = LINK_INIT(),
 	     d = LINK_INIT(),
@@ -522,13 +581,13 @@ TEST_CASE(chain_multiple_links)
 	Chain_appends(&chain, &a, &b, &c, &d, &e, &f, NULL);
 
 	// Each attached to the next
-	Link *l = Chain_first(&chain);
+	struct link *l = Chain_first(&chain);
 	TEST(l == &a);
-	TEST((l = Link_next(l)) == &b);
-	TEST((l = Link_next(l)) == &c);
-	TEST((l = Link_next(l)) == &d);
-	TEST((l = Link_next(l)) == &e);
-	TEST((l = Link_next(l)) == &f);
+	TEST((l = link_next(l)) == &b);
+	TEST((l = link_next(l)) == &c);
+	TEST((l = link_next(l)) == &d);
+	TEST((l = link_next(l)) == &e);
+	TEST((l = link_next(l)) == &f);
 	TEST(l == Chain_last(&chain));
 }
 
@@ -537,14 +596,14 @@ TEST_CASE(link_foreach)
 	Chain chain = CHAIN_INIT(chain);
 
 	struct test_node {
-		Link link;
+		struct link link;
 		int i;
-	} a = LINK_INIT(.i = 1), 
-	  b = LINK_INIT(.i = 2),
-	  c = LINK_INIT(.i = 3),
-	  d = LINK_INIT(.i = 4),
-	  e = LINK_INIT(.i = 5),
-	  f = LINK_INIT(.i = 6);
+	} a = {.i = 1}, 
+	  b = {.i = 2},
+	  c = {.i = 3},
+	  d = {.i = 4},
+	  e = {.i = 5},
+	  f = {.i = 6};
 
 	// Given chain a:b:c:d:e:f
 	Chain_appends(&chain, &a, &b, &c, &d, &e, &f, NULL);
@@ -565,23 +624,23 @@ TEST_CASE(add_links_to_empty_chain)
 	TEST(Chain_empty(&chain));
 
 	// Append links to chain
-	Link a = LINK_INIT();
+	struct link a = LINK_INIT();
 	Chain_append(&chain, &a);
-	TEST(Links_are_attached(&chain.head, &a));
-	TEST(Links_are_attached(&a, &chain.head));
+	TEST(links_are_attached(&chain.head, &a));
+	TEST(links_are_attached(&a, &chain.head));
 
-	Link b = LINK_INIT();
+	struct link b = LINK_INIT();
 	Chain_append(&chain, &b);
-	TEST(Links_are_attached(&chain.head, &a));
-	TEST(Links_are_attached(&a, &b));
-	TEST(Links_are_attached(&b, &chain.head));
+	TEST(links_are_attached(&chain.head, &a));
+	TEST(links_are_attached(&a, &b));
+	TEST(links_are_attached(&b, &chain.head));
 
-	Link c = LINK_INIT();
+	struct link c = LINK_INIT();
 	Chain_append(&chain, &c);
-	TEST(Links_are_attached(&chain.head, &a));
-	TEST(Links_are_attached(&a, &b));
-	TEST(Links_are_attached(&b, &c));
-	TEST(Links_are_attached(&c, &chain.head));
+	TEST(links_are_attached(&chain.head, &a));
+	TEST(links_are_attached(&a, &b));
+	TEST(links_are_attached(&b, &c));
+	TEST(links_are_attached(&c, &chain.head));
 }
 
 TEST_CASE(prepent_links_to_chain)
@@ -591,51 +650,28 @@ TEST_CASE(prepent_links_to_chain)
 	TEST(Chain_empty(&chain));
 
 	// Prepend links to chain
-	Link a = LINK_INIT();
+	struct link a = LINK_INIT();
 	Chain_prepend(&chain, &a);
-	TEST(Links_are_attached(&a, &chain.head));
-	TEST(Links_are_attached(&chain.head, &a));
+	TEST(links_are_attached(&a, &chain.head));
+	TEST(links_are_attached(&chain.head, &a));
 
-	Link b = LINK_INIT();
+	struct link b = LINK_INIT();
 	Chain_prepend(&chain, &b);
-	TEST(Links_are_attached(&chain.head, &b));
-	TEST(Links_are_attached(&b, &a));
-	TEST(Links_are_attached(&a, &chain.head));
+	TEST(links_are_attached(&chain.head, &b));
+	TEST(links_are_attached(&b, &a));
+	TEST(links_are_attached(&a, &chain.head));
 
-	Link c = LINK_INIT();
+	struct link c = LINK_INIT();
 	Chain_prepend(&chain, &c);
-	TEST(Links_are_attached(&chain.head, &c));
-	TEST(Links_are_attached(&c, &b));
-	TEST(Links_are_attached(&b, &a));
-	TEST(Links_are_attached(&a, &chain.head));
+	TEST(links_are_attached(&chain.head, &c));
+	TEST(links_are_attached(&c, &b));
+	TEST(links_are_attached(&b, &a));
+	TEST(links_are_attached(&a, &chain.head));
 }
 
 
 //-----------------------------------------------------------------------------
 // Error Module
-
-TEST_CASE(Status_to_string)
-{
-	TEST( !strcmp(StatusCode_string(STATUS_FIRST), "OK") );
-	TEST( !strcmp(StatusCode_string(STATUS_OK), "OK") );
-	TEST( !strcmp(StatusCode_string(STATUS_ERROR), "ERROR") );
-	TEST( !strcmp(StatusCode_string(STATUS_END), "Unknown Status") );
-	TEST( !strcmp(StatusCode_string(-1), "Unknown Status") );
-	TEST( !strcmp(StatusCode_string(100000), "Unknown Status") );
-}
-
-static void 
-source_info_test_fn(TestCounter *test_counter, int line, DebugInfo source)
-{
-	TEST(!strcmp(source.file, "test_klib.c"));
-	TEST(source.line == line);
-}
-
-TEST_CASE(pass_source_info_parameter)
-{
-	int line = __LINE__ + 1;
-	source_info_test_fn(test_counter, line, DEBUG_INFO_HERE);
-}
 
 
 //-----------------------------------------------------------------------------
@@ -774,7 +810,6 @@ TEST_CASE(add_item_to_empty_list)
 
 TEST_CASE(Xorshift_random_numbers)
 {
-	UNUSED(test_counter);
 	return;
 
 	uint32_t seed = 0xAFAFAFAF;

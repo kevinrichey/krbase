@@ -6,7 +6,6 @@
 #include <stddef.h>
 #include <assert.h>
 
-#include "test.h"
 #include "krclib.h"
 
 //
@@ -92,7 +91,7 @@ typedef struct {
 typedef struct Object {
 	TypeInfo *type;
 	struct Object *next;
-	DebugInfo source;
+	struct source_location source;
 	const char *name;
 } Object;
 
@@ -104,7 +103,7 @@ void Object_dispose(Object *object)
 DECLARE_TYPE(Object);
 
 
-Object *Object_create_dbg(const char *name, Object *top, DebugInfo source)
+Object *Object_create_dbg(const char *name, Object *top, struct source_location source)
 {
 	Object *o = malloc(sizeof(*o));
 	o->next = top;
@@ -114,7 +113,7 @@ Object *Object_create_dbg(const char *name, Object *top, DebugInfo source)
 	return o;
 }
 
-#define Object_create(NAME_, TOP_)   Object_create_dbg((NAME_), (TOP_), DEBUG_INFO_HERE)
+#define Object_create(NAME_, TOP_)   Object_create_dbg((NAME_), (TOP_), CURRENT_LOCATION)
 
 void dispose(Object *object)
 {

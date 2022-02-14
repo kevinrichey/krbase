@@ -3,16 +3,12 @@
 #include <string.h>
 #include <stdarg.h>
 #include <setjmp.h>
+#include <ctype.h>
 
 #include "krclib.h"
 
 //----------------------------------------------------------------------
 // Primitive Utilities
-
-bool in_bounds(int n, int lower, int upper)
-{
-	return (lower <= n) && (n <= upper);
-}
 
 static char *kr_int_to_str_back(int n, char *ps)
 {
@@ -30,149 +26,96 @@ static char *kr_int_to_str_back(int n, char *ps)
 //----------------------------------------------------------------------
 // Error Module
 
-const char *DebugCategory_string(DebugCategory cat)
-{
-	if (!in_bounds_enum(cat, DEBUG))
-		return "Unknown DebugCategory";
+//static const enum debug_level DEBUG_LEVEL_DEFAULT = DEBUG_LEVEL_LOW;
 
-#define X(EnumName)  [DEBUG_##EnumName] = #EnumName,
-	return (const char*[]) { KR_DEBUG_CAT_X_TABLE } [cat];
-#undef X
+static enum debug_level ASSERT_VOLUME = DEBUG_LEVEL_MEDIUM;
+
+void debug_set_volume(enum debug_level level)
+{
+	ASSERT_VOLUME = level;
 }
 
-const char *StatusCode_string(StatusCode stat)
+const char *status_string(enum status stat)
 {
-	if (!in_bounds_enum(stat, STATUS))
+	static const struct range status_range = {
+		.start = STATUS_FIRST, .stop = STATUS_END };
+
+	if (!range_has(status_range, stat))
 		return "Unknown Status";
 
-#define X(EnumName)  [STATUS_##EnumName] = #EnumName,
-	return (const char*[]) { STATUS_X_TABLE } [stat];
+#define X(Enum_, Name_)  [STATUS_##Enum_] = Name_,
+	static const char *status_names[] = { KR_STATUS_X_TABLE };
 #undef X
+
+	return status_names[stat];
 }
 
-void debug_vfprint(FILE *out, DebugCategory cat, DebugInfo db, const char *message, va_list args)
+void error_fprint(FILE *out, const struct error *error)
 {
-	if (!out)  out = stderr;
+	out = if_null(out, stderr);
 
-	fprintf(out, "%s:%d: %s: ", db.file, db.line, DebugCategory_string(cat));
-	if (message)
-		vfprintf(out, message, args);
-	fputc('\n', out);
+	fprintf(out, "%s:%d: %s in %s(): %s\n", 
+	        error->source.file, error->source.line,
+			status_string(error->status),
+			error->source.func,
+			error->message ? error->message : "");
 }
 
-void debug_print(FILE *out, DebugCategory cat, DebugInfo db, const char *message, ...)
+void error_fatal(const struct error *error, const char *str, ...)
 {
-	va_list args;
-	va_start(args, message);
-	debug_vfprint(out, cat, db, message, args);
-	va_end(args);
-}
+	error_fprint(stderr, error);
 
-int assert_nop(DebugInfo db, const char *s)
-{
-	UNUSED(db);
-	UNUSED(s);
-	return false;
-}
-
-int assert_exit(DebugInfo db, const char *s)
-{
-	debug_print(stderr, DEBUG_ASSERT, db, s);
-	exit(EXIT_FAILURE);
-	return false;
-}
-
-static AssertHandler_fp KR_ASSERT_HANDLER = assert_exit;
-
-AssertHandler_fp set_assert_handler(AssertHandler_fp new_handler)
-{
-	AssertHandler_fp old_handler = KR_ASSERT_HANDLER;
-	KR_ASSERT_HANDLER = new_handler;
-	return old_handler;
-}
-
-void assert_failure(DebugInfo source, const char *s)
-{
-	KR_ASSERT_HANDLER(source, s);
-}
-
-static struct {
-	ExceptFrame *top;
-	StatusCode status;
-	DebugInfo source;
-} except_stack = { .top=NULL, .status=STATUS_OK };
-
-static void except_stack_push(ExceptFrame *frame)
-{
-	frame->back = except_stack.top;
-	except_stack.top = frame;
-}
-
-#define KR_AUTO(NAME_, VAR_) typeof(VAR_) NAME_ = VAR_
-
-static ExceptFrame *except_stack_pop(void)
-{
-	KR_AUTO(frame, except_stack.top);
-//	typeof(except_stack.top) frame = except_stack.top;
-	return except_stack.top = frame->back, frame;
-}
-
-void except_begin(ExceptFrame *frame)
-{
-	except_stack.status = STATUS_OK;
-	except_stack_push(frame);
-}
-
-void except_rethrow(void)
-{
-	ExceptFrame *frame = except_stack_pop();
-	if (frame == NULL) {
-		debug_print(stderr, DEBUG_ABORT, except_stack.source, "unhandled exception.\n");
-		abort();
+	if (str)
+	{
+		fputc('\t', stderr);
+		va_list args;
+		va_start(args, str);
+		vfprintf(stderr, str, args);
+		va_end(args);
+		fputc('\n', stderr);
 	}
-	longjmp(frame->env, (int)except_stack.status);
+
+	abort();
 }
 
-void except_throw(StatusCode status, DebugInfo dbi)
+void assert_failure(
+		struct source_location source,
+		enum debug_level level, 
+		const char *msg)
 {
-	except_stack.status = status;
-	except_stack.source = dbi;
-	except_rethrow();
+	if (level <= ASSERT_VOLUME)
+	{
+		struct error error = {
+			.source = source,
+			.status = STATUS_ASSERT_FAILURE,
+		};
+		error_fatal(&error, ">>> '%s'", msg);
+	}
 }
 
-void except_end(ExceptFrame *frame)
-{
-	UNUSED(frame);
-	if (except_stack.status != STATUS_OK)
-		except_rethrow();
-}
-
-void except_clear(ExceptFrame *frame)
-{
-	UNUSED(frame);
-	except_stack.status = STATUS_OK;
-}
-
-void fail(StatusCode status, DebugInfo dbg, const char *message, ...)
-{
-	va_list args;
-	va_start(args, message);
-	debug_vfprint(stderr, DEBUG_ERROR, dbg, message, args);
-	va_end(args);
-	
-	except_throw(status, dbg);
-}
-
-int check_index(int i, int length, DebugInfo dbg)
+int check_index(int i, int length, struct source_location dbg)
 {
 	if (i < -length || i >= length) {
-		fail(STATUS_OUT_OF_BOUNDS, dbg, "index %d out of bounds, length %d", i, length);
+		char buf[100] = "";
+		snprintf(buf, 100, "%d is out of bounds [%d..%d)", i, -length, length);
+		assert_failure(dbg, DEBUG_LEVEL_MIN, buf);
 	}
 
-	if (i < 0)  i += length;
-	return i;
+	return (i < 0) ? (i += length) : i;
 }
 
+
+void except_throw(struct except_frame *frame, enum status status, struct source_location source)
+{
+	if (frame == NULL) {
+		struct error error = {
+			.source = source,
+			.status = status,
+		};
+		error_fatal(&error, "Unhandled exception");
+	}
+	longjmp(frame->env, (int)status);
+}
 
 
 //----------------------------------------------------------------------
@@ -182,6 +125,7 @@ char *strbuf_end(strbuf buf)
 {
 	return buf.front + buf.size - 1;
 }
+
 
 bool strand_is_null(strand s)
 {
@@ -304,53 +248,53 @@ void sum_ints(void *total, void *next_i)
 
 
 
-Link *Link_next(Link *n)
+struct link *link_next(struct link *n)
 {
 	return n ? n->next : NULL;
 }
 
-Link *Link_prev(Link *n)
+struct link *link_prev(struct link *n)
 {
 	return n ? n->prev : NULL;
 }
 
-_Bool Link_is_attached(Link *n)
+_Bool link_is_attached(struct link *n)
 {
 	return n && (n->next || n->prev);
 }
 
-_Bool Link_not_attached(Link *n)
+_Bool link_not_attached(struct link *n)
 {
 	return n && !n->next && !n->prev;
 }
 
-_Bool Links_are_attached(Link *l, Link *r)
+_Bool links_are_attached(struct link *l, struct link *r)
 {
 	return l && l->next == r && r && r->prev == l;
 }
 
-Link *Link_attach(Link *a, Link *b)
+struct link *link_attach(struct link *a, struct link *b)
 {
 	if (a)  a->next = b;
 	if (b)  b->prev  = a;
 	return b;
 }
 
-void Link_insert(Link *new_link, Link *before_this)
+void link_insert(struct link *new_link, struct link *before_this)
 {
-	Link_attach(Link_prev(before_this), new_link);
-	Link_attach(new_link, before_this);
+	link_attach(link_prev(before_this), new_link);
+	link_attach(new_link, before_this);
 }
 
-void Link_append(Link *after_this, Link *new_link)
+void link_append(struct link *after_this, struct link *new_link)
 {
-	Link_attach(new_link, Link_next(after_this));
-	Link_attach(after_this, new_link);
+	link_attach(new_link, link_next(after_this));
+	link_attach(after_this, new_link);
 }
 
-void Link_remove(Link *n)
+void link_remove(struct link *n)
 {
-	Link_attach(Link_prev(n), Link_next(n));
+	link_attach(link_prev(n), link_next(n));
 	n->next = n->prev = NULL;
 }
 
@@ -359,24 +303,24 @@ bool Chain_empty(const Chain * const chain)
 	return !chain || chain->head.next == &chain->head;
 }
 
-Link *Chain_first(Chain *chain)
+struct link *Chain_first(Chain *chain)
 {
 	return Chain_empty(chain) ? NULL : chain->head.next;
 }
 
-Link *Chain_last(Chain *chain)
+struct link *Chain_last(Chain *chain)
 {
 	return Chain_empty(chain) ? NULL : chain->head.prev;
 }
 
-void  Chain_prepend(Chain *c, Link *l)
+void  Chain_prepend(Chain *c, struct link *l)
 {
-	Link_append(&c->head, l);
+	link_append(&c->head, l);
 }
 
-void Chain_append(Chain *c, Link *l)
+void Chain_append(Chain *c, struct link *l)
 {
-	Link_insert(l, &c->head);
+	link_insert(l, &c->head);
 }
 
 void Chain_appends(Chain *chain, ...)
@@ -384,18 +328,18 @@ void Chain_appends(Chain *chain, ...)
 	va_list args;
 	va_start(args, chain);
 
-	Link *prev = &chain->head;
-	Link *next = NULL;
-	while ((next = va_arg(args, Link*)))
-		prev = Link_attach(prev, next);
-	Link_attach(prev, &chain->head);
+	struct link *prev = &chain->head;
+	struct link *next = NULL;
+	while ((next = va_arg(args, struct link*)))
+		prev = link_attach(prev, next);
+	link_attach(prev, &chain->head);
 
 	va_end(args);
 }
 
 void *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int offset)
 {
-	for (Link *n = chain->head.next; n && n != &chain->head; n = n->next)
+	for (struct link *n = chain->head.next; n && n != &chain->head; n = n->next)
 		fn(baggage, (Byte*)n + offset);
 	return baggage;
 }

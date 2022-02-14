@@ -53,12 +53,12 @@
 typedef unsigned char Byte;
 
 // void function pointer
-typedef void (*Void_fp)(void);
+typedef void (*VoidFunc)();
 
-bool in_bounds(int n, int lower, int upper);
-
-#define in_bounds_enum(VAL_, ENUM_)    in_bounds((VAL_), (ENUM_##_FIRST), (ENUM_##_LAST))
-#define in_bounds_array(I_, ARR_)      in_bounds((I_), 0, ARRAY_SIZE(ARR_)-1)
+static inline void *if_null(void *p, void *d)
+{
+	return p ? p : d;
+}
 
 
 // Type-safe min/max template
@@ -110,80 +110,135 @@ DEFINE_DECONST_FUNC(size_t, size_t)
 //----------------------------------------------------------------------
 //@module Debugging & Error Checking
 
+enum debug_level 
+{
+	DEBUG_LEVEL_ALWAYS = 0,
+	DEBUG_LEVEL_MIN, 
 
-#define KR_DEBUG_CAT_X_TABLE \
-	X(ERROR) \
-	X(ASSERT) \
-	X(WATCH) \
-	X(TRACE) \
-	X(TEST)  \
-	X(ABORT) 
-  
+	DEBUG_LEVEL_LOW,
+	DEBUG_LEVEL_LOW_1,
+	DEBUG_LEVEL_LOW_2,
+	DEBUG_LEVEL_LOW_3,
+	DEBUG_LEVEL_LOW_4,
+	DEBUG_LEVEL_LOW_5,
+	DEBUG_LEVEL_LOW_6,
+	DEBUG_LEVEL_LOW_7,
+	DEBUG_LEVEL_LOW_8,
+	DEBUG_LEVEL_LOW_9,
 
-#define X(EnumName_)  DEBUG_##EnumName_,
-typedef enum {
-	DEBUG_ZERO,
-	KR_DEBUG_CAT_X_TABLE 
-    STANDARD_ENUM_VALUES(DEBUG)
-} DebugCategory;
-#undef X
+	DEBUG_LEVEL_MEDIUM,
+	DEBUG_LEVEL_MEDIUM_1,
+	DEBUG_LEVEL_MEDIUM_2,
+	DEBUG_LEVEL_MEDIUM_3,
+	DEBUG_LEVEL_MEDIUM_4,
+	DEBUG_LEVEL_MEDIUM_5,
+	DEBUG_LEVEL_MEDIUM_6,
+	DEBUG_LEVEL_MEDIUM_7,
+	DEBUG_LEVEL_MEDIUM_8,
+	DEBUG_LEVEL_MEDIUM_9,
 
-const char *DebugCategory_string(DebugCategory cat);
+	DEBUG_LEVEL_HIGH,
+	DEBUG_LEVEL_HIGH_1,
+	DEBUG_LEVEL_HIGH_2,
+	DEBUG_LEVEL_HIGH_3,
+	DEBUG_LEVEL_HIGH_4,
+	DEBUG_LEVEL_HIGH_5,
+	DEBUG_LEVEL_HIGH_6,
+	DEBUG_LEVEL_HIGH_7,
+	DEBUG_LEVEL_HIGH_8,
+	DEBUG_LEVEL_HIGH_9,
+
+	DEBUG_LEVEL_MAX,
+};
+
+void debug_set_volume(enum debug_level level);
 
 
-typedef struct DebugInfo {
-	const char *file;
-	int         line;
-} DebugInfo;
+#define KR_STATUS_X_TABLE \
+			X(OK,               "OK") \
+			X(ERROR,            "Error") \
+			X(FATAL,            "Fatal error") \
+			X(ASSERT_FAILURE,   "Assertion failed") \
+			X(PRECON_FAIL,      "Precondition failed") \
+			X(TEST_FAILURE,     "Test failed")
 
-#define DEBUG_INFO_INIT   { .file = __FILE__, .line = __LINE__ }
-#define DEBUG_INFO_HERE   (DebugInfo)DEBUG_INFO_INIT
-
-
-
-#define STATUS_X_TABLE \
-  X(OK) \
-  X(TEST_FAILURE) \
-  X(ERROR)  \
-  X(ALLOC_ERROR) \
-  X(ASSERT_FAILURE) \
-  X(OUT_OF_BOUNDS) \
-  X(UNKNOWN_ERROR) \
-
-#define X(EnumName_)  STATUS_##EnumName_,
-typedef enum {
-    STATUS_X_TABLE
+#define X(EnumName_, _)  STATUS_##EnumName_,
+enum status {
+    KR_STATUS_X_TABLE
     STANDARD_ENUM_VALUES(STATUS)
-} StatusCode;
+};
 #undef X
 
-const char *StatusCode_string(StatusCode stat);
-
-void debug_print(FILE *out, DebugCategory cat, DebugInfo db, const char *message, ...);
-
-typedef int (*AssertHandler_fp)(DebugInfo, const char *);
-AssertHandler_fp set_assert_handler(AssertHandler_fp new_handler);
-
-int  assert_nop(DebugInfo db, const char *s);
-int  assert_exit(DebugInfo db, const char *s);
-void assert_failure(DebugInfo source, const char *s);
-
-#define REQUIRE(CONDITION_)   \
-	do{ if (CONDITION_); else assert_failure(DEBUG_INFO_HERE, #CONDITION_); } while(0)
+const char *status_string(enum status stat);
 
 
-int check_index(int i, int length, DebugInfo dbg);
+struct source_location 
+{
+	const char *file;
+	unsigned    line;
+	const char *func;
+};
 
-#define CHECK(I_, LEN_)  check_index((I_), (LEN_), DEBUG_INFO_HERE)
+#define SOURCE_LOCATION_INIT  { .file=__FILE__, .line=__LINE__, .func=__func__ }
+#define CURRENT_LOCATION      (struct source_location)SOURCE_LOCATION_INIT
 
-typedef struct ExceptFrame {
-	struct ExceptFrame *back;
-	jmp_buf env;
-} ExceptFrame;
+struct error 
+{ 
+	struct source_location  source;
+	enum status             status;
+	const char             *message;
+};
 
-void except_begin(ExceptFrame *frame);
-void except_end(ExceptFrame *frame);
-void except_clear(ExceptFrame *frame);
+void error_fprint(FILE *out, const struct error *error);
+void error_fatal(const struct error *error, const char *str, ...);
+
+void assert_failure(struct source_location source, enum debug_level level, const char *msg);
+
+#define PRECON(Condition_, Level_) \
+	do{ if (Condition_); else assert_failure(CURRENT_LOCATION, (Level_), #Condition_); } while(0)
+
+#define REQUIRE(Condition_)  PRECON(Condition_, DEBUG_LEVEL_LOW) 
+
+
+#define TEST_CASE(TEST_NAME_)  void TestCase_##TEST_NAME_(void)
+#define TEST(CONDITION_)       test_assert((CONDITION_), CURRENT_LOCATION, "'" #CONDITION_ "'")
+void test_assert(bool condition, struct source_location source, const char *msg);
+
+
+#define CHECK(I_, LEN_)  check_index((I_), (LEN_), CURRENT_LOCATION)
+int check_index(int i, int length, struct source_location dbg);
+
+
+struct except_frame {
+	volatile struct { jmp_buf env; };
+};
+
+void except_throw(struct except_frame *frame, enum status status, struct source_location dbi);
+
+
+//----------------------------------------------------------------------
+//@module Vector - tuple with named and random access
+
+#define TVector(TYPE_, ...) \
+	union { \
+		struct { TYPE_ __VA_ARGS__; }; \
+		TYPE_ at[VA_NARGS(__VA_ARGS__)]; \
+	}
+
+#define VECT_LENGTH(V_)    (int)(ARRAY_SIZE((V_).at))
+
+//----------------------------------------------------------------------
+//@module range
+
+struct range
+{
+	int start, stop;
+};
+
+static inline bool range_has(struct range r, int i)
+{
+	return (r.start <= i  &&  i < r.stop);
+}
 
 //----------------------------------------------------------------------
 //@module Span Template
@@ -208,18 +263,6 @@ typedef TSPAN(void)     void_span;
 typedef TSPAN(Byte)     byte_span;
 typedef TSPAN(char*)    str_span;
 
-
-//----------------------------------------------------------------------
-//@module Vector - tuple with named and random access
-
-#define TVector(TYPE_, ...) \
-	union { \
-		struct { TYPE_ __VA_ARGS__; }; \
-		TYPE_ at[VA_NARGS(__VA_ARGS__)]; \
-	}
-
-#define VECT_LENGTH(V_)    (int)(ARRAY_SIZE((V_).at))
-
 //----------------------------------------------------------------------
 //@module strand
 
@@ -237,9 +280,9 @@ static inline strbuf strbuf_init(char buf[], size_t size)
 #define STRBUF_INIT(BUF_)  strbuf_init((BUF_), sizeof(BUF_))
 
 
-typedef TSPAN(char) strand;
+typedef TSPAN(const char) strand;
 
-static inline strand strand_init(char *s, int length)
+static inline strand strand_init(const char *s, int length)
 {
 	return (strand){ .front = s, .back = s + length };
 }
@@ -262,24 +305,24 @@ strand strand_trim(strand s, int (*istype)(int));
 //----------------------------------------------------------------------
 //@module Chain - Double Linked List
 
-typedef struct Link {
-	struct Link *next, *prev;
-} Link;
+struct link {
+	struct link *next, *prev;
+};
 
 #define LINK_INIT(...)   {0, __VA_ARGS__ }
 
-Link  *Link_next(Link *n);
-Link  *Link_prev(Link *b);
-bool   Link_is_attached(Link *n);
-bool   Link_not_attached(Link *n);
-bool   Links_are_attached(Link *a, Link *b);
-Link  *Link_attach(Link *a, Link *b);
-void   Link_insert(Link *new_link, Link *before_this);
-void   Link_append(Link *after_this, Link *new_link);
-void   Link_remove(Link *n);
+struct link *link_next(struct link *n);
+struct link *link_prev(struct link *b);
+bool         link_is_attached(struct link *n);
+bool         link_not_attached(struct link *n);
+bool         links_are_attached(struct link *a, struct link *b);
+struct link *link_attach(struct link *a, struct link *b);
+void         link_insert(struct link *new_link, struct link *before_this);
+void         link_append(struct link *after_this, struct link *new_link);
+void         link_remove(struct link *n);
 
 typedef struct Chain {
-	Link head;
+	struct link head;
 } Chain;
 
 // Use: 
@@ -288,10 +331,10 @@ typedef struct Chain {
 #define CHAIN_INIT(C_)   { .head = { .next = &(C_).head, .prev = &(C_).head } }
 
 bool   Chain_empty(const Chain * const chain);
-Link  *Chain_first(Chain *chain);
-Link  *Chain_last(Chain *chain);
-void   Chain_prepend(Chain *c, Link *l);
-void   Chain_append(Chain *c, Link *l);
+struct link  *Chain_first(Chain *chain);
+struct link  *Chain_last(Chain *chain);
+void   Chain_prepend(Chain *c, struct link *l);
+void   Chain_append(Chain *c, struct link *l);
 void   Chain_appends(Chain *chain, ...);
 void  *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int offset);
 
@@ -305,8 +348,8 @@ void  *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int o
 
 char *timestamp(char *s, size_t num, struct tm *(*totime)(const time_t*));
 
-#define TIMESTAMP_GMT  timestamp((char[TIMESTAMP_SIZE]){}, TIMESTAMP_SIZE, gmtime)
-#define TIMESTAMP_LOC  timestamp((char[TIMESTAMP_SIZE]){}, TIMESTAMP_SIZE, localtime)
+#define TIMESTAMP_GMT()  timestamp((char[TIMESTAMP_SIZE]){}, TIMESTAMP_SIZE, gmtime)
+#define TIMESTAMP_LOC()  timestamp((char[TIMESTAMP_SIZE]){}, TIMESTAMP_SIZE, localtime)
 
 
 
@@ -522,7 +565,7 @@ typedef struct Fibonacci_struct {
 
 #define FIB_LITERAL   (Fibonacci){ .f0 = 0, .f1 = 1 }
 
-static inline Fibonacci Fib_begin()
+static inline Fibonacci Fib_begin(void)
 {
 	return FIB_LITERAL;
 }
@@ -538,3 +581,4 @@ static inline Fibonacci Fib_next(Fibonacci fib)
 }
 
 #endif
+// vim: ft=c
