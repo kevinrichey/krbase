@@ -55,8 +55,8 @@ bool iter2d_done(const struct iter2d *iter)
 
 rowcol iter2d_next(struct iter2d *iter)
 {
-	++iter->cur.col;
-	if (iter->cur.col >= iter->second.stop) {
+	if (++iter->cur.col >= iter->second.stop) 
+	{
 		iter->cur.col = iter->second.start;
 		++iter->cur.row;
 	}

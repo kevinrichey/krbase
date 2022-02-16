@@ -141,14 +141,14 @@ For example: int_max() and fl_min().
 
 ## Matching Pairs
 
-- init, dispose
-- create, destroy
+- init, dispose - object value
+- create, destroy - object lifetime
 - start, stop
-- begin, end
+- begin, end - iteration
 - enter, exit / leave
 - acquire, release
-- first, last
-- front, back
+- first, last - member/element in container
+- front, back - ends of a span of elements/members
 - head, tail
 - get, put
 - set, unset
@@ -458,7 +458,7 @@ Information about specific error.
 
 # Basic Types 
 
-- span - begin & end pointer pair
+- span - pair of pointers to front & back of elements
 - range - start, stop, step
 - vector - fixed-length, named & random access
 - array  - size, flex array member
@@ -539,6 +539,33 @@ Enumerated, ordered objects.
 - tree - branching acyclic graph
 - graph - nodes & edges
 
+# Grid
+
+Generic dynamic 2D array of elements.
+
+## Grid Cell
+
+- row, column -  position of cell in grid
+- state - OK, INVALID
+
+## Grid operations
+
+- create(r,c) - create grid with *r* rows and *c* columns.
+- init(o) - initialized grid, set each element to *o*.
+- nrows() - # of rows
+- ncols() - # of columns
+- cell(p) - pointer to cell at position *p*, null if out of bounds
+- cell_try(p,x) - pointer to cell at *p*, exception if out of bounds
+- begin() - iteration
+- pending()
+- row(r)  - return span of row *r*
+- above(p) - return position in row above *p*
+- below(p) - return position in row below *p*
+- before(p) - return position in column left of *p*
+- after(p)  - return position in column right of *p*
+- includes(p)  - true if position is within the grid
+
+
 # Standard Operations
 
 ## Object Existence
@@ -593,18 +620,19 @@ Properties
 - start   -  Beginning position
 - stop    -  Ending position, past last element 
 - step     - direction & number
-- count    - number of steps before stopping; 1/n/all
 
 State
 
-- position 
-- done:      true if position equals stop, no more elements
-- get:       Current element, fails if done.
+- position - curent index, ID, or location within the range
+- complete - *position* equals *stop*, no remaining elements
+- pending  - begun and not completed
+- peek     - Current element, fails if done.
 
 Operations
 
-- begin:     Start itertion 
-- next(n)  - advance n steps (default 1), fails if done.
+- begin()    - Start itertion from first element of the *container* or *sequence*.
+- next()     - advance to next element, no-op if *complete*.
+- end()      - move to *stop*
 
 Common inits
 
