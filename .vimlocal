@@ -34,6 +34,7 @@ nnoremap <F3>i :cscope find i @#<CR>|          " - i: Files #including this file
 nnoremap <F5>   :make<CR>|    " - F5: make all
 nnoremap <C-F5> :make run-test<CR>|   " - Ctrl-F5:  make test
 nnoremap <F9>   :exec('make break FILE=% LINE='.line('.'))<CR>|   " - F9: Debug and break at this line
+nnoremap <Leader>m  :make<CR>
 nnoremap <Leader>u  :make run_test<CR><CR>
 
 " C Snippets

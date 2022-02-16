@@ -10,20 +10,16 @@ typedef TVector(int, row, col) rowcol;
 
 enum cell_dirs 
 {
-	CELL_NORTH, CELL_EAST, CELL_WEST, CELL_SOUTH,
+	CELL_NORTH, CELL_SOUTH, CELL_EAST, CELL_WEST,
 	STANDARD_ENUM_VALUES(CELL)
 };
 
 struct maze_cell 
 {
-	rowcol pos;
-	struct 
-	{ 
-		struct maze_cell *north,
-		                 *east,
-		                 *west,
-		                 *south;
-	} edges;
+	struct maze_cell *north,
+					 *south,
+					 *east,
+					 *west;
 };
 
 static inline int row_col_index(int row, int col, int ncols)
@@ -71,12 +67,6 @@ struct maze_grid *maze_grid_create(int nrows, int ncols)
 	memset(grid, 0, grid_size);
 	grid->nrows = nrows;
 	grid->ncols = ncols;
-
-	int i = 0;
-	struct iter2d iter = { {0,nrows}, {0,ncols} };
-	for (rowcol rc = iter2d_start(&iter); !iter2d_done(&iter); rc = iter2d_next(&iter))
-		grid->cells[i++].pos = rc;
-
 	return grid;
 }
 
@@ -91,7 +81,7 @@ void maze_grid_draw_ascii(struct maze_grid *grid)
 
 		for (int col = 0; col < grid->ncols; ++col) {
 			const struct maze_cell *cell = maze_cell_at(grid, row, col);
-			if (cell->edges.north)
+			if (cell->north)
 				printf(" | ");
 			else
 				printf("   ");
@@ -101,14 +91,14 @@ void maze_grid_draw_ascii(struct maze_grid *grid)
 		for (int col = 0; col < grid->ncols; ++col) {
 			const struct maze_cell *cell = maze_cell_at(grid, row, col);
 
-			if (cell->edges.west)
+			if (cell->west)
 				putchar('-');
 			else
 				putchar(' ');
 
 			putchar('+');
 
-			if (cell->edges.east)
+			if (cell->east)
 				putchar('-');
 			else
 				putchar(' ');
@@ -117,7 +107,7 @@ void maze_grid_draw_ascii(struct maze_grid *grid)
 
 		for (int col = 0; col < grid->ncols; ++col) {
 			const struct maze_cell *cell = maze_cell_at(grid, row, col);
-			if (cell->edges.south)
+			if (cell->south)
 				printf(" | ");
 			else
 				printf("   ");
@@ -196,27 +186,29 @@ int main(int argc, char *argv[])
 
 	struct maze_grid *grid = maze_grid_create(options.height, options.width);
 
-	struct maze_cell *cell = &grid->cells[1];  // skip top-left cell
-	struct maze_cell *end  = grid->cells + (grid->ncols * grid->nrows);
-	while (cell != end) {
-
+	struct iter2d iter = { {0,grid->nrows}, {0,grid->ncols} };
+	rowcol pos = iter2d_start(&iter);
+	pos = iter2d_next(&iter); 
+	while ( !iter2d_done(&iter) )
+	{
+		struct maze_cell *cell = maze_cell_at(grid, pos.row, pos.col);
 		enum cell_dirs choices[2];
 		int n = 0;
 
-		if (cell->pos.row > 0)  choices[n++] = CELL_NORTH;
-		if (cell->pos.col > 0)  choices[n++] = CELL_WEST;
+		if (pos.row > 0)  choices[n++] = CELL_NORTH;
+		if (pos.col > 0)  choices[n++] = CELL_WEST;
 
 		if (choices[rand()%n] == CELL_NORTH) {
-			struct maze_cell *link = maze_cell_at(grid, cell->pos.row-1, cell->pos.col);
-			cell->edges.north = link;
-			link->edges.south = cell;
+			struct maze_cell *link = maze_cell_at(grid, pos.row-1, pos.col);
+			cell->north = link;
+			link->south = cell;
 		}
 		else {
-			struct maze_cell *link = maze_cell_at(grid, cell->pos.row, cell->pos.col-1);
-			cell->edges.west = link;
-			link->edges.east = cell;
+			struct maze_cell *link = maze_cell_at(grid, pos.row, pos.col-1);
+			cell->west = link;
+			link->east = cell;
 		}
-		++cell;
+		pos = iter2d_next(&iter); 
 	}
 
 	maze_grid_draw_ascii(grid);
@@ -224,5 +216,4 @@ int main(int argc, char *argv[])
 	free(grid);
 	return 0;
 }
- 
 

@@ -41,7 +41,7 @@
 #define ARRAY_SIZE(A_)    (sizeof(A_) / sizeof(*(A_)))
 
 #define MEMBER_TO_STRUCT_PTR(PTR_, TYPE_, MEMBER_)  \
-	(TYPE_*)((Byte*)(PTR_) - offsetof(TYPE_, MEMBER_))
+	(TYPE_*)((byte*)(PTR_) - offsetof(TYPE_, MEMBER_))
 
 #define FAMSIZE(OBJ_, FAM_, LENGTH_)  (sizeof((OBJ_)) + sizeof(*(OBJ_).FAM_) * (LENGTH_))
 #define NUM_STR_LEN(T_)  (3*sizeof(T_)+2)
@@ -50,12 +50,17 @@
 //----------------------------------------------------------------------
 //@module Primitive Utilities
 
-typedef unsigned char Byte;
+typedef unsigned char byte;
 
 // void function pointer
 typedef void (*VoidFunc)();
 
 static inline void *if_null(void *p, void *d)
+{
+	return p ? p : d;
+}
+
+static inline const void *if_null_const(const void *p, const void *d)
 {
 	return p ? p : d;
 }
@@ -182,6 +187,7 @@ struct source_location
 #define SOURCE_LOCATION_INIT  { .file=__FILE__, .line=__LINE__, .func=__func__ }
 #define CURRENT_LOCATION      (struct source_location)SOURCE_LOCATION_INIT
 
+
 struct error 
 { 
 	struct source_location  source;
@@ -260,7 +266,7 @@ typedef TSPAN(char)     char_span;
 typedef TSPAN(int)      int_span;
 typedef TSPAN(double)   dub_span;
 typedef TSPAN(void)     void_span;
-typedef TSPAN(Byte)     byte_span;
+typedef TSPAN(byte)     byte_span;
 typedef TSPAN(char*)    str_span;
 
 //----------------------------------------------------------------------

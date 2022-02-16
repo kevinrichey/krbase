@@ -206,7 +206,7 @@ strand strand_trim(strand s, int (*istype)(int))
 
 byte_span Bytes_init_str(char *s)
 {
-	return (byte_span)SPAN_INIT((Byte*)s, strlen(s));
+	return (byte_span)SPAN_INIT((byte*)s, strlen(s));
 }
 
 
@@ -340,7 +340,7 @@ void Chain_appends(Chain *chain, ...)
 void *Chain_foreach(Chain *chain, void (*fn)(void*,void*), void *baggage, int offset)
 {
 	for (struct link *n = chain->head.next; n && n != &chain->head; n = n->next)
-		fn(baggage, (Byte*)n + offset);
+		fn(baggage, (byte*)n + offset);
 	return baggage;
 }
 
@@ -394,8 +394,8 @@ uint64_t hash_fnv_1a_64bit(byte_span data, uint64_t hash)
 {
 	const uint64_t fnv_1a_64bit_prime = 0x100000001B3;
 
-	const Byte *end = data.back;
-	for (const Byte *b = data.front; b != end; ++b) {
+	const byte *end = data.back;
+	for (const byte *b = data.front; b != end; ++b) {
 		hash ^= (uint64_t)*b;
 		hash *= fnv_1a_64bit_prime;
 	}

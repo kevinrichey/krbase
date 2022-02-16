@@ -150,10 +150,10 @@ TEST_CASE(object_life_cycle)
 
 
 #define Bytes_init_array(ARR_)  \
-			(byte_span)SPAN_INIT((Byte*)(ARR_), sizeof(ARR_))
+			(byte_span)SPAN_INIT((byte*)(ARR_), sizeof(ARR_))
 
 #define Bytes_init_var(VAR_)   \
-			(byte_span)SPAN_INIT((Byte*)&(VAR_), sizeof(VAR_))
+			(byte_span)SPAN_INIT((byte*)&(VAR_), sizeof(VAR_))
 
 byte_span Bytes_init_str(char *s);
 
@@ -197,7 +197,7 @@ TEST_CASE(FNV_hash_test)
 
 void fill(void *data, int length, void *set, int e_size)
 {
-	Byte *b = data;
+	byte *b = data;
 
 	while (length --> 0) {
 		memcpy(b, set, e_size);
