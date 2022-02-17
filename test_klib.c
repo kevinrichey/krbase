@@ -138,7 +138,7 @@ TEST_CASE(num_chars_to_store_numbers)
 //-----------------------------------------------------------------------------
 // Primitive Utilities
 
-_Static_assert(sizeof(Byte) == 1, "byte must have sizeof 1");
+_Static_assert(sizeof(byte) == 1, "byte must have sizeof 1");
 
 TEST_CASE(if_null_default_pointer)
 {
@@ -148,6 +148,8 @@ TEST_CASE(if_null_default_pointer)
 	void *d = &(int){100};
 	void *p = s;
 	TEST(if_null(p, d) == s);
+
+	TEST(if_null_const(NULL, "not null"));
 }
 
 TEST_CASE(type_safe_max)
@@ -234,47 +236,9 @@ TEST_CASE(capture_debug_context_info)
 }
 
 
-
-
-
-
-
-// %f - file name
-// %l - line number
-// %d - time-date stamp
-// %c - debug category
-// %s - status code
-void debug_format(FILE *out, const char *format, const struct source_location *dbi)
-{
-	for ( ; *format; ++format)
-		if (*format == '%')
-			switch (*++format) {
-				case 'F':
-					fputs(dbi->file, out);
-					break;
-				case 'L': {
-					unsigned n = dbi->line;
-					char *s = (char[NUM_STR_LEN(int)]){} + NUM_STR_LEN(int) - 1;
-					for (*s-- = '\0'; *s = '0' + n % 10, n /= 10; --s) ;
-					while (*s) fputc(*s++, out);
-					//fprintf(out, "%d", dbi->line);
-					break;
-				}
-				case 'G':
-					fputs(TIMESTAMP_GMT(), out);
-					break;
-				case '%':
-					fputc('%', out);
-					break;
-			}
-		else
-			fputc(*format, out);
-}
-
 //-----------------------------------------------------------------------------
 // exceptions
 //
-
 
 void this_func_throws_up(struct except_frame *xf)
 {
