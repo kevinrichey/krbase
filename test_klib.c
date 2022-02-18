@@ -10,6 +10,11 @@
 #include "krclib.h"
 #include "krstring.h"
 
+TEST_CASE(this_test_always_fails)
+{
+	//TEST(false);
+}
+
 //-----------------------------------------------------------------------------
 // Testing Language Assumptions
 //
