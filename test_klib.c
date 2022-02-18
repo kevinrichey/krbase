@@ -212,6 +212,68 @@ TEST_CASE(type_safe_const_cast)
 	TEST(d[1] == 2.718);
 }
 
+struct safe_int
+{
+	int value;
+	enum status status; 
+};
+
+bool safe_int_add_overflows(int a, int b)
+{
+	return (a > INT_MAX - b);
+}
+
+struct safe_int safe_int_add(int a, int b)
+{
+	if (safe_int_add_overflows(a, b))
+        return (struct safe_int){ .status = STATUS_MATH_OVERFLOW };
+	else
+        return (struct safe_int){ .status = STATUS_OK, .value = a + b };
+}
+
+TEST_CASE(signed_int_overflow_protection)
+{
+	struct safe_int r;
+
+	r = safe_int_add(1000, 2000);
+	TEST(r.status == STATUS_OK);
+	TEST(r.value == 3000);
+
+	int a = INT_MAX - 100;
+	int b = INT_MAX - 300;
+    r = safe_int_add(a, b);
+    TEST(r.status == STATUS_MATH_OVERFLOW);
+}
+
+struct safe_size_t
+{
+	size_t value;
+	enum status status; 
+};
+
+struct safe_size_t safe_size_t_mult(size_t a, size_t b)
+{
+    if (b != 0 && a > SIZE_MAX / b)
+        return (struct safe_size_t){ .status = STATUS_MATH_OVERFLOW };
+	else
+        return (struct safe_size_t){ .status = STATUS_OK, .value = a * b };
+}
+
+TEST_CASE(size_t_mult_overflow_detection)
+{
+    struct safe_size_t r;
+
+    r = safe_size_t_mult(200, 300);
+    TEST(r.status == STATUS_OK);
+    TEST(r.value  == 60000);
+
+    size_t a = SIZE_MAX - 200;
+    size_t b = SIZE_MAX - 300;
+    r = safe_size_t_mult(a, b);
+    TEST(r.status == STATUS_MATH_OVERFLOW);
+
+}
+
 //-----------------------------------------------------------------------------
 // Debug module
 //

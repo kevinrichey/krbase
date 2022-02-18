@@ -165,7 +165,8 @@ void debug_set_volume(enum debug_level level);
 			X(FATAL,            "Fatal error") \
 			X(ASSERT_FAILURE,   "Assertion failed") \
 			X(PRECON_FAIL,      "Precondition failed") \
-			X(TEST_FAILURE,     "Test failed")
+			X(TEST_FAILURE,     "Test failed") \
+            X(MATH_OVERFLOW,    "Integer overflow") 
 
 #define X(EnumName_, _)  STATUS_##EnumName_,
 enum status {
