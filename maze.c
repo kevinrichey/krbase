@@ -27,9 +27,14 @@ static inline int row_col_index(int row, int col, int ncols)
 	return (row * ncols) + col;
 }
 
-struct maze_grid
+struct grid
 {
 	int nrows, ncols;
+};
+
+struct maze_grid
+{
+	struct grid grid;
 	struct maze_cell cells[];
 };
 
@@ -65,21 +70,21 @@ struct maze_grid *maze_grid_create(int nrows, int ncols)
 	size_t grid_size = 0;
 	struct maze_grid *grid = malloc(grid_size = sizeof(*grid) + (sizeof(*grid->cells) * num_cells));
 	memset(grid, 0, grid_size);
-	grid->nrows = nrows;
-	grid->ncols = ncols;
+	grid->grid.nrows = nrows;
+	grid->grid.ncols = ncols;
 	return grid;
 }
 
 struct maze_cell *maze_cell_at(struct maze_grid *grid, int row, int col)
 {
-	return &grid->cells[row_col_index(row, col, grid->ncols)];
+	return &grid->cells[row_col_index(row, col, grid->grid.ncols)];
 }
 
 void maze_grid_draw_ascii(struct maze_grid *grid)
 {
-	for (int row = 0; row < grid->nrows; ++row) {
+	for (int row = 0; row < grid->grid.nrows; ++row) {
 
-		for (int col = 0; col < grid->ncols; ++col) {
+		for (int col = 0; col < grid->grid.ncols; ++col) {
 			const struct maze_cell *cell = maze_cell_at(grid, row, col);
 			if (cell->north)
 				printf(" | ");
@@ -88,7 +93,7 @@ void maze_grid_draw_ascii(struct maze_grid *grid)
 		}
 		putchar('\n');
 
-		for (int col = 0; col < grid->ncols; ++col) {
+		for (int col = 0; col < grid->grid.ncols; ++col) {
 			const struct maze_cell *cell = maze_cell_at(grid, row, col);
 
 			if (cell->west)
@@ -105,7 +110,7 @@ void maze_grid_draw_ascii(struct maze_grid *grid)
 		}
 		putchar('\n');
 
-		for (int col = 0; col < grid->ncols; ++col) {
+		for (int col = 0; col < grid->grid.ncols; ++col) {
 			const struct maze_cell *cell = maze_cell_at(grid, row, col);
 			if (cell->south)
 				printf(" | ");
@@ -186,7 +191,7 @@ int main(int argc, char *argv[])
 
 	struct maze_grid *grid = maze_grid_create(options.height, options.width);
 
-	struct iter2d iter = { {0,grid->nrows}, {0,grid->ncols} };
+	struct iter2d iter = { {0,grid->grid.nrows}, {0,grid->grid.ncols} };
 	rowcol pos = iter2d_start(&iter);
 	pos = iter2d_next(&iter); 
 	while ( !iter2d_done(&iter) )
