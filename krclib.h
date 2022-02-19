@@ -100,6 +100,7 @@ KR_SWAP_TEMPLATE(bool, bool)
 
 
 // Type-safe const casting
+//
 #define DEFINE_DECONST_FUNC(TYPE_, PRE_)  \
 static inline TYPE_ *PRE_##_deconst(const TYPE_ *i) { return (TYPE_*)i; }
 
@@ -110,7 +111,6 @@ DEFINE_DECONST_FUNC(unsigned, uint)
 DEFINE_DECONST_FUNC(double, fl)
 DEFINE_DECONST_FUNC(bool, bool)
 DEFINE_DECONST_FUNC(size_t, size_t)
-
 
 //----------------------------------------------------------------------
 //@module Debugging & Error Checking
@@ -166,7 +166,7 @@ void debug_set_volume(enum debug_level level);
 			X(ASSERT_FAILURE,   "Assertion failed") \
 			X(PRECON_FAIL,      "Precondition failed") \
 			X(TEST_FAILURE,     "Test failed") \
-            X(MATH_OVERFLOW,    "Integer overflow") 
+            X(MATH_OVERFLOW,    "Arithmetic overflow") 
 
 #define X(EnumName_, _)  STATUS_##EnumName_,
 enum status {
@@ -206,6 +206,8 @@ void assert_failure(struct source_location source, enum debug_level level, const
 
 #define REQUIRE(Condition_)  PRECON(Condition_, DEBUG_LEVEL_LOW) 
 
+#define FAILURE(Status_, Message_)   \
+	error_fatal(&(struct error){ .source=CURRENT_LOCATION, .status=(Status_), .message=(Message_) }, NULL)
 
 #define TEST_CASE(TEST_NAME_)  void TestCase_##TEST_NAME_(void)
 #define TEST(CONDITION_)       test_assert((CONDITION_), CURRENT_LOCATION, "'" #CONDITION_ "'")
@@ -221,7 +223,21 @@ struct except_frame {
 };
 
 void except_throw(struct except_frame *frame, enum status status, struct source_location dbi);
+void except_try(struct except_frame *frame, enum status status, struct source_location dbi);
 
+
+//----------------------------------------------------------------------
+// Arithmetic Overflow Safety
+
+struct safe_size_t
+{
+	size_t value;
+	enum status status; 
+};
+
+bool size_t_mult_overflows(a, b);
+struct safe_size_t safe_size_t_mult(size_t a, size_t b);
+struct safe_size_t safe_size_t_add(size_t a, size_t b);
 
 //----------------------------------------------------------------------
 //@module Vector - tuple with named and random access

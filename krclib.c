@@ -117,6 +117,40 @@ void except_throw(struct except_frame *frame, enum status status, struct source_
 	longjmp(frame->env, (int)status);
 }
 
+void except_try(struct except_frame *frame, enum status status, struct source_location source)
+{
+	if (status != STATUS_OK)
+		except_throw(frame, status, source);
+}
+
+bool size_t_mult_overflows(a, b)
+{
+	return b != 0 && a > SIZE_MAX / b;
+}
+
+struct safe_size_t safe_size_t_mult(size_t a, size_t b)
+{
+	struct safe_size_t r = { .status = STATUS_OK };
+
+    if (size_t_mult_overflows(a, b))
+		r.status = STATUS_MATH_OVERFLOW;
+	else
+		r.value = a * b;
+
+	return r;
+}
+
+struct safe_size_t safe_size_t_add(size_t a, size_t b)
+{
+	struct safe_size_t r = { .status = STATUS_OK };
+
+    if (a > SIZE_MAX - b)
+		r.status = STATUS_MATH_OVERFLOW;
+	else
+		r.value = a + b;
+
+	return r;
+}
 
 //----------------------------------------------------------------------
 // strand Module

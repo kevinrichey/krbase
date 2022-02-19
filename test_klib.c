@@ -245,34 +245,6 @@ TEST_CASE(signed_int_overflow_protection)
     TEST(r.status == STATUS_MATH_OVERFLOW);
 }
 
-struct safe_size_t
-{
-	size_t value;
-	enum status status; 
-};
-
-struct safe_size_t safe_size_t_mult(size_t a, size_t b)
-{
-    if (b != 0 && a > SIZE_MAX / b)
-        return (struct safe_size_t){ .status = STATUS_MATH_OVERFLOW };
-	else
-        return (struct safe_size_t){ .status = STATUS_OK, .value = a * b };
-}
-
-TEST_CASE(size_t_mult_overflow_detection)
-{
-    struct safe_size_t r;
-
-    r = safe_size_t_mult(200, 300);
-    TEST(r.status == STATUS_OK);
-    TEST(r.value  == 60000);
-
-    size_t a = SIZE_MAX - 200;
-    size_t b = SIZE_MAX - 300;
-    r = safe_size_t_mult(a, b);
-    TEST(r.status == STATUS_MATH_OVERFLOW);
-
-}
 
 //-----------------------------------------------------------------------------
 // Debug module
@@ -304,12 +276,21 @@ TEST_CASE(capture_debug_context_info)
 
 void this_func_throws_up(struct except_frame *xf)
 {
-	except_throw(xf, STATUS_ERROR, CURRENT_LOCATION);
+	except_try(xf, STATUS_ERROR, CURRENT_LOCATION);
 }
 
 TEST_CASE(func_throws_exception)
 {
 	struct except_frame xf;
+
+	switch (setjmp(xf.env)) {
+		case 0:
+			except_try(&xf, STATUS_OK, CURRENT_LOCATION);
+			// it should not throw
+			break;
+		default:
+			TEST(false && "Exception was thrown!");
+	}
 
 	switch (setjmp(xf.env)) {
 		case 0:
@@ -322,6 +303,30 @@ TEST_CASE(func_throws_exception)
 		default:
 			TEST(false && "Wrong exception thrown");
 	}
+}
+
+//-----------------------------------------------------------------------------
+// Arithmetic Overflow Safety
+//
+
+TEST_CASE(size_t_overflow_detection)
+{
+    struct safe_size_t r = {0};
+
+    r = safe_size_t_mult(200, 300);
+	TEST(r.status == STATUS_OK);
+	TEST(r.value  == 60000);
+
+	r = safe_size_t_mult(SIZE_MAX-200, SIZE_MAX-300);
+	TEST(r.status == STATUS_MATH_OVERFLOW);
+	TEST(r.value == 0);
+
+	r = safe_size_t_add(10000, 99);
+	TEST(r.status == STATUS_OK);
+	TEST(r.value  == 10099);
+
+	r = safe_size_t_add(SIZE_MAX-100, 101);
+	TEST(r.status == STATUS_MATH_OVERFLOW);
 }
 
 //-----------------------------------------------------------------------------

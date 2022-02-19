@@ -64,14 +64,21 @@ rowcol iter2d_next(struct iter2d *iter)
 	return iter->cur;
 }
 
-struct maze_grid *maze_grid_create(int nrows, int ncols)
+struct maze_grid *maze_grid_create(int nrows, int ncols, struct except_frame *xf)
 {
-	int num_cells = nrows * ncols;
-	size_t grid_size = 0;
-	struct maze_grid *grid = malloc(grid_size = sizeof(*grid) + (sizeof(*grid->cells) * num_cells));
-	memset(grid, 0, grid_size);
+	struct safe_size_t size = {0};
+
+	// size_t num_cells = nrows * ncols;
+	struct maze_grid *grid = NULL;
+	except_try(xf, (size = safe_size_t_mult((size_t)nrows, (size_t)ncols)).status, CURRENT_LOCATION);
+	except_try(xf, (size = safe_size_t_mult(size.value, sizeof *grid->cells)).status, CURRENT_LOCATION);
+	except_try(xf, (size = safe_size_t_add(size.value, sizeof *grid)).status, CURRENT_LOCATION);
+	grid = malloc(size.value);
+	memset(grid, 0, size.value);
+
 	grid->grid.nrows = nrows;
 	grid->grid.ncols = ncols;
+
 	return grid;
 }
 
@@ -129,15 +136,14 @@ typedef struct {
 } MazeOptions;
 
 
-//unsigned parse_uint_option(int argi, int argc, char *argv[], const char *name)
-unsigned parse_uint_option(int argi, str_span args, const char *name)
+unsigned parse_uint_option(int argi, int argc, char *argv[], const char *name)
 {
-	if (argi >= SPAN_LENGTH(args)) {
+	if (argi >= argc) {
 		fprintf(stderr, "ERROR: missing value for argument %s\n", name);
 		exit(0);
 	}
 
-	unsigned long n = strtoul(args.front[argi], NULL, 0);
+	unsigned long n = strtoul(argv[argi], NULL, 0);
 
 	if (errno) {
 		fprintf(stderr, "ERROR: argument %s: %s\n", name, strerror(errno));
@@ -159,17 +165,15 @@ unsigned parse_uint_option(int argi, str_span args, const char *name)
 
 void MazeOptions_read(MazeOptions *options, int argc, char *argv[])
 {
-	str_span args = SPAN_INIT_N(argv, argc);
-
 	for (int i = 1; i < argc; ++i) {
 		if (!strcmp(argv[i], "-size"))
-			options->height = options->width = parse_uint_option(++i, args, "-size");
+			options->height = options->width = parse_uint_option(++i, argc, argv, "-size");
 		else if (!strcmp(argv[i], "-width"))
-			options->width = parse_uint_option(++i, args, "-width");
+			options->width = parse_uint_option(++i, argc, argv, "-width");
 		else if (!strcmp(argv[i], "-height"))
-			options->height = parse_uint_option(++i, args, "-height");
+			options->height = parse_uint_option(++i, argc, argv, "-height");
 		else if (!strcmp(argv[i], "-seed")) 
-			options->seed = parse_uint_option(++i, args, "-seed");
+			options->seed = parse_uint_option(++i, argc, argv, "-seed");
 		else {
 			fprintf(stderr, "ERROR: unknown argument %s\n", argv[i]);
 			exit(0);
@@ -179,6 +183,8 @@ void MazeOptions_read(MazeOptions *options, int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+	struct except_frame xf;
+
 	MazeOptions options = {
 		.width = 8,
 		.height = 8,
@@ -189,7 +195,19 @@ int main(int argc, char *argv[])
 
 	srand(options.seed);
 
-	struct maze_grid *grid = maze_grid_create(options.height, options.width);
+	struct maze_grid *grid = NULL;
+	switch (setjmp(xf.env))
+	{
+		case 0:
+			grid = maze_grid_create(options.height, options.width, &xf);
+			break;
+		case STATUS_MATH_OVERFLOW:
+			FAILURE(STATUS_MATH_OVERFLOW, "Maze grid is too big!");
+			break;
+		default:
+			FAILURE(STATUS_ERROR, "Some error?");
+			break;
+	}
 
 	struct iter2d iter = { {0,grid->grid.nrows}, {0,grid->grid.ncols} };
 	rowcol pos = iter2d_start(&iter);
