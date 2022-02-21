@@ -64,23 +64,36 @@ rowcol iter2d_next(struct iter2d *iter)
 	return iter->cur;
 }
 
-struct maze_grid *maze_grid_create(int nrows, int ncols, struct except_frame *xf)
+void *fam_alloc(size_t head_size, size_t elem_size, size_t array_length, struct except_frame *xf)
 {
 	struct safe_size_t size = {0};
+	except_try(xf, (size = safe_size_t_mult(elem_size, array_length)).status, CURRENT_LOCATION);
+	except_try(xf, (size = safe_size_t_add(size.value, head_size)).status, CURRENT_LOCATION);
 
-	// size_t num_cells = nrows * ncols;
-	struct maze_grid *grid = NULL;
-	except_try(xf, (size = safe_size_t_mult((size_t)nrows, (size_t)ncols)).status, CURRENT_LOCATION);
-	except_try(xf, (size = safe_size_t_mult(size.value, sizeof *grid->cells)).status, CURRENT_LOCATION);
-	except_try(xf, (size = safe_size_t_add(size.value, sizeof *grid)).status, CURRENT_LOCATION);
-	grid = malloc(size.value);
-	memset(grid, 0, size.value);
+	void *mem = malloc(size.value);
+	if (!mem && xf)
+		except_throw(xf, STATUS_MALLOC_FAIL, CURRENT_LOCATION);
 
-	grid->grid.nrows = nrows;
-	grid->grid.ncols = ncols;
+	return mem;
+}
+
+struct grid *grid_create(size_t head_size, size_t elem_size, int nrows, int ncols, struct except_frame *xf)
+{
+	struct safe_size_t num_cells = {0};
+	except_try(xf, (num_cells = safe_size_t_mult((size_t)nrows, (size_t)ncols)).status, CURRENT_LOCATION);
+
+	struct grid *grid = fam_alloc(head_size, elem_size, num_cells.value, xf);
+	if (grid)
+	{
+		grid->nrows = nrows;
+		grid->ncols = ncols;
+	}
 
 	return grid;
 }
+
+#define GRID_CREATE(GridType_, Rows_, Cols_, Xf_)  \
+	(GridType_*)grid_create(sizeof(GridType_), sizeof(*(GridType_){}.cells), (Rows_), (Cols_), (Xf_))
 
 struct maze_cell *maze_cell_at(struct maze_grid *grid, int row, int col)
 {
@@ -199,7 +212,7 @@ int main(int argc, char *argv[])
 	switch (setjmp(xf.env))
 	{
 		case 0:
-			grid = maze_grid_create(options.height, options.width, &xf);
+			grid = GRID_CREATE(struct maze_grid, options.height, options.width, &xf);
 			break;
 		case STATUS_MATH_OVERFLOW:
 			FAILURE(STATUS_MATH_OVERFLOW, "Maze grid is too big!");

@@ -166,7 +166,9 @@ void debug_set_volume(enum debug_level level);
 			X(ASSERT_FAILURE,   "Assertion failed") \
 			X(PRECON_FAIL,      "Precondition failed") \
 			X(TEST_FAILURE,     "Test failed") \
-            X(MATH_OVERFLOW,    "Arithmetic overflow") 
+            X(MATH_OVERFLOW,    "Arithmetic overflow") \
+			X(MALLOC_FAIL,      "Memory allocation failed")
+
 
 #define X(EnumName_, _)  STATUS_##EnumName_,
 enum status {
@@ -218,7 +220,8 @@ void test_assert(bool condition, struct source_location source, const char *msg)
 int check_index(int i, int length, struct source_location dbg);
 
 
-struct except_frame {
+struct except_frame 
+{
 	volatile struct { jmp_buf env; };
 };
 
