@@ -7,7 +7,7 @@ CWARNFLAGS = -Wall \
 			 -Wimplicit-function-declaration \
 			 -Wdiscarded-qualifiers
 
-CFLAGS = -b -D DEBUG -bt8 -Werror $(CWARNFLAGS)
+CFLAGS = -g -D DEBUG -bt8 -Werror $(CWARNFLAGS)
 
 CFILES = krstring.c krclib.c
 HFILES = $(CFILES:.c=.h)

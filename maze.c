@@ -8,6 +8,11 @@
 
 typedef TVector(int, row, col) rowcol;
 
+static inline int row_col_index(int row, int col, int ncols)
+{
+	return (row * ncols) + col;
+}
+
 enum cell_dirs 
 {
 	CELL_NORTH, CELL_SOUTH, CELL_EAST, CELL_WEST,
@@ -21,11 +26,6 @@ struct maze_cell
 					 *east,
 					 *west;
 };
-
-static inline int row_col_index(int row, int col, int ncols)
-{
-	return (row * ncols) + col;
-}
 
 struct grid
 {
@@ -95,9 +95,11 @@ struct grid *grid_create(size_t head_size, size_t elem_size, int nrows, int ncol
 #define GRID_CREATE(GridType_, Rows_, Cols_, Xf_)  \
 	(GridType_*)grid_create(sizeof(GridType_), sizeof(*(GridType_){}.cells), (Rows_), (Cols_), (Xf_))
 
-struct maze_cell *maze_cell_at(struct maze_grid *grid, int row, int col)
+struct maze_cell *maze_cell_at(struct maze_grid *maze, int row, int col)
 {
-	return &grid->cells[row_col_index(row, col, grid->grid.ncols)];
+	CHECK(row, maze->grid.nrows);
+	CHECK(col, maze->grid.ncols);
+	return &maze->cells[row_col_index(row, col, maze->grid.ncols)];
 }
 
 void maze_grid_draw_ascii(struct maze_grid *grid)
@@ -216,6 +218,9 @@ int main(int argc, char *argv[])
 			break;
 		case STATUS_MATH_OVERFLOW:
 			FAILURE(STATUS_MATH_OVERFLOW, "Maze grid is too big!");
+			break;
+		case STATUS_MALLOC_FAIL:
+			FAILURE(STATUS_MALLOC_FAIL, "Out of memory!");
 			break;
 		default:
 			FAILURE(STATUS_ERROR, "Some error?");
