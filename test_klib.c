@@ -317,13 +317,13 @@ TEST_CASE(size_t_overflow_detection)
 	TEST(r.status == STATUS_OK);
 	TEST(r.value  == 60000);
 
-	r = safe_size_t_mult(SIZE_MAX-200, SIZE_MAX-300);
-	TEST(r.status == STATUS_MATH_OVERFLOW);
-	TEST(r.value == 0);
-
 	r = safe_size_t_add(10000, 99);
 	TEST(r.status == STATUS_OK);
 	TEST(r.value  == 10099);
+
+	r = safe_size_t_mult(SIZE_MAX-200, SIZE_MAX-300);
+	TEST(r.status == STATUS_MATH_OVERFLOW);
+	TEST(r.value == 0);
 
 	r = safe_size_t_add(SIZE_MAX-100, 101);
 	TEST(r.status == STATUS_MATH_OVERFLOW);
@@ -483,12 +483,15 @@ TEST_CASE(properties_of_strand)
 TEST_CASE(copy_strand_to_strbuf)
 {
 	strand s = STR("Copy this string");
+
 	char buff[] = "********************";
 	strbuf copy = STRBUF_INIT(buff);
 
 	char comp[] = "Copy this string";
 	strand compto = STR(comp);
-	TEST( strand_equals(strand_copy(s, copy), compto) );
+
+	strand cp = strand_copy(s, copy);
+	TEST( strand_equals(cp, compto) );
 }
 
 TEST_CASE(reverse_copy_a_string)

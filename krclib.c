@@ -196,9 +196,9 @@ strand strand_reverse(strand str, strbuf *out)
 {
 	char *end = strbuf_end(*out);
 
-	--str.back;
-	while (str.back >= str.front && out->back < end)
-		*out->back++ = *str.back--;
+	int i = 1;
+	while (str.back > str.front && out->back < end)
+		*out->back++ = *--str.back;
 
 	*out->back = '\0';
 	return (strand){ .front = out->front, .back = out->back };
