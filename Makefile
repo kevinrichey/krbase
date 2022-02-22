@@ -9,35 +9,30 @@ CWARNFLAGS = -Wall \
 
 CFLAGS = -b -D DEBUG -bt8 -Werror $(CWARNFLAGS)
 
-SOURCE = krstring.c krclib.c
-HEADERS = $(SOURCE:.c=.h)
+CFILES = krstring.c krclib.c
+HFILES = $(CFILES:.c=.h)
+UTESTS = $(wildcard test_*.c)
 
-TESTCASES_C = $(wildcard test_*.c)
-TESTCASES_O = $(TESTCASES_C:.c=.o)
-
-run: run_test maze
+run: test maze
 	./maze $(ARGS)
 
 run_test: test
 	./test
 
-test: test.c $(SOURCE) $(HEADERS) $(TESTCASES_C)
+test: $(CFILES) $(HFILES) $(UTESTS) test.c testcases.h testcases.inc
+	$(CC) $(CFLAGS) $(CFILES) $(UTESTS) test.c -run
 
-maze: maze.c krclib.c
+maze: $(CFILES) $(HFILES) maze.c 
+	$(CC) $(CFLAGS) $(CFILES) maze.c -o maze
 
-testcases.h: discover_tests.awk $(TESTCASES_C)
-	awk -f discover_tests.awk $(TESTCASES_C)
-
-depfile.mk: $(SOURCE) $(HEADERS) $(TESTCASES_C) testcases.h
-	$(CC) -MM -MF depfile.mk $(SOURCE) $(TESTCASES_C)
-
-include depfile.mk
+testcases.inc testcases.h: discover_tests.awk $(UTESTS)
+	awk -f discover_tests.awk $(UTESTS)
 
 #doc: doc.awk *.c
 #	awk -f doc.awk *.h > klib.md
 
 clean:
-	rm -f test *.o depfile.mk testcases.*
+	rm -f test maze testcases.*
 
 .PHONY: run clean 
 
