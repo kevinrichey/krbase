@@ -238,7 +238,7 @@ struct safe_size_t
 	enum status status; 
 };
 
-bool size_t_mult_overflows(a, b);
+bool size_t_mult_overflows(size_t a, size_t b);
 struct safe_size_t safe_size_t_mult(size_t a, size_t b);
 struct safe_size_t safe_size_t_add(size_t a, size_t b);
 

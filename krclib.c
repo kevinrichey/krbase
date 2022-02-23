@@ -123,7 +123,7 @@ void except_try(struct except_frame *frame, enum status status, struct source_lo
 		except_throw(frame, status, source);
 }
 
-bool size_t_mult_overflows(a, b)
+bool size_t_mult_overflows(size_t a, size_t b)
 {
 	return b != 0 && a > SIZE_MAX / b;
 }
