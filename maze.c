@@ -64,31 +64,28 @@ rowcol iter2d_next(struct iter2d *iter)
 	return iter->cur;
 }
 
+void *try_malloc(size_t size, struct except_frame *xf, struct source_location source)
+{
+	void *mem = malloc(size);
+	if (!mem)
+		except_throw(xf, STATUS_MALLOC_FAIL, source);
+	return mem;
+}
+
 void *fam_alloc(size_t head_size, size_t elem_size, size_t array_length, struct except_frame *xf)
 {
-	struct safe_size_t size = {0};
-	except_try(xf, (size = safe_size_t_mult(elem_size, array_length)).status, CURRENT_LOCATION);
-	except_try(xf, (size = safe_size_t_add(size.value, head_size)).status, CURRENT_LOCATION);
-
-	void *mem = malloc(size.value);
-	if (!mem && xf)
-		except_throw(xf, STATUS_MALLOC_FAIL, CURRENT_LOCATION);
-
-	return mem;
+	size_t size = 0;
+	size = try_size_mult(elem_size, array_length, xf, CURRENT_LOCATION);
+	size = try_size_add(size, head_size, xf, CURRENT_LOCATION);
+	return try_malloc(size, xf, CURRENT_LOCATION);
 }
 
 struct grid *grid_create(size_t head_size, size_t elem_size, int nrows, int ncols, struct except_frame *xf)
 {
-	struct safe_size_t num_cells = {0};
-	except_try(xf, (num_cells = safe_size_t_mult((size_t)nrows, (size_t)ncols)).status, CURRENT_LOCATION);
-
-	struct grid *grid = fam_alloc(head_size, elem_size, num_cells.value, xf);
-	if (grid)
-	{
-		grid->nrows = nrows;
-		grid->ncols = ncols;
-	}
-
+	size_t num_cells = try_size_mult((size_t)nrows, (size_t)ncols, xf, CURRENT_LOCATION);
+	struct grid *grid = fam_alloc(head_size, elem_size, num_cells, xf);
+	grid->nrows = nrows;
+	grid->ncols = ncols;
 	return grid;
 }
 
@@ -198,7 +195,7 @@ void MazeOptions_read(MazeOptions *options, int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-	struct except_frame xf;
+	struct except_frame xf = {0};
 
 	MazeOptions options = {
 		.width = 8,
@@ -211,20 +208,15 @@ int main(int argc, char *argv[])
 	srand(options.seed);
 
 	struct maze_grid *grid = NULL;
-	switch (setjmp(xf.env))
+	if (!setjmp(xf.env))
 	{
-		case 0:
-			grid = GRID_CREATE(struct maze_grid, options.height, options.width, &xf);
-			break;
-		case STATUS_MATH_OVERFLOW:
-			FAILURE(STATUS_MATH_OVERFLOW, "Maze grid is too big!");
-			break;
-		case STATUS_MALLOC_FAIL:
-			FAILURE(STATUS_MALLOC_FAIL, "Out of memory!");
-			break;
-		default:
-			FAILURE(STATUS_ERROR, "Some error?");
-			break;
+		grid = GRID_CREATE(struct maze_grid, options.height, options.width, &xf);
+	}
+	else
+	{
+		struct error *err = xf.error;
+		error_fprint(stderr, &(struct error){ .status=STATUS_EXCEPTION, .source=CURRENT_LOCATION });
+		error_fatal(err, "");
 	}
 
 	struct iter2d iter = { {0,grid->grid.nrows}, {0,grid->grid.ncols} };
@@ -255,6 +247,7 @@ int main(int argc, char *argv[])
 	maze_grid_draw_ascii(grid);
 
 	free(grid);
+	except_dispose(&xf);
 	return 0;
 }
 

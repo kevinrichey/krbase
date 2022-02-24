@@ -311,22 +311,10 @@ TEST_CASE(func_throws_exception)
 
 TEST_CASE(size_t_overflow_detection)
 {
-    struct safe_size_t r = {0};
-
-    r = safe_size_t_mult(200, 300);
-	TEST(r.status == STATUS_OK);
-	TEST(r.value  == 60000);
-
-	r = safe_size_t_add(10000, 99);
-	TEST(r.status == STATUS_OK);
-	TEST(r.value  == 10099);
-
-	r = safe_size_t_mult(SIZE_MAX-200, SIZE_MAX-300);
-	TEST(r.status == STATUS_MATH_OVERFLOW);
-	TEST(r.value == 0);
-
-	r = safe_size_t_add(SIZE_MAX-100, 101);
-	TEST(r.status == STATUS_MATH_OVERFLOW);
+	TEST(!size_t_mult_overflows(200, 300));
+	TEST(!size_t_add_overflows(10000, 99));
+	TEST( size_t_mult_overflows(SIZE_MAX-200, SIZE_MAX-300));
+	TEST( size_t_add_overflows(SIZE_MAX-100, 101));
 }
 
 //-----------------------------------------------------------------------------

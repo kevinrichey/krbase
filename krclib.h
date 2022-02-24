@@ -167,7 +167,8 @@ void debug_set_volume(enum debug_level level);
 			X(PRECON_FAIL,      "Precondition failed") \
 			X(TEST_FAILURE,     "Test failed") \
             X(MATH_OVERFLOW,    "Arithmetic overflow") \
-			X(MALLOC_FAIL,      "Memory allocation failed")
+			X(MALLOC_FAIL,      "Memory allocation failed") \
+			X(EXCEPTION,        "Exception thrown") 
 
 
 #define X(EnumName_, _)  STATUS_##EnumName_,
@@ -223,11 +224,13 @@ int check_index(int i, int length, struct source_location dbg);
 struct except_frame 
 {
 	volatile struct { jmp_buf env; };
+	struct error *error;
 };
 
+void except_throw_error(struct except_frame *frame, struct error *error);
 void except_throw(struct except_frame *frame, enum status status, struct source_location dbi);
 void except_try(struct except_frame *frame, enum status status, struct source_location dbi);
-
+void except_dispose(struct except_frame *frame);
 
 //----------------------------------------------------------------------
 // Arithmetic Overflow Safety
@@ -239,8 +242,9 @@ struct safe_size_t
 };
 
 bool size_t_mult_overflows(size_t a, size_t b);
-struct safe_size_t safe_size_t_mult(size_t a, size_t b);
-struct safe_size_t safe_size_t_add(size_t a, size_t b);
+bool size_t_add_overflows(size_t a, size_t b);
+size_t try_size_mult(size_t a, size_t b, struct except_frame *xf, struct source_location loc);
+size_t try_size_add(size_t a, size_t b, struct except_frame *xf, struct source_location loc);
 
 //----------------------------------------------------------------------
 //@module Vector - tuple with named and random access

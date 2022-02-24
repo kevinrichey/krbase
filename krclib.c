@@ -105,16 +105,27 @@ int check_index(int i, int length, struct source_location dbg)
 }
 
 
+void except_throw_error(struct except_frame *frame, struct error *error)
+{
+	if (!frame)
+		error_fatal(error, "Unhandled exception");
+
+	frame->error = error;
+	longjmp(frame->env, (int)error->status);
+}
+
 void except_throw(struct except_frame *frame, enum status status, struct source_location source)
 {
-	if (frame == NULL) {
-		struct error error = {
-			.source = source,
-			.status = status,
-		};
-		error_fatal(&error, "Unhandled exception");
-	}
-	longjmp(frame->env, (int)status);
+	struct error *error = malloc(sizeof(struct error));
+	if (!error)
+		error_fatal(error, "Failed to malloc error.");
+
+	*error = (struct error){
+		.source = source,
+		.status = status,
+	};
+
+	except_throw_error(frame, error);
 }
 
 void except_try(struct except_frame *frame, enum status status, struct source_location source)
@@ -123,33 +134,39 @@ void except_try(struct except_frame *frame, enum status status, struct source_lo
 		except_throw(frame, status, source);
 }
 
+void except_dispose(struct except_frame *frame)
+{
+	if (frame && frame->error)
+	{
+		free(frame->error);
+		frame->error = NULL;
+	}
+}
+
 bool size_t_mult_overflows(size_t a, size_t b)
 {
 	return b != 0 && a > SIZE_MAX / b;
 }
 
-struct safe_size_t safe_size_t_mult(size_t a, size_t b)
+bool size_t_add_overflows(size_t a, size_t b)
 {
-	struct safe_size_t r = { .status = STATUS_OK };
-
-    if (size_t_mult_overflows(a, b))
-		r.status = STATUS_MATH_OVERFLOW;
-	else
-		r.value = a * b;
-
-	return r;
+    return a > SIZE_MAX - b;
 }
 
-struct safe_size_t safe_size_t_add(size_t a, size_t b)
+size_t try_size_mult(size_t a, size_t b, struct except_frame *xf, struct source_location loc)
 {
-	struct safe_size_t r = { .status = STATUS_OK };
+    if (size_t_mult_overflows(a, b))
+		except_throw(xf, STATUS_MATH_OVERFLOW, loc);
 
-    if (a > SIZE_MAX - b)
-		r.status = STATUS_MATH_OVERFLOW;
-	else
-		r.value = a + b;
+	return a * b;
+}
 
-	return r;
+size_t try_size_add(size_t a, size_t b, struct except_frame *xf, struct source_location loc)
+{
+    if (size_t_add_overflows(a, b))
+		except_throw(xf, STATUS_MATH_OVERFLOW, loc);
+
+	return a + b;
 }
 
 //----------------------------------------------------------------------
