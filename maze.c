@@ -17,6 +17,18 @@ struct grid
 	int nrows, ncols;
 };
 
+struct grid *grid_create(size_t head_size, size_t elem_size, int nrows, int ncols, struct except_frame *xf)
+{
+	size_t num_cells = try_size_mult((size_t)nrows, (size_t)ncols, xf, CURRENT_LOCATION);
+	struct grid *grid = fam_alloc(head_size, elem_size, num_cells, xf);
+	grid->nrows = nrows;
+	grid->ncols = ncols;
+	return grid;
+}
+
+#define GRID_CREATE(GridType_, Rows_, Cols_, Xf_)  \
+	(GridType_*)grid_create(sizeof(GridType_), sizeof(*(GridType_){}.cells), (Rows_), (Cols_), (Xf_))
+
 int grid_cell_index(struct grid *grid, struct grid_cell cell)
 {
 	CHECK(cell.row, grid->nrows);
@@ -27,10 +39,6 @@ int grid_cell_index(struct grid *grid, struct grid_cell cell)
 #define GRID_CELL_AT(Gridptr_, Cell_)  ((Gridptr_)->cells[ grid_cell_index( (struct grid*)(Gridptr_), (Cell_)) ])
 
 
-static inline int row_col_index(int row, int col, int ncols)
-{
-	return (row * ncols) + col;
-}
 
 
 
@@ -81,38 +89,24 @@ rowcol iter2d_next(struct iter2d *iter)
 	return iter->cur;
 }
 
-struct grid *grid_create(size_t head_size, size_t elem_size, int nrows, int ncols, struct except_frame *xf)
-{
-	size_t num_cells = try_size_mult((size_t)nrows, (size_t)ncols, xf, CURRENT_LOCATION);
-	struct grid *grid = fam_alloc(head_size, elem_size, num_cells, xf);
-	grid->nrows = nrows;
-	grid->ncols = ncols;
-	return grid;
-}
-
-#define GRID_CREATE(GridType_, Rows_, Cols_, Xf_)  \
-	(GridType_*)grid_create(sizeof(GridType_), sizeof(*(GridType_){}.cells), (Rows_), (Cols_), (Xf_))
-
-struct maze_cell *maze_cell_at(struct maze_grid *maze, int row, int col)
-{
-	return &maze->cells[ grid_cell_index(&maze->grid, (struct grid_cell){row,col}) ];
-}
 
 void maze_grid_draw_ascii(struct maze_grid *grid)
 {
-	for (int row = 0; row < grid->grid.nrows; ++row) {
-
-		for (int col = 0; col < grid->grid.ncols; ++col) {
-			const struct maze_cell *cell = maze_cell_at(grid, row, col);
-			if (cell->north)
+	struct grid_cell p;
+	for (p.row = 0; p.row < grid->grid.nrows; ++p.row) 
+	{
+		for (p.col = 0; p.col < grid->grid.ncols; ++p.col) 
+		{
+			if (GRID_CELL_AT(grid, p).north)
 				printf(" | ");
 			else
 				printf("   ");
 		}
 		putchar('\n');
 
-		for (int col = 0; col < grid->grid.ncols; ++col) {
-			const struct maze_cell *cell = maze_cell_at(grid, row, col);
+		for (p.col = 0; p.col < grid->grid.ncols; ++p.col) 
+		{
+			const struct maze_cell *cell = &GRID_CELL_AT(grid, p);
 
 			if (cell->west)
 				putchar('-');
@@ -128,8 +122,9 @@ void maze_grid_draw_ascii(struct maze_grid *grid)
 		}
 		putchar('\n');
 
-		for (int col = 0; col < grid->grid.ncols; ++col) {
-			const struct maze_cell *cell = maze_cell_at(grid, row, col);
+		for (p.col = 0; p.col < grid->grid.ncols; ++p.col) 
+		{
+			const struct maze_cell *cell = &GRID_CELL_AT(grid, p);
 			if (cell->south)
 				printf(" | ");
 			else
@@ -230,13 +225,16 @@ int main(int argc, char *argv[])
 		if (pos.row > 0)  choices[n++] = CELL_NORTH;
 		if (pos.col > 0)  choices[n++] = CELL_WEST;
 
-		if (choices[rand()%n] == CELL_NORTH) {
-			struct maze_cell *link = maze_cell_at(grid, pos.row-1, pos.col);
+		struct grid_cell next = pos;
+		if (choices[rand()%n] == CELL_NORTH) 
+		{
+			struct maze_cell *link = &GRID_CELL_AT(grid, (--next.row,next));
 			cell->north = link;
 			link->south = cell;
 		}
-		else {
-			struct maze_cell *link = maze_cell_at(grid, pos.row, pos.col-1);
+		else 
+		{
+			struct maze_cell *link = &GRID_CELL_AT(grid, (--next.col,next));
 			cell->west = link;
 			link->east = cell;
 		}
