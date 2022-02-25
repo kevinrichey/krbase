@@ -169,6 +169,22 @@ size_t try_size_add(size_t a, size_t b, struct except_frame *xf, struct source_l
 	return a + b;
 }
 
+void *try_malloc(size_t size, struct except_frame *xf, struct source_location source)
+{
+	void *mem = malloc(size);
+	if (!mem)
+		except_throw(xf, STATUS_MALLOC_FAIL, source);
+	return mem;
+}
+
+void *fam_alloc(size_t head_size, size_t elem_size, size_t array_length, struct except_frame *xf)
+{
+	size_t size = 0;
+	size = try_size_mult(elem_size, array_length, xf, CURRENT_LOCATION);
+	size = try_size_add(size, head_size, xf, CURRENT_LOCATION);
+	return try_malloc(size, xf, CURRENT_LOCATION);
+}
+
 //----------------------------------------------------------------------
 // strand Module
 

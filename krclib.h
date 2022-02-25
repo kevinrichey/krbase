@@ -247,6 +247,13 @@ size_t try_size_mult(size_t a, size_t b, struct except_frame *xf, struct source_
 size_t try_size_add(size_t a, size_t b, struct except_frame *xf, struct source_location loc);
 
 //----------------------------------------------------------------------
+// Memory tools
+
+void *try_malloc(size_t size, struct except_frame *xf, struct source_location source);
+void *fam_alloc(size_t head_size, size_t elem_size, size_t array_length, struct except_frame *xf);
+
+
+//----------------------------------------------------------------------
 //@module Vector - tuple with named and random access
 
 #define TVector(TYPE_, ...) \

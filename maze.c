@@ -6,12 +6,34 @@
 
 #include "krclib.h"
 
-typedef TVector(int, row, col) rowcol;
+
+typedef struct grid_cell
+{
+	int row, col;
+} rowcol;
+
+struct grid
+{
+	int nrows, ncols;
+};
+
+int grid_cell_index(struct grid *grid, struct grid_cell cell)
+{
+	CHECK(cell.row, grid->nrows);
+	CHECK(cell.col, grid->ncols);
+	return (cell.row * grid->ncols) + cell.col;
+}
+
+#define GRID_CELL_AT(Gridptr_, Cell_)  ((Gridptr_)->cells[ grid_cell_index( (struct grid*)(Gridptr_), (Cell_)) ])
+
 
 static inline int row_col_index(int row, int col, int ncols)
 {
 	return (row * ncols) + col;
 }
+
+
+
 
 enum cell_dirs 
 {
@@ -25,11 +47,6 @@ struct maze_cell
 					 *south,
 					 *east,
 					 *west;
-};
-
-struct grid
-{
-	int nrows, ncols;
 };
 
 struct maze_grid
@@ -64,22 +81,6 @@ rowcol iter2d_next(struct iter2d *iter)
 	return iter->cur;
 }
 
-void *try_malloc(size_t size, struct except_frame *xf, struct source_location source)
-{
-	void *mem = malloc(size);
-	if (!mem)
-		except_throw(xf, STATUS_MALLOC_FAIL, source);
-	return mem;
-}
-
-void *fam_alloc(size_t head_size, size_t elem_size, size_t array_length, struct except_frame *xf)
-{
-	size_t size = 0;
-	size = try_size_mult(elem_size, array_length, xf, CURRENT_LOCATION);
-	size = try_size_add(size, head_size, xf, CURRENT_LOCATION);
-	return try_malloc(size, xf, CURRENT_LOCATION);
-}
-
 struct grid *grid_create(size_t head_size, size_t elem_size, int nrows, int ncols, struct except_frame *xf)
 {
 	size_t num_cells = try_size_mult((size_t)nrows, (size_t)ncols, xf, CURRENT_LOCATION);
@@ -94,9 +95,7 @@ struct grid *grid_create(size_t head_size, size_t elem_size, int nrows, int ncol
 
 struct maze_cell *maze_cell_at(struct maze_grid *maze, int row, int col)
 {
-	CHECK(row, maze->grid.nrows);
-	CHECK(col, maze->grid.ncols);
-	return &maze->cells[row_col_index(row, col, maze->grid.ncols)];
+	return &maze->cells[ grid_cell_index(&maze->grid, (struct grid_cell){row,col}) ];
 }
 
 void maze_grid_draw_ascii(struct maze_grid *grid)
@@ -224,7 +223,7 @@ int main(int argc, char *argv[])
 	pos = iter2d_next(&iter); 
 	while ( !iter2d_done(&iter) )
 	{
-		struct maze_cell *cell = maze_cell_at(grid, pos.row, pos.col);
+		struct maze_cell *cell = &GRID_CELL_AT(grid, pos);
 		enum cell_dirs choices[2];
 		int n = 0;
 
