@@ -29,6 +29,13 @@ struct grid *grid_create(size_t head_size, size_t elem_size, int nrows, int ncol
 #define GRID_CREATE(GridType_, Rows_, Cols_, Xf_)  \
 	(GridType_*)grid_create(sizeof(GridType_), sizeof(*(GridType_){}.cells), (Rows_), (Cols_), (Xf_))
 
+int grid_num_cells(struct grid *grid)
+{
+	return grid->nrows * grid->ncols;
+}
+
+#define GRID_END(Grid_)  ((Grid_)->cells + grid_num_cells((struct grid*)(Grid_)))
+
 int grid_index(struct grid *grid, int row, int col)
 {
 	CHECK(row, grid->nrows);
@@ -52,12 +59,6 @@ int grid_cell_index(struct grid *grid, struct grid_cell cell)
 
 
 
-enum cell_dirs 
-{
-	CELL_NORTH, CELL_SOUTH, CELL_EAST, CELL_WEST,
-	STANDARD_ENUM_VALUES(CELL)
-};
-
 struct maze_cell 
 {
 	struct grid_cell pos;
@@ -67,11 +68,30 @@ struct maze_cell
 					 *west;
 };
 
+void maze_cell_link(struct maze_cell *a, struct maze_cell *b)
+{
+	if      (a->pos.row > b->pos.row)  a->north = b, b->south = a;
+	else if (a->pos.row < b->pos.row)  a->south = b, b->north = a;
+	else if (a->pos.col > b->pos.col)  a->west  = b, b->east  = a;
+	else if (a->pos.col < b->pos.col)  a->east  = b, b->west  = a;
+}
+
 struct maze_grid
 {
 	struct grid grid;
 	struct maze_cell cells[];
 };
+
+struct maze_grid *maze_create(int height, int width, struct except_frame *xf)
+{
+	struct maze_grid *maze = GRID_CREATE(struct maze_grid, height, width, xf);
+	for (struct grid_cell pos = {0,0};  pos.row < maze->grid.nrows;  ++pos.row)
+		for (pos.col = 0; pos.col < maze->grid.ncols; ++pos.col)
+			GRID_CELL_AT(maze, pos) = (struct maze_cell){ .pos = pos };
+	return maze;
+}
+
+
 
 struct iter2d
 {
@@ -145,7 +165,8 @@ void maze_grid_draw_ascii(struct maze_grid *grid)
 }
 
 
-typedef struct {
+typedef struct
+{
 	int width;
 	int height;
 	unsigned  seed;
@@ -197,13 +218,6 @@ void MazeOptions_read(MazeOptions *options, int argc, char *argv[])
 	}
 }
 
-void maze_cell_link(struct maze_cell *a, struct maze_cell *b)
-{
-	if      (a->pos.row > b->pos.row)  a->north = b, b->south = a;
-	else if (a->pos.row < b->pos.row)  a->south = b, b->north = a;
-	else if (a->pos.col > b->pos.col)  a->west  = b, b->east  = a;
-	else if (a->pos.col < b->pos.col)  a->east  = b, b->west  = a;
-}
 
 int main(int argc, char *argv[])
 {
@@ -222,7 +236,7 @@ int main(int argc, char *argv[])
 	struct maze_grid *maze = NULL;
 	if (!setjmp(xf.env))
 	{
-		maze = GRID_CREATE(struct maze_grid, options.height, options.width, &xf);
+		maze = maze_create(options.height, options.width, &xf);
 	}
 	else
 	{
@@ -231,11 +245,8 @@ int main(int argc, char *argv[])
 		error_fatal(err, "");
 	}
 
-	for (struct grid_cell pos = {0,0};  pos.row < maze->grid.nrows;  ++pos.row)
-		for (pos.col = 0; pos.col < maze->grid.ncols; ++pos.col)
-			GRID_CELL_AT(maze, pos) = (struct maze_cell){ .pos = pos };
 
-	struct maze_cell *end = maze->cells + (maze->grid.nrows * maze->grid.ncols);
+	struct maze_cell *end = GRID_END(maze);
 	for (struct maze_cell *cell = &maze->cells[1]; cell != end; ++cell)
 	{
 		int n = 0;
