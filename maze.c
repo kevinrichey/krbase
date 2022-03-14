@@ -15,6 +15,7 @@ typedef struct grid_cell
 struct grid
 {
 	int nrows, ncols;
+	size_t cell_size;
 };
 
 struct grid *grid_create(size_t head_size, size_t elem_size, int nrows, int ncols, struct except_frame *xf)
@@ -23,6 +24,7 @@ struct grid *grid_create(size_t head_size, size_t elem_size, int nrows, int ncol
 	struct grid *grid = fam_alloc(head_size, elem_size, num_cells, xf);
 	grid->nrows = nrows;
 	grid->ncols = ncols;
+	grid->cell_size = elem_size;
 	return grid;
 }
 
@@ -119,25 +121,52 @@ rowcol iter2d_next(struct iter2d *iter)
 	return iter->cur;
 }
 
-
-void maze_grid_draw_ascii(struct maze_grid *grid)
+struct grid_row
 {
-	struct grid_cell p;
-	for (p.row = 0; p.row < grid->grid.nrows; ++p.row) 
+	void *front, *back;
+	int row_size;
+	int row_count;
+};
+
+struct grid_row row_start(struct grid *grid, void *cells)
+{
+	return (struct grid_row){
+		.back = cells,
+		.row_size = grid->cell_size * grid->ncols,
+		.row_count = grid->nrows
+	};
+}
+
+bool row_next(struct grid_row *row)
+{
+	if (row->row_count--)
 	{
-		for (p.col = 0; p.col < grid->grid.ncols; ++p.col) 
+		row->front = row->back;
+		(byte*)row->back += row->row_size;
+		return true;
+	}
+	else return false;
+}
+
+void maze_grid_draw_ascii(struct maze_grid *maze)
+{
+	struct grid_row row = row_start(&maze->grid, maze->cells);
+
+	while (row_next(&row))
+	{
+		for (struct maze_cell *cell = row.front;
+		     cell != row.back; ++cell)
 		{
-			if (GRID_CELL_AT(grid, p).north)
+			if (cell->north)
 				printf(" | ");
 			else
 				printf("   ");
 		}
 		putchar('\n');
 
-		for (p.col = 0; p.col < grid->grid.ncols; ++p.col) 
+		for (struct maze_cell *cell = row.front;
+		     cell != row.back; ++cell)
 		{
-			const struct maze_cell *cell = &GRID_CELL_AT(grid, p);
-
 			if (cell->west)
 				putchar('-');
 			else
@@ -152,9 +181,9 @@ void maze_grid_draw_ascii(struct maze_grid *grid)
 		}
 		putchar('\n');
 
-		for (p.col = 0; p.col < grid->grid.ncols; ++p.col) 
+		for (struct maze_cell *cell = row.front;
+		     cell != row.back; ++cell)
 		{
-			const struct maze_cell *cell = &GRID_CELL_AT(grid, p);
 			if (cell->south)
 				printf(" | ");
 			else
