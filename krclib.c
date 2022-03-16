@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <setjmp.h>
 #include <ctype.h>
+#include <limits.h>
 
 #include "krclib.h"
 
@@ -167,6 +168,29 @@ size_t try_size_add(size_t a, size_t b, struct except_frame *xf, struct source_l
 		except_throw(xf, STATUS_MATH_OVERFLOW, loc);
 
 	return a + b;
+}
+
+bool int_mult_overflows(int a, int b)
+{
+	if (a > 0  &&  b > 0)
+		return b > INT_MAX / a;
+
+	else if (a > 0  &&  b < 0)
+		return b < INT_MIN / a;
+
+	else if (a < 0  &&  b > 0)
+		return a < INT_MIN / b;
+
+	else
+		return b < INT_MAX / a;
+}
+
+int try_int_mult(int a, int b, struct except_frame *xf, struct source_location loc)
+{
+	if (int_mult_overflows(a, b))
+		except_throw(xf, STATUS_MATH_OVERFLOW, loc);
+
+	return a * b;
 }
 
 void *try_malloc(size_t size, struct except_frame *xf, struct source_location source)

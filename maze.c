@@ -7,10 +7,10 @@
 #include "krclib.h"
 
 
-typedef struct grid_cell
+struct grid_cell
 {
 	int row, col;
-} rowcol;
+};
 
 struct grid
 {
@@ -20,7 +20,7 @@ struct grid
 
 struct grid *grid_create(size_t head_size, size_t elem_size, int nrows, int ncols, struct except_frame *xf)
 {
-	size_t num_cells = try_size_mult((size_t)nrows, (size_t)ncols, xf, CURRENT_LOCATION);
+	int num_cells = try_int_mult(nrows, ncols, xf, CURRENT_LOCATION);
 	struct grid *grid = fam_alloc(head_size, elem_size, num_cells, xf);
 	grid->nrows = nrows;
 	grid->ncols = ncols;
@@ -40,23 +40,49 @@ int grid_num_cells(struct grid *grid)
 
 int grid_index(struct grid *grid, int row, int col)
 {
-	CHECK(row, grid->nrows);
-	CHECK(col, grid->ncols);
+	row = CHECK(row, grid->nrows);
+	col = CHECK(col, grid->ncols);
 	return (row * grid->ncols) + col;
 }
+
+#define GRID_AT(Gridptr_, Row_, Col_)  ((Gridptr_)->cells[ grid_index( (struct grid*)(Gridptr_), (Row_), (Col_)) ])
 
 int grid_cell_index(struct grid *grid, struct grid_cell cell)
 {
 	return grid_index(grid, cell.row, cell.col);
-//	CHECK(cell.row, grid->nrows);
-//	CHECK(cell.col, grid->ncols);
-//	return (cell.row * grid->ncols) + cell.col;
 }
 
 #define GRID_CELL_AT(Gridptr_, Cell_)  ((Gridptr_)->cells[ grid_cell_index( (struct grid*)(Gridptr_), (Cell_)) ])
 
-#define GRID_AT(Gridptr_, Row_, Col_)  ((Gridptr_)->cells[ grid_index( (struct grid*)(Gridptr_), (Row_), (Col_)) ])
 
+struct grid_row
+{
+	void *front, *back;
+	int row_size;
+	int row_num;
+};
+
+struct grid_row row_start(struct grid *grid, void *cells)
+{
+	return 
+		(struct grid_row)
+		{
+			.back = cells,
+			.row_size = grid->cell_size * grid->ncols,
+			.row_num = 0
+		};
+}
+
+bool row_next(struct grid *grid, struct grid_row *row)
+{
+	if (row->row_num++ < grid->nrows)
+	{
+		row->front = row->back;
+		(byte*)row->back += row->row_size;
+		return true;
+	}
+	else return false;
+}
 
 
 
@@ -78,15 +104,15 @@ void maze_cell_link(struct maze_cell *a, struct maze_cell *b)
 	else if (a->pos.col < b->pos.col)  a->east  = b, b->west  = a;
 }
 
-struct maze_grid
+struct maze
 {
 	struct grid grid;
 	struct maze_cell cells[];
 };
 
-struct maze_grid *maze_create(int height, int width, struct except_frame *xf)
+struct maze *maze_create(int height, int width, struct except_frame *xf)
 {
-	struct maze_grid *maze = GRID_CREATE(struct maze_grid, height, width, xf);
+	struct maze *maze = GRID_CREATE(struct maze, height, width, xf);
 	for (struct grid_cell pos = {0,0};  pos.row < maze->grid.nrows;  ++pos.row)
 		for (pos.col = 0; pos.col < maze->grid.ncols; ++pos.col)
 			GRID_CELL_AT(maze, pos) = (struct maze_cell){ .pos = pos };
@@ -94,65 +120,11 @@ struct maze_grid *maze_create(int height, int width, struct except_frame *xf)
 }
 
 
-
-struct iter2d
-{
-	struct range first, second;
-	rowcol cur;
-};
-
-rowcol iter2d_start(struct iter2d *iter)
-{
-	return iter->cur = (rowcol){ .row = iter->first.start, .col = iter->second.start };
-}
-
-bool iter2d_done(const struct iter2d *iter)
-{
-	return iter->cur.row >= iter->first.stop;
-}
-
-rowcol iter2d_next(struct iter2d *iter)
-{
-	if (++iter->cur.col >= iter->second.stop) 
-	{
-		iter->cur.col = iter->second.start;
-		++iter->cur.row;
-	}
-	return iter->cur;
-}
-
-struct grid_row
-{
-	void *front, *back;
-	int row_size;
-	int row_count;
-};
-
-struct grid_row row_start(struct grid *grid, void *cells)
-{
-	return (struct grid_row){
-		.back = cells,
-		.row_size = grid->cell_size * grid->ncols,
-		.row_count = grid->nrows
-	};
-}
-
-bool row_next(struct grid_row *row)
-{
-	if (row->row_count--)
-	{
-		row->front = row->back;
-		(byte*)row->back += row->row_size;
-		return true;
-	}
-	else return false;
-}
-
-void maze_grid_draw_ascii(struct maze_grid *maze)
+void maze_draw_ascii(struct maze *maze)
 {
 	struct grid_row row = row_start(&maze->grid, maze->cells);
 
-	while (row_next(&row))
+	while (row_next(&maze->grid, &row))
 	{
 		for (struct maze_cell *cell = row.front;
 		     cell != row.back; ++cell)
@@ -262,7 +234,7 @@ int main(int argc, char *argv[])
 
 	srand(options.seed);
 
-	struct maze_grid *maze = NULL;
+	struct maze *maze = NULL;
 	if (!setjmp(xf.env))
 	{
 		maze = maze_create(options.height, options.width, &xf);
@@ -285,7 +257,7 @@ int main(int argc, char *argv[])
 		maze_cell_link(cell, neighbors[rand()%n]);
 	}
 
-	maze_grid_draw_ascii(maze);
+	maze_draw_ascii(maze);
 
 	free(maze);
 	except_dispose(&xf);

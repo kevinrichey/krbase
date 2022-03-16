@@ -212,37 +212,22 @@ TEST_CASE(type_safe_const_cast)
 	TEST(d[1] == 2.718);
 }
 
-struct safe_int
+TEST_CASE(signed_int_overflow_detection)
 {
-	int value;
-	enum status status; 
-};
+	int big_a = INT_MAX / 2;
+	int big_b = INT_MAX / 3;
 
-bool safe_int_add_overflows(int a, int b)
-{
-	return (a > INT_MAX - b);
-}
+	TEST( !int_mult_overflows(-1999, -2999) );
+	TEST(  int_mult_overflows(-big_a, -big_b) );
 
-struct safe_int safe_int_add(int a, int b)
-{
-	if (safe_int_add_overflows(a, b))
-        return (struct safe_int){ .status = STATUS_MATH_OVERFLOW };
-	else
-        return (struct safe_int){ .status = STATUS_OK, .value = a + b };
-}
+	TEST( !int_mult_overflows( 1999, -2999) );
+	TEST(  int_mult_overflows(big_a, -big_b) );
 
-TEST_CASE(signed_int_overflow_protection)
-{
-	struct safe_int r;
+	TEST( !int_mult_overflows(-1999,  2999) );
+	TEST(  int_mult_overflows(-big_a, big_b) );
 
-	r = safe_int_add(1000, 2000);
-	TEST(r.status == STATUS_OK);
-	TEST(r.value == 3000);
-
-	int a = INT_MAX - 100;
-	int b = INT_MAX - 300;
-    r = safe_int_add(a, b);
-    TEST(r.status == STATUS_MATH_OVERFLOW);
+	TEST( !int_mult_overflows(1999,  2999) );
+	TEST(  int_mult_overflows(big_a, big_b) );
 }
 
 

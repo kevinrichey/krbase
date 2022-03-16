@@ -235,16 +235,13 @@ void except_dispose(struct except_frame *frame);
 //----------------------------------------------------------------------
 // Arithmetic Overflow Safety
 
-struct safe_size_t
-{
-	size_t value;
-	enum status status; 
-};
-
 bool size_t_mult_overflows(size_t a, size_t b);
 bool size_t_add_overflows(size_t a, size_t b);
 size_t try_size_mult(size_t a, size_t b, struct except_frame *xf, struct source_location loc);
 size_t try_size_add(size_t a, size_t b, struct except_frame *xf, struct source_location loc);
+
+bool   int_mult_overflows(int a, int b);
+int    try_int_mult(int a, int b, struct except_frame *xf, struct source_location loc);
 
 //----------------------------------------------------------------------
 // Memory tools
