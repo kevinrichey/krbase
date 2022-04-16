@@ -25,8 +25,6 @@
 #define STRINGIFY(x)            #x
 #define STRINGIFY_EXPAND(x)     STRINGIFY(x)
 
-#define LINE_STR                EXPAND_STRINGIFY(__LINE__)
-
 #define VA_NARGS_N(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, PA, PB, PC, PD, PE, PF, PN, ...) PN
 #define VA_NARGS(...) VA_NARGS_N(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 #define VA_PARAM_0(_0, ...)  _0
@@ -67,27 +65,17 @@ static inline const void *if_null_const(const void *p, const void *d)
 
 
 // Type-safe min/max template
-#define DEFINE_MAX_FUNC(TYPE_, PRE_) \
-	static inline TYPE_ PRE_##_max(TYPE_ a, TYPE_ b) { return a > b ? a : b; }
-
-DEFINE_MAX_FUNC(char, ch)
-DEFINE_MAX_FUNC(int, int)
-DEFINE_MAX_FUNC(unsigned, uint)
-DEFINE_MAX_FUNC(double, fl)
-DEFINE_MAX_FUNC(size_t, size_t)
-
-
-#define DEFINE_MIN_FUNC(TYPE_, PRE_) \
+#define DEFINE_MINMAX_FUNCS(TYPE_, PRE_) \
+	static inline TYPE_ PRE_##_max(TYPE_ a, TYPE_ b) { return a > b ? a : b; } \
 	static inline TYPE_ PRE_##_min(TYPE_ a, TYPE_ b) { return a < b ? a : b; }
 
-DEFINE_MIN_FUNC(char, ch)
-DEFINE_MIN_FUNC(int, int)
-DEFINE_MIN_FUNC(unsigned, uint)
-DEFINE_MIN_FUNC(double, fl)
-
+DEFINE_MINMAX_FUNCS(char, ch)
+DEFINE_MINMAX_FUNCS(int, int)
+DEFINE_MINMAX_FUNCS(unsigned, uint)
+DEFINE_MINMAX_FUNCS(double, fl)
+DEFINE_MINMAX_FUNCS(size_t, size)
 
 // Type-safe swap
-
 #define KR_SWAP_TEMPLATE(TYPE_, PRE_)  \
 	static inline void PRE_##_swap(TYPE_ *a, TYPE_ *b) { \
 		TYPE_ c = *a; *a = *b; *b = c; }
@@ -100,7 +88,6 @@ KR_SWAP_TEMPLATE(bool, bool)
 
 
 // Type-safe const casting
-//
 #define DEFINE_DECONST_FUNC(TYPE_, PRE_)  \
 static inline TYPE_ *PRE_##_deconst(const TYPE_ *i) { return (TYPE_*)i; }
 
@@ -170,7 +157,6 @@ void debug_set_volume(enum debug_level level);
 			X(MALLOC_FAIL,      "Memory allocation failed") \
 			X(EXCEPTION,        "Exception thrown") 
 
-
 #define X(EnumName_, _)  STATUS_##EnumName_,
 enum status {
     KR_STATUS_X_TABLE
@@ -201,7 +187,6 @@ struct error
 
 void error_fprint(FILE *out, const struct error *error);
 void error_fatal(const struct error *error, const char *str, ...);
-
 void assert_failure(struct source_location source, enum debug_level level, const char *msg);
 
 #define PRECON(Condition_, Level_) \
@@ -215,7 +200,6 @@ void assert_failure(struct source_location source, enum debug_level level, const
 #define TEST_CASE(TEST_NAME_)  void TestCase_##TEST_NAME_(void)
 #define TEST(CONDITION_)       test_assert((CONDITION_), CURRENT_LOCATION, "'" #CONDITION_ "'")
 void test_assert(bool condition, struct source_location source, const char *msg);
-
 
 #define CHECK(I_, LEN_)  check_index((I_), (LEN_), CURRENT_LOCATION)
 int check_index(int i, int length, struct source_location dbg);
@@ -277,6 +261,13 @@ static inline bool range_has(struct range r, int i)
 //----------------------------------------------------------------------
 //@module Span Template
 
+#define SPAN_TEMPLATE(Type_, Name_)  \
+	struct Name_ { Type_* front; Type_* back; } \
+	static inline int CONCAT(Name_,_length)(const struct Name_ *span) { return span->back - span->front; }
+
+SPAN_TEMPLATE(int, int_span)
+
+
 #define TSPAN(T_)  struct { T_* front; T_* back; }
 
 #define SPAN_INIT_N(PTR_, LEN_, ...)  { .front=(PTR_), .back=(PTR_)+(LEN_) }
@@ -293,9 +284,7 @@ static inline bool range_has(struct range r, int i)
 typedef TSPAN(char)     char_span;
 typedef TSPAN(int)      int_span;
 typedef TSPAN(double)   dub_span;
-typedef TSPAN(void)     void_span;
 typedef TSPAN(byte)     byte_span;
-typedef TSPAN(char*)    str_span;
 
 //----------------------------------------------------------------------
 //@module strand

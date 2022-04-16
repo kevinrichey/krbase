@@ -12,71 +12,82 @@
 // This is all experimental stuff
 //
 
-
-#define  VAR_SEL1(TYPE_)         TYPE_:1
-#define  VAR_SEL2(TYPE_, ...)    VAR_SEL1(__VA_ARGS__), TYPE_:2
-
-//#define  VAR_SELECT(TYPE_)  _Generic((TYPE_){0}, int:1, double:2)
-#define  VAR_SELECT(TYPE_)  _Generic((TYPE_){0}, VAR_SEL2(int, double))
-
-#define  VAR_MEMBER(TYPE_)      TYPE_##_val
-#define  VAR_MEM1(TYPE_)        TYPE_ VAR_MEMBER(TYPE_);
-#define  VAR_MEM2(TYPE_, ...)   VAR_MEM1(__VA_ARGS__) TYPE_ VAR_MEMBER(TYPE_);
-
-#define VARIANT_2(T1_, T2_)  \
-struct { union { VAR_MEM2(T1_, T2_) }; int type; }
-
-typedef VARIANT_2(int, double) var;
-
-
-#define var_init(TYPE_, VAL_)  { { .VAR_MEMBER(TYPE_) = (VAL_) }, .type = VAR_SELECT(TYPE_) }
-
-var var_int(int i)
+struct option
 {
-	return (var){ { .VAR_MEMBER(int) = i }, .type = VAR_SELECT(int) };
+	enum 
+	{
+		OPTION_VOID,
+		OPTION_INT,
+		OPTION_DOUBLE,
+	}
+	type;
+
+	union
+	{
+		int int_value;
+		double double_value;
+	}
+	value;
+};
+
+struct option *option_init_int(struct option *op, int v)
+{
+	op->type = OPTION_INT;
+	op->value.int_value = v;
+	return op;
 }
 
-bool var_is_set(var *v)
+struct option option_int(int v)
 {
-	return v && v->type > 0 && v->type <= 2;
+	return (struct option)
+	{
+		.type = OPTION_INT,
+		.value.int_value = v
+	};
 }
 
-#define var_is(V_, TYPE_)  ((V_).type == VAR_SELECT(TYPE_))
-
-bool var_type_is(var *v, int t)
+struct option option_double(double v)
 {
-	return v && v->type == t;
+	return (struct option)
+	{
+		.type = OPTION_DOUBLE,
+		.value.double_value = v
+	};
 }
 
-#define var_get(V_, TYPE_)   (assert((V_).type == VAR_SELECT(TYPE_)), (V_).VAR_MEMBER(TYPE_))
+#define OPTION(N_)  _Generic((N_), int: option_int, double: option_double)(N_)
 
-int var_get_int(var *v)
+struct option *option_init_double(struct option *op, double d)
 {
-	assert (v && v->type == 1);
-	return v->VAR_MEMBER(int);
+	op->type = OPTION_DOUBLE;
+	op->value.double_value = d;
+	return op;
 }
 
-double var_get_double(var *v)
+int option_cast_int(const struct option *option)
 {
-	assert (v && v->type == 2);
-	return v->VAR_MEMBER(double);
+	REQUIRE(option->type == OPTION_INT);
+	return option->value.int_value;
 }
 
-TEST_CASE(set_value_in_variant)
+double option_cast_double(const struct option *option)
 {
-	var v = var_init(int, 11);
-
-	TEST(var_is_set(&v));
-	TEST(var_is(v, int));
-	TEST(!var_is(v, double));
-	TEST(var_get(v, int) == 11);
-
-//	double d = var_get(v, double);
-//	TEST(d == 11.0);
+	REQUIRE(option->type == OPTION_DOUBLE);
+	return option->value.double_value;
 }
 
 
+TEST_CASE(option_variant_type)
+{
+	struct option op = { 0 };
+	TEST(op.type == OPTION_VOID);
 
+	op = OPTION(99);
+	TEST(option_cast_int(&op) == 99);
+
+	op = OPTION(3.14);
+	TEST(option_cast_double(&op) == 3.14);
+}
 
 struct Object;
 

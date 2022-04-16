@@ -34,7 +34,7 @@ string *string_reserve(string *s, size_t bigger)
 	else if (s && s->size >= bigger)
 		return s;
 
-	bigger = size_t_max(bigger, 8);
+	bigger = size_max(bigger, 8);
 
 	size_t length = string_length(s);
 	string *new_s = realloc(s, sizeof(string) + bigger);

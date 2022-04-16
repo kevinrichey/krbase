@@ -323,11 +323,11 @@ TEST_CASE(ints_in_range)
 
 TEST_CASE(properties_of_null_span)
 {
-	int_span null_span = { NULL, NULL };
+	struct int_span null_span = { NULL, NULL };
 
 	TEST(SPAN_IS_NULL(null_span));
 	TEST(SPAN_IS_EMPTY(null_span));
-	TEST(SPAN_LENGTH(null_span) == 0);
+	TEST(int_span_length(&null_span) == 0);
 }
 
 TEST_CASE(init_span_from_arrays)
