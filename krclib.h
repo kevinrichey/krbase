@@ -148,6 +148,8 @@ void debug_set_volume(enum debug_level level);
 
 #define KR_STATUS_X_TABLE \
 			X(OK,               "OK") \
+			X(DEBUG,            "Debug" ) \
+			X(WATCH,            "Watch" ) \
 			X(ERROR,            "Error") \
 			X(FATAL,            "Fatal error") \
 			X(ASSERT_FAILURE,   "Assertion failed") \
@@ -155,6 +157,7 @@ void debug_set_volume(enum debug_level level);
 			X(TEST_FAILURE,     "Test failed") \
             X(MATH_OVERFLOW,    "Arithmetic overflow") \
 			X(MALLOC_FAIL,      "Memory allocation failed") \
+			X(OUT_OF_SPACE,     "Not enough space to copy data") \
 			X(EXCEPTION,        "Exception thrown") 
 
 #define X(EnumName_, _)  STATUS_##EnumName_,
@@ -174,19 +177,21 @@ struct source_location
 	const char *func;
 };
 
-#define SOURCE_LOCATION_INIT  { .file=__FILE__, .line=__LINE__, .func=__func__ }
-#define CURRENT_LOCATION      (struct source_location)SOURCE_LOCATION_INIT
+#define CURRENT_LOCATION   (struct source_location){ .file=__FILE__, .line=__LINE__, .func=__func__ }
 
+void debug_print(FILE *out, enum status status, struct source_location source, const char *format, ...);
+
+#define WATCH_INT(Val_)  debug_print(stderr, STATUS_WATCH, CURRENT_LOCATION, STRINGIFY(Val_) " = %d\n", Val_)
 
 struct error 
 { 
-	struct source_location  source;
-	enum status             status;
-	const char             *message;
+	struct  source_location  source;
+	enum    status           status;
+	const   char             *message;
 };
 
 void error_fprint(FILE *out, const struct error *error);
-void error_fatal(const struct error *error, const char *str, ...);
+void error_fatal(const struct error *error);
 void assert_failure(struct source_location source, enum debug_level level, const char *msg);
 
 #define PRECON(Condition_, Level_) \
@@ -195,7 +200,7 @@ void assert_failure(struct source_location source, enum debug_level level, const
 #define REQUIRE(Condition_)  PRECON(Condition_, DEBUG_LEVEL_LOW) 
 
 #define FAILURE(Status_, Message_)   \
-	error_fatal(&(struct error){ .source=CURRENT_LOCATION, .status=(Status_), .message=(Message_) }, NULL)
+	error_fatal(&(struct error){ .source=CURRENT_LOCATION, .status=(Status_), .message=(Message_) })
 
 #define TEST_CASE(TEST_NAME_)  void TestCase_##TEST_NAME_(void)
 #define TEST(CONDITION_)       test_assert((CONDITION_), CURRENT_LOCATION, "'" #CONDITION_ "'")
@@ -211,10 +216,13 @@ struct except_frame
 	struct error *error;
 };
 
+#define  EXCEPT_BEGIN(Xf_)  setjmp((Xf_).env)
 void except_throw_error(struct except_frame *frame, struct error *error);
 void except_throw(struct except_frame *frame, enum status status, struct source_location dbi);
 void except_try(struct except_frame *frame, enum status status, struct source_location dbi);
 void except_dispose(struct except_frame *frame);
+
+#define  EXCEPT_TRY  0
 
 //----------------------------------------------------------------------
 // Arithmetic Overflow Safety
@@ -226,6 +234,9 @@ size_t try_size_add(size_t a, size_t b, struct except_frame *xf, struct source_l
 
 bool   int_mult_overflows(int a, int b);
 int    try_int_mult(int a, int b, struct except_frame *xf, struct source_location loc);
+
+bool ptrdiff_to_int_overflows(ptrdiff_t d);
+int try_ptrdiff_to_int(ptrdiff_t d, struct except_frame *xf, struct source_location loc);
 
 //----------------------------------------------------------------------
 // Memory tools
@@ -262,67 +273,67 @@ static inline bool range_has(struct range r, int i)
 //@module Span Template
 
 #define SPAN_TEMPLATE(Type_, Name_)  \
-	struct Name_ { Type_* front; Type_* back; } \
-	static inline int CONCAT(Name_,_length)(const struct Name_ *span) { return span->back - span->front; }
+	struct Name_ { const Type_* front; const Type_* back; }; \
+	static inline struct Name_ CONCAT(Name_,_init_n)(const Type_ a[], int n) { \
+		return (struct Name_){ .front = a, .back = a+n }; } \
+	static inline int CONCAT(Name_,_length)(struct Name_ span) { \
+		return span.front ? (span.back - span.front) : 0; } \
+	static inline bool CONCAT(Name_,_is_null)(struct Name_ span) { \
+		return !span.front; } \
+	static inline bool CONCAT(Name_,_is_empty)(struct Name_ span) { \
+		return span.front == span.back; } \
+	static inline struct Name_ CONCAT(Name_,_slice)(struct Name_ span, int start, int stop) { \
+		int length = CONCAT(Name_,_length)(span);  \
+		return (struct Name_){ \
+			.front = span.front + CHECK(start, length), \
+			.back  = span.front + CHECK(stop,  length) };  }
 
+SPAN_TEMPLATE(char, char_span)
+SPAN_TEMPLATE(char, strand)
 SPAN_TEMPLATE(int, int_span)
+SPAN_TEMPLATE(double, dub_span)
+SPAN_TEMPLATE(byte, byte_span)
 
-
-#define TSPAN(T_)  struct { T_* front; T_* back; }
-
-#define SPAN_INIT_N(PTR_, LEN_, ...)  { .front=(PTR_), .back=(PTR_)+(LEN_) }
-#define SPAN_INIT(...)   SPAN_INIT_N(__VA_ARGS__, ARRAY_SIZE(VA_PARAM_0(__VA_ARGS__)))
-
-#define SPAN_LENGTH(SPAN_)    (int)((SPAN_).back - (SPAN_).front)
-#define SPAN_IS_EMPTY(SPAN_)  (SPAN_LENGTH(SPAN_) <= 1)
-#define SPAN_IS_NULL(SPAN_)   ((SPAN_).front == NULL)
-
-#define SLICE(SPAN_, START_, STOP_)  { \
-	.front = (SPAN_).front + CHECK(START_, SPAN_LENGTH(SPAN_)),   \
-	.back  = (SPAN_).front + CHECK(STOP_,  SPAN_LENGTH(SPAN_)) }
-
-typedef TSPAN(char)     char_span;
-typedef TSPAN(int)      int_span;
-typedef TSPAN(double)   dub_span;
-typedef TSPAN(byte)     byte_span;
 
 //----------------------------------------------------------------------
 //@module strand
 
-typedef struct {
+// Create strand from string literal or fixed-length char array.
+#define STR(LIT_)    strand_init_n((LIT_), sizeof(LIT_)-1)
+
+bool   strand_equals(struct strand a, struct strand b);
+void   strand_fputs(FILE *out, struct strand str);
+struct strand strand_trim_back(struct strand s, int (*istype)(int));
+struct strand strand_trim_front(struct strand s, int (*istype)(int));
+struct strand strand_trim(struct strand s, int (*istype)(int));
+
+
+//----------------------------------------------------------------------
+//@module strbuf
+
+typedef struct strbuf { 
 	size_t size;
 	char   *front, *back;
 } strbuf;
 
-char *strbuf_end(strbuf buf);
-
-static inline strbuf strbuf_init(char buf[], size_t size)
+static inline strbuf strbuf_init(char *buf, size_t size)
 {
 	return (strbuf){ .size = size, .front = buf, .back = buf };
 }
+
 #define STRBUF_INIT(BUF_)  strbuf_init((BUF_), sizeof(BUF_))
 
-
-typedef TSPAN(const char) strand;
-
-static inline strand strand_init(const char *s, int length)
+static inline int strbuf_length(const struct strbuf *buf)
 {
-	return (strand){ .front = s, .back = s + length };
+	return buf ?  (buf->back - buf->front) : 0;
 }
 
-#define STR(LIT_)    strand_init((LIT_), sizeof(LIT_)-1)
+static inline int strbuf_cap(const struct strbuf *buf)
+{
+	return buf ? (buf->size - strbuf_length(buf)) : 0;
+}
 
-bool   strand_is_null(strand s);
-bool   strand_is_empty(strand s);
-int    strand_length(strand s);
-bool   strand_equals(strand a, strand b);
-strand strand_copy(strand from, strbuf out);
-strand strand_reverse(strand str, strbuf *out);
-strand strand_itoa(int n, strbuf out);
-void   strand_fputs(FILE *out, strand str);
-strand strand_trim_back(strand s, int (*istype)(int));
-strand strand_trim_front(strand s, int (*istype)(int));
-strand strand_trim(strand s, int (*istype)(int));
+char *strbuf_end(strbuf buf);
 
 
 //----------------------------------------------------------------------
@@ -576,9 +587,9 @@ uint32_t Xorshift_rand(Xorshifter *state);
 
 //@module Hash Table
 
-uint64_t hash_fnv_1a_64bit(byte_span data, uint64_t hash);
+uint64_t hash_fnv_1a_64bit(struct byte_span data, uint64_t hash);
 
-uint64_t hash(byte_span data);
+uint64_t hash(struct byte_span data);
 
 //@module Fibonacci Sequence Iterator
 

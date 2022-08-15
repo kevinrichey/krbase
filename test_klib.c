@@ -247,7 +247,7 @@ TEST_CASE(convert_status_enum_to_str)
 
 TEST_CASE(capture_debug_context_info)
 {
-	struct source_location dbi = SOURCE_LOCATION_INIT;
+	struct source_location dbi = CURRENT_LOCATION;
 
 	TEST(!strcmp(dbi.file, "test_klib.c"));
 	TEST(dbi.line == (__LINE__-3));
@@ -266,28 +266,32 @@ void this_func_throws_up(struct except_frame *xf)
 
 TEST_CASE(func_throws_exception)
 {
-	struct except_frame xf;
+	struct except_frame xf = {0};
 
-	switch (setjmp(xf.env)) {
-		case 0:
+	switch (EXCEPT_BEGIN(xf)) 
+	{
+		case EXCEPT_TRY:
 			except_try(&xf, STATUS_OK, CURRENT_LOCATION);
 			// it should not throw
 			break;
 		default:
-			TEST(false && "Exception was thrown!");
+			TEST(!"Exception was thrown!");
 	}
+	except_dispose(&xf);
 
-	switch (setjmp(xf.env)) {
-		case 0:
+	switch (EXCEPT_BEGIN(xf)) 
+	{
+		case EXCEPT_TRY:
 			this_func_throws_up(&xf);
-			TEST(false && "Exception not thrown");
+			TEST(!"Exception not thrown");
 			break;
 		case STATUS_ERROR:
 			// okay - this is where we should be
 			break;
 		default:
-			TEST(false && "Wrong exception thrown");
+			TEST(!"Wrong exception thrown");
 	}
+	except_dispose(&xf);
 }
 
 //-----------------------------------------------------------------------------
@@ -300,6 +304,74 @@ TEST_CASE(size_t_overflow_detection)
 	TEST(!size_t_add_overflows(10000, 99));
 	TEST( size_t_mult_overflows(SIZE_MAX-200, SIZE_MAX-300));
 	TEST( size_t_add_overflows(SIZE_MAX-100, 101));
+}
+
+TEST_CASE(cast_ptrdiff_to_int_safely)
+{
+	struct except_frame xf = {0};
+	switch (EXCEPT_BEGIN(xf)) 
+	{
+		case EXCEPT_TRY: 
+		{
+			const byte bytes[100];
+			ptrdiff_t d = &bytes[90] - &bytes[65];
+			int id = try_ptrdiff_to_int(d, &xf, CURRENT_LOCATION);
+			TEST(id == 25);
+			// it should not throw
+			break;
+		}
+		case STATUS_MATH_OVERFLOW:
+			TEST(!"Overflow exception was thrown!");
+			break;
+		default:
+			TEST(!"Unknown exception was thrown!");
+			break;
+	}
+	except_dispose(&xf);
+}
+
+TEST_CASE(cast_ptrdiff_to_int_fail_positive)
+{
+	struct except_frame xf = {0};
+	switch (EXCEPT_BEGIN(xf)) 
+	{
+		case EXCEPT_TRY: 
+		{
+			ptrdiff_t big_diff = (ptrdiff_t)INT_MAX + 100;
+			int id = try_ptrdiff_to_int(big_diff, &xf, CURRENT_LOCATION);
+			TEST(!"Exception was not thrown!");
+			break;
+		}
+		case STATUS_MATH_OVERFLOW:
+			// OK - exception was expected.
+			break;
+		default:
+			TEST(!"Unknown exception was thrown!");
+			break;
+	}
+	except_dispose(&xf);
+}
+
+TEST_CASE(cast_ptrdiff_to_int_fail_negative)
+{
+	struct except_frame xf = {0};
+	switch (EXCEPT_BEGIN(xf)) 
+	{
+		case EXCEPT_TRY: 
+		{
+			ptrdiff_t neg_diff = (ptrdiff_t)-INT_MAX - 100;
+			int id = try_ptrdiff_to_int(neg_diff, &xf, CURRENT_LOCATION);
+			TEST(!"Exception was not thrown!");
+			break;
+		}
+		case STATUS_MATH_OVERFLOW:
+			// OK - exception was expected.
+			break;
+		default:
+			TEST(!"Unknown exception was thrown!");
+			break;
+	}
+	except_dispose(&xf);
 }
 
 //-----------------------------------------------------------------------------
@@ -323,24 +395,24 @@ TEST_CASE(ints_in_range)
 
 TEST_CASE(properties_of_null_span)
 {
-	struct int_span null_span = { NULL, NULL };
+	struct int_span null_span = {0};
 
-	TEST(SPAN_IS_NULL(null_span));
-	TEST(SPAN_IS_EMPTY(null_span));
-	TEST(int_span_length(&null_span) == 0);
+	TEST(int_span_is_null(null_span));
+	TEST(int_span_is_empty(null_span));
+	TEST(int_span_length(null_span) == 0);
 }
 
 TEST_CASE(init_span_from_arrays)
 {
 	char letters[] = "abcdefghijklmnopqrstuvwxyz";
-	char_span cs = SPAN_INIT(letters);
-	TEST(SPAN_LENGTH(cs) == 27); // don't forget the null-terminator
+	struct char_span cs = char_span_init_n(letters, ARRAY_SIZE(letters)-1);
+	TEST(char_span_length(cs) == 26);
 	TEST(cs.front[5] == 'f');
 
 	// Make a span from the array
 	int fibs[] = { 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 };
-	int_span nspan = SPAN_INIT(fibs, 8);
-	TEST(SPAN_LENGTH(nspan) == 8);
+	struct int_span nspan = int_span_init_n(fibs, 8);
+	TEST(int_span_length(nspan) == 8);
 	int i = 0;
 	TEST(nspan.front[i++] ==  0);
 	TEST(nspan.front[i++] ==  1);
@@ -356,18 +428,18 @@ TEST_CASE(slice_span)
 {
 	//             0  1  2  3  4  5  6   7   8   9  10  11
 	int fibs[] = { 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 };
-	int_span fibspan = SPAN_INIT(fibs);
+	struct int_span fibspan = int_span_init_n(fibs, ARRAY_SIZE(fibs));
 
-	int_span s1 = SLICE(fibspan, 3, 8);
-	TEST(SPAN_LENGTH(s1) == 5);
+	struct int_span s1 = int_span_slice(fibspan, 3, 8);
+	TEST(int_span_length(s1) == 5);
 	TEST(s1.front[0] == 2);
 	TEST(s1.front[1] == 3);
 	TEST(s1.front[2] == 5);
 	TEST(s1.front[3] == 8);
 	TEST(s1.front[4] == 13);
 
-	int_span s2 = SLICE(fibspan, 6, -3);
-	TEST(SPAN_LENGTH(s2) == 3);
+	struct int_span s2 = int_span_slice(fibspan, 6, -3);
+	TEST(int_span_length(s2) == 3);
 	TEST(s2.front[0] == 8);
 	TEST(s2.front[1] == 13);
 	TEST(s2.front[2] == 21);
@@ -393,15 +465,15 @@ TEST_CASE(vector_init)
 
 TEST_CASE(properties_of_null_strand)
 {
-	strand nullstr = { NULL, NULL };
+	struct strand nullstr = { NULL, NULL };
 
-	strand empty   = STR("");
-	strand xyzzy   = STR("xyzzy");
+	struct strand empty   = STR("");
+	struct strand xyzzy   = STR("xyzzy");
 
 	TEST(   strand_is_null(nullstr));
 	TEST(   strand_is_empty(nullstr));
 	TEST(   strand_length(nullstr) == 0);
-	TEST(   strand_equals(nullstr, (strand){NULL,NULL}));
+	TEST(   strand_equals(nullstr, (struct strand){NULL,NULL}));
 	TEST(   strand_equals(nullstr, empty));
 	TEST(   strand_equals(empty, nullstr));
 	TEST( ! strand_equals(nullstr, xyzzy));
@@ -410,10 +482,10 @@ TEST_CASE(properties_of_null_strand)
 
 TEST_CASE(properties_of_empty_strand)
 {
-	strand empty   = STR("");
+	struct strand empty   = STR("");
 
-	strand nullstr = { NULL, NULL };
-	strand xyzzy   = STR("xyzzy");
+	struct strand nullstr = { NULL, NULL };
+	struct strand xyzzy   = STR("xyzzy");
 
 	TEST( ! strand_is_null(empty));
 	TEST(   strand_is_empty(empty));
@@ -425,17 +497,17 @@ TEST_CASE(properties_of_empty_strand)
 
 TEST_CASE(properties_of_strand)
 {
-	strand xyzzy   = STR("xyzzy");
+	struct strand xyzzy   = STR("xyzzy");
 
 	char   xyzzy_array[] = "xyzzy";
-	strand xyzzy_comp = strand_init(xyzzy_array, strlen(xyzzy_array));
+	struct strand xyzzy_comp = strand_init_n(xyzzy_array, strlen(xyzzy_array));
 
-	strand empty   = STR("");
-	strand nullstr = { NULL, NULL };
-	strand zork    = STR("zork");
-	strand xyzzy_longer = STR("xyzzy_longer");
+	struct strand empty   = STR("");
+	struct strand nullstr = { NULL, NULL };
+	struct strand zork    = STR("zork");
+	struct strand xyzzy_longer = STR("xyzzy_longer");
 	char sub[] = "abxyzzycd";
-	strand sub_xyzzy = { sub+2, sub+7 };
+	struct strand sub_xyzzy = { sub+2, sub+7 };
 
 	TEST(!strand_is_null(xyzzy));
 	TEST(!strand_is_empty(xyzzy));
@@ -453,54 +525,12 @@ TEST_CASE(properties_of_strand)
 	TEST(!strand_equals(xyzzy_longer, xyzzy));
 }
 
-TEST_CASE(copy_strand_to_strbuf)
-{
-	strand s = STR("Copy this string");
-
-	char buff[] = "********************";
-	strbuf copy = STRBUF_INIT(buff);
-
-	char comp[] = "Copy this string";
-	strand compto = STR(comp);
-
-	strand cp = strand_copy(s, copy);
-	TEST( strand_equals(cp, compto) );
-}
-
-TEST_CASE(reverse_copy_a_string)
-{
-	strand str     = STR("Reverse this string");
-
-	char revbuff[25] = "************************";
-	strbuf buf = STRBUF_INIT(revbuff);
-	TEST( strand_equals(strand_reverse(str, &buf), STR("gnirts siht esreveR")) );
-
-	char shorter[10] = "*********";
-	buf = STRBUF_INIT(shorter);
-	TEST( strand_equals(strand_reverse(str, &buf), STR("gnirts si")) );
-}
-
-TEST_CASE(convert_int_to_strand)
-{
-	char s[NUM_STR_LEN(int)];
-	strbuf buf = STRBUF_INIT(s);
-
-	TEST(strand_equals(strand_itoa(0, buf), STR("0")));
-	TEST(strand_equals(strand_itoa(1, buf), STR("1")));
-	TEST(strand_equals(strand_itoa(12345, buf), STR("12345")));
-	TEST(strand_equals(strand_itoa(INT_MAX, buf), STR( "2147483647")));
-	TEST(strand_equals(strand_itoa(-0, buf), STR("0")));
-	TEST(strand_equals(strand_itoa(-1, buf), STR("-1")));
-	TEST(strand_equals(strand_itoa(-12345, buf), STR("-12345")));
-	TEST(strand_equals(strand_itoa(INT_MIN, buf), STR( "-2147483648")));
-}
-
 TEST_CASE(return_trimmed_span)
 {
 	char text[] = " \t\v\r\n  Trim trailing whitespace  \t\v\r\n   ";
-	strand s = STR(text);
+	struct strand s = STR(text);
 
-	strand trimmed = strand_trim_back(s, isspace);
+	struct strand trimmed = strand_trim_back(s, isspace);
 	TEST( strand_equals(trimmed, STR(" \t\v\r\n  Trim trailing whitespace")) );
 
 	trimmed = strand_trim_front(s, isspace);
@@ -510,16 +540,77 @@ TEST_CASE(return_trimmed_span)
 	TEST( strand_equals(trimmed, STR("Trim trailing whitespace")) );
 
 	char empty_text[] = "";
-	strand empty = STR(empty_text);
+	struct strand empty = STR(empty_text);
 	TEST( strand_equals(strand_trim_back(empty, isspace), STR("")) );
 	TEST( strand_equals(strand_trim_front(empty, isspace), STR("")) );
 	TEST( strand_equals(strand_trim(empty, isspace), STR("")) );
 
 	char spaces_text[] = "  \t\v\r\n   ";
-	strand spaces = STR(spaces_text);
+	struct strand spaces = STR(spaces_text);
 	TEST( strand_equals(strand_trim_back(spaces, isspace), STR("")) );
 	TEST( strand_equals(strand_trim_front(spaces, isspace), STR("")) );
 	TEST( strand_equals(strand_trim(spaces, isspace), STR("")) );
+}
+
+TEST_CASE(null_strbuf_properties)
+{
+	struct strbuf *buf = NULL;
+
+	TEST(strbuf_length(buf) == 0);
+	TEST(strbuf_cap(buf) == 0);
+}
+
+TEST_CASE(empty_strbuf_properties)
+{
+	struct strbuf buf = STRBUF_INIT((char[32]){});
+
+	TEST(buf.size == 32);
+	TEST(strbuf_length(&buf) == 0);
+	TEST(strbuf_cap(&buf) == 32);
+}
+
+enum status strbuf_cat(struct strbuf *buf, struct strand str)
+{
+	int len = strand_length(str);
+	if (len > strbuf_cap(buf))
+		return STATUS_OUT_OF_SPACE;
+
+	memcpy(buf->back, str.front, len);
+	buf->back += len;
+
+	return STATUS_OK;
+}
+
+struct strand strbuf_strand(struct strbuf buf)
+{
+	return (struct strand){ .front = buf.front, .back = buf.back };
+
+}
+TEST_CASE(concat_strand_to_strbuf)
+{
+	struct strbuf buf = STRBUF_INIT((char[100]){});
+
+	char hello[] = "Hello, world.";
+	struct strand s1 = STR(hello);
+
+	enum status stat = strbuf_cat(&buf, s1); 
+	struct strand res = strbuf_strand(buf);
+
+	TEST(stat == STATUS_OK);
+	TEST(strbuf_length(&buf) == 13);
+	TEST(strbuf_cap(&buf) == 100-13);
+	TEST(strand_equals(res, STR("Hello, world.")));
+
+
+	char bye[] = " Goodbye, Pluto!";
+	stat = strbuf_cat(&buf, STR(bye));
+	res = strbuf_strand(buf);
+
+	TEST(stat == STATUS_OK);
+	TEST(strbuf_length(&buf) == 13+16);
+	TEST(strbuf_cap(&buf) == 100-13-16);
+	TEST(strand_equals(res, STR("Hello, world. Goodbye, Pluto!")));
+
 }
 
 //-----------------------------------------------------------------------------

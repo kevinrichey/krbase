@@ -243,7 +243,7 @@ int main(int argc, char *argv[])
 	{
 		struct error *err = xf.error;
 		error_fprint(stderr, &(struct error){ .status=STATUS_EXCEPTION, .source=CURRENT_LOCATION });
-		error_fatal(err, "");
+		error_fatal(err);
 	}
 
 

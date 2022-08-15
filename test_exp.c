@@ -5,6 +5,7 @@
 #include <setjmp.h>
 #include <stddef.h>
 #include <assert.h>
+#include <limits.h>
 
 #include "krclib.h"
 
@@ -161,30 +162,30 @@ TEST_CASE(object_life_cycle)
 
 
 #define Bytes_init_array(ARR_)  \
-			(byte_span)SPAN_INIT((byte*)(ARR_), sizeof(ARR_))
+			(struct byte_span)byte_span_init_n((byte*)(ARR_), sizeof(ARR_))
 
 #define Bytes_init_var(VAR_)   \
-			(byte_span)SPAN_INIT((byte*)&(VAR_), sizeof(VAR_))
+			(struct byte_span)byte_span_init_n((byte*)&(VAR_), sizeof(VAR_))
 
-byte_span Bytes_init_str(char *s);
+struct byte_span Bytes_init_str(char *s);
 
 TEST_CASE(convert_things_to_bytes)
 {
 	int numbers[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-	byte_span ns1 = Bytes_init_array(numbers);
-	TEST(SPAN_LENGTH(ns1) == (10 * sizeof(int)));
+	struct byte_span ns1 = Bytes_init_array(numbers);
+	TEST(byte_span_length(ns1) == (10 * sizeof(int)));
 
 	int i = 101;
-	byte_span ns2 = Bytes_init_var(i);
-	TEST(SPAN_LENGTH(ns2) == sizeof(int));
+	struct byte_span ns2 = Bytes_init_var(i);
+	TEST(byte_span_length(ns2) == sizeof(int));
 
 	double d = 3.14159;
-	byte_span ns3 = Bytes_init_var(d);
-	TEST(SPAN_LENGTH(ns3) == sizeof(double));
+	struct byte_span ns3 = Bytes_init_var(d);
+	TEST(byte_span_length(ns3) == sizeof(double));
 
 	char s[100] = "Hello, World";
-	byte_span ns4 = Bytes_init_str(s);
-	TEST(SPAN_LENGTH(ns4) == 12);
+	struct byte_span ns4 = Bytes_init_str(s);
+	TEST(byte_span_length(ns4) == 12);
 }
 
 TEST_CASE(FNV_hash_test)
@@ -235,8 +236,8 @@ TEST_CASE(hash_table)
 	char s1[] = "Hello";
 
 	uint64_t s1_hash = hash(Bytes_init_str(s1));
-	unsigned mask = size - 1;
-	int i = mask & s1_hash;
+	uint64_t mask = size - 1;
+	int i = (int)(mask & s1_hash);
 	data[i].hash = s1_hash;
 	data[i].value = 'a';
 

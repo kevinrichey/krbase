@@ -51,47 +51,53 @@ const char *status_string(enum status stat)
 	return status_names[stat];
 }
 
-void error_fprint(FILE *out, const struct error *error)
+void debug_vprint(FILE *out, enum status status, struct source_location source, const char *format, va_list args)
 {
 	out = if_null(out, stderr);
-
-	fprintf(out, "%s:%d: %s in %s(): %s\n", 
-	        error->source.file, error->source.line,
-			status_string(error->status),
-			error->source.func,
-			error->message ? error->message : "");
+	fprintf(out, "%s:%d: %s in %s(): ", source.file, source.line, status_string(status), source.func);
+	if (format)
+		vfprintf(out, format, args);
+	fputc('\n', out);
 }
 
-void error_fatal(const struct error *error, const char *str, ...)
+void debug_print(FILE *out, enum status status, struct source_location source, const char *format, ...)
 {
-	error_fprint(stderr, error);
+	va_list args;
+	debug_vprint(out, status, source, format, args);
+	va_end(args);
+}
 
-	if (str)
-	{
-		fputc('\t', stderr);
-		va_list args;
-		va_start(args, str);
-		vfprintf(stderr, str, args);
-		va_end(args);
-		fputc('\n', stderr);
-	}
-
+void debug_print_abort(FILE *out, enum status status, struct source_location source, const char *format, ...)
+{
+	va_list args;
+	debug_vprint(out, status, source, format, args);
+	va_end(args);
 	abort();
 }
 
 void assert_failure(
-		struct source_location source,
-		enum debug_level level, 
-		const char *msg)
+		struct  source_location  source,
+		enum    debug_level      level,
+		const   char             *msg)
 {
 	if (level <= ASSERT_VOLUME)
+		debug_print_abort(stderr, STATUS_ASSERT_FAILURE, source, msg);
+}
+
+
+
+void error_fprint(FILE *out, const struct error *error)
+{
+	if (error)
 	{
-		struct error error = {
-			.source = source,
-			.status = STATUS_ASSERT_FAILURE,
-		};
-		error_fatal(&error, ">>> '%s'", msg);
+		debug_print(out, error->status, error->source, error->message);
 	}
+}
+
+void error_fatal(const struct error *error)
+{
+	error_fprint(stderr, error);
+	abort();
 }
 
 int check_index(int i, int length, struct source_location dbg)
@@ -109,7 +115,8 @@ int check_index(int i, int length, struct source_location dbg)
 void except_throw_error(struct except_frame *frame, struct error *error)
 {
 	if (!frame)
-		error_fatal(error, "Unhandled exception");
+		error_fatal(error);
+//		error_fatal(error, "Unhandled exception");
 
 	frame->error = error;
 	longjmp(frame->env, (int)error->status);
@@ -119,7 +126,7 @@ void except_throw(struct except_frame *frame, enum status status, struct source_
 {
 	struct error *error = malloc(sizeof(struct error));
 	if (!error)
-		error_fatal(error, "Failed to malloc error.");
+		FAILURE(STATUS_MALLOC_FAIL, "Failed to malloc error object.");
 
 	*error = (struct error){
 		.source = source,
@@ -193,6 +200,18 @@ int try_int_mult(int a, int b, struct except_frame *xf, struct source_location l
 	return a * b;
 }
 
+bool ptrdiff_to_int_overflows(ptrdiff_t d)
+{
+	return (d > (ptrdiff_t)INT_MAX) || (d < (ptrdiff_t)-INT_MAX);
+}
+
+int try_ptrdiff_to_int(ptrdiff_t d, struct except_frame *xf, struct source_location loc)
+{
+	if (ptrdiff_to_int_overflows(d))
+		except_throw(xf, STATUS_MATH_OVERFLOW, loc);
+
+	return (int)d;
+}
 void *try_malloc(size_t size, struct except_frame *xf, struct source_location source)
 {
 	void *mem = malloc(size);
@@ -218,22 +237,7 @@ char *strbuf_end(strbuf buf)
 }
 
 
-bool strand_is_null(strand s)
-{
-	return s.front == NULL;
-}
-
-bool strand_is_empty(strand s)
-{
-	return s.front == s.back;
-}
-
-int strand_length(strand s)
-{
-	return s.back - s.front;
-}
-
-bool strand_equals(strand a, strand b)
+bool strand_equals(struct strand a, struct strand b)
 {
 	if (strand_length(a) != strand_length(b))
 		return false;
@@ -241,53 +245,26 @@ bool strand_equals(strand a, strand b)
 	return !strncmp(a.front, b.front, strand_length(a));
 }
 
-strand strand_copy(strand from, strbuf out)
-{
-	char *end = strbuf_end(out);
-	while (from.front < from.back && out.back < end)
-		*out.back++ = *from.front++;
-	return (strand){ .front = out.front, .back = out.back };
-}
-
-strand strand_reverse(strand str, strbuf *out)
-{
-	char *end = strbuf_end(*out);
-
-	int i = 1;
-	while (str.back > str.front && out->back < end)
-		*out->back++ = *--str.back;
-
-	*out->back = '\0';
-	return (strand){ .front = out->front, .back = out->back };
-}
-
-strand strand_itoa(int n, strbuf out)
-{
-	char sbuf[NUM_STR_LEN(int)] = "**********";
-	char *istr = kr_int_to_str_back(n, sbuf + ARRAY_SIZE(sbuf)-1);
-	return strand_copy((strand){ .front = istr, .back = sbuf+sizeof(sbuf)-1 }, out);
-}
-
-void strand_fputs(FILE *out, strand str)
+void strand_fputs(FILE *out, struct strand str)
 {
 	fprintf(out, "%.*s\n", strand_length(str), str.front);
 }
 
-strand strand_trim_back(strand s, int (*istype)(int))
+struct strand strand_trim_back(struct strand s, int (*istype)(int))
 {
 	while (s.back > s.front && istype(*(s.back-1))) 
 		--s.back;
 	return s;
 }
 
-strand strand_trim_front(strand s, int (*istype)(int))
+struct strand strand_trim_front(struct strand s, int (*istype)(int))
 {
 	while (s.front < s.back && istype(*s.front)) 
 		++s.front;
 	return s;
 }
 
-strand strand_trim(strand s, int (*istype)(int))
+struct strand strand_trim(struct strand s, int (*istype)(int))
 {
 	return strand_trim_back( strand_trim_front(s, istype), istype);
 }
@@ -295,9 +272,9 @@ strand strand_trim(strand s, int (*istype)(int))
 
 
 
-byte_span Bytes_init_str(char *s)
+struct byte_span Bytes_init_str(char *s)
 {
-	return (byte_span)SPAN_INIT((byte*)s, strlen(s));
+	return (struct byte_span)byte_span_init_n((byte*)s, strlen(s));
 }
 
 
@@ -481,7 +458,7 @@ uint32_t Xorshift_rand(Xorshifter *state)
 	return state->x = x;
 }
 
-uint64_t hash_fnv_1a_64bit(byte_span data, uint64_t hash)
+uint64_t hash_fnv_1a_64bit(struct byte_span data, uint64_t hash)
 {
 	const uint64_t fnv_1a_64bit_prime = 0x100000001B3;
 
@@ -494,7 +471,7 @@ uint64_t hash_fnv_1a_64bit(byte_span data, uint64_t hash)
 	return hash;
 }
 
-uint64_t hash(byte_span data)
+uint64_t hash(struct byte_span data)
 {
 	const uint64_t fnv_1a_64bit_offset_basis = 14695981039346656037llu;
 	return hash_fnv_1a_64bit(data, fnv_1a_64bit_offset_basis);
