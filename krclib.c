@@ -51,32 +51,16 @@ const char *status_string(enum status stat)
 	return status_names[stat];
 }
 
-void debug_vprint(FILE *out, enum status status, struct source_location source, const char *format, va_list args)
-{
-	out = if_null(out, stderr);
-	fprintf(out, "%s:%d: %s in %s(): ", source.file, source.line, status_string(status), source.func);
-	if (format)
-		vfprintf(out, format, args);
-	fputc('\n', out);
-}
-
-void debug_print(FILE *out, enum status status, struct source_location source, const char *format, ...)
+void debug_print_abort(FILE *out, enum status status, struct SourceLocation source, const char *format, ...)
 {
 	va_list args;
-	debug_vprint(out, status, source, format, args);
-	va_end(args);
-}
-
-void debug_print_abort(FILE *out, enum status status, struct source_location source, const char *format, ...)
-{
-	va_list args;
-	debug_vprint(out, status, source, format, args);
+	debug_vprint(out, source, format, args);
 	va_end(args);
 	abort();
 }
 
 void assert_failure(
-		struct  source_location  source,
+		struct  SourceLocation  source,
 		enum    debug_level      level,
 		const   char             *msg)
 {
@@ -90,7 +74,7 @@ void error_fprint(FILE *out, const struct error *error)
 {
 	if (error)
 	{
-		debug_print(out, error->status, error->source, error->message);
+		debug_print(out, error->source, error->message);
 	}
 }
 
@@ -100,7 +84,7 @@ void error_fatal(const struct error *error)
 	abort();
 }
 
-int check_index(int i, int length, struct source_location dbg)
+int check_index(int i, int length, struct SourceLocation dbg)
 {
 	if (i < -length || i >= length) {
 		char buf[100] = "";
@@ -122,7 +106,7 @@ void except_throw_error(struct except_frame *frame, struct error *error)
 	longjmp(frame->env, (int)error->status);
 }
 
-void except_throw(struct except_frame *frame, enum status status, struct source_location source)
+void except_throw(struct except_frame *frame, enum status status, struct SourceLocation source)
 {
 	struct error *error = malloc(sizeof(struct error));
 	if (!error)
@@ -136,7 +120,7 @@ void except_throw(struct except_frame *frame, enum status status, struct source_
 	except_throw_error(frame, error);
 }
 
-void except_try(struct except_frame *frame, enum status status, struct source_location source)
+void except_try(struct except_frame *frame, enum status status, struct SourceLocation source)
 {
 	if (status != STATUS_OK)
 		except_throw(frame, status, source);
@@ -161,7 +145,7 @@ bool size_t_add_overflows(size_t a, size_t b)
     return a > SIZE_MAX - b;
 }
 
-size_t try_size_mult(size_t a, size_t b, struct except_frame *xf, struct source_location loc)
+size_t try_size_mult(size_t a, size_t b, struct except_frame *xf, struct SourceLocation loc)
 {
     if (size_t_mult_overflows(a, b))
 		except_throw(xf, STATUS_MATH_OVERFLOW, loc);
@@ -169,7 +153,7 @@ size_t try_size_mult(size_t a, size_t b, struct except_frame *xf, struct source_
 	return a * b;
 }
 
-size_t try_size_add(size_t a, size_t b, struct except_frame *xf, struct source_location loc)
+size_t try_size_add(size_t a, size_t b, struct except_frame *xf, struct SourceLocation loc)
 {
     if (size_t_add_overflows(a, b))
 		except_throw(xf, STATUS_MATH_OVERFLOW, loc);
@@ -192,7 +176,7 @@ bool int_mult_overflows(int a, int b)
 		return b < INT_MAX / a;
 }
 
-int try_int_mult(int a, int b, struct except_frame *xf, struct source_location loc)
+int try_int_mult(int a, int b, struct except_frame *xf, struct SourceLocation loc)
 {
 	if (int_mult_overflows(a, b))
 		except_throw(xf, STATUS_MATH_OVERFLOW, loc);
@@ -205,14 +189,14 @@ bool ptrdiff_to_int_overflows(ptrdiff_t d)
 	return (d > (ptrdiff_t)INT_MAX) || (d < (ptrdiff_t)-INT_MAX);
 }
 
-int try_ptrdiff_to_int(ptrdiff_t d, struct except_frame *xf, struct source_location loc)
+int try_ptrdiff_to_int(ptrdiff_t d, struct except_frame *xf, struct SourceLocation loc)
 {
 	if (ptrdiff_to_int_overflows(d))
 		except_throw(xf, STATUS_MATH_OVERFLOW, loc);
 
 	return (int)d;
 }
-void *try_malloc(size_t size, struct except_frame *xf, struct source_location source)
+void *try_malloc(size_t size, struct except_frame *xf, struct SourceLocation source)
 {
 	void *mem = malloc(size);
 	if (!mem)

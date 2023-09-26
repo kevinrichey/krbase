@@ -84,12 +84,6 @@ TEST_CASE(get_va_macro_param_n)
 	TEST(VA_PARAM_7(1, 2, 3, 4, 5, 6, 7, 8, 9) == 8);
 }
 
-TEST_CASE(compute_array_size)
-{
-	int a[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-	TEST(ARRAY_SIZE(a) == 10);
-}
-
 TEST_CASE(convert_member_ptr_to_struct)
 {
 	typedef struct {
@@ -243,15 +237,6 @@ TEST_CASE(convert_status_enum_to_str)
 	TEST( !strcmp(status_string(STATUS_END), "Unknown Status") );
 	TEST( !strcmp(status_string(-1), "Unknown Status") );
 	TEST( !strcmp(status_string(100000), "Unknown Status") );
-}
-
-TEST_CASE(capture_debug_context_info)
-{
-	struct source_location dbi = CURRENT_LOCATION;
-
-	TEST(!strcmp(dbi.file, "test_klib.c"));
-	TEST(dbi.line == (__LINE__-3));
-	TEST(!strcmp(dbi.func, "TestCase_capture_debug_context_info"));
 }
 
 

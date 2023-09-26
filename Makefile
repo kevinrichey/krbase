@@ -9,15 +9,10 @@ CWARNFLAGS = -Wall \
 
 CFLAGS = -g -D DEBUG -bt8 -Werror $(CWARNFLAGS)
 
-CFILES = krstring.c krclib.c
+CFILES = krbase.c 
 HFILES = $(CFILES:.c=.h)
-UTESTS = $(wildcard test_*.c)
-
-run: test maze
-	./maze $(ARGS)
-
-run_test: test
-	./test
+#UTESTS = $(wildcard test_*.c)
+UTESTS = test_krbase.c
 
 test: $(CFILES) $(HFILES) $(UTESTS) test.c testcases.h testcases.inc
 	$(CC) $(CFLAGS) $(CFILES) $(UTESTS) test.c -run

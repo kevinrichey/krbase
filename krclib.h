@@ -7,23 +7,18 @@
 #include <time.h>
 #include <setjmp.h>
 
+#include "krbase.h"
+
 //@library Kevin Richey's C Library
 
 //----------------------------------------------------------------------
 //@module Utility Macros
-
-#define NOOP          ((void)0)
-#define UNUSED(VAR_)  (void)(VAR_)
 
 #define STANDARD_ENUM_VALUES(EnumName_) \
   EnumName_##_END,  \
   EnumName_##_COUNT = EnumName_##_END,  \
   EnumName_##_LAST  = EnumName_##_END - 1, \
   EnumName_##_FIRST = 0
-
-#define CONCAT(A,B)             A##B
-#define STRINGIFY(x)            #x
-#define STRINGIFY_EXPAND(x)     STRINGIFY(x)
 
 #define VA_NARGS_N(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, PA, PB, PC, PD, PE, PF, PN, ...) PN
 #define VA_NARGS(...) VA_NARGS_N(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
@@ -36,7 +31,6 @@
 #define VA_PARAM_6(_0, _1, _2, _3, _4, _5, _6, ...)  _6
 #define VA_PARAM_7(_0, _1, _2, _3, _4, _5, _6, _7, ...)  _7
 
-#define ARRAY_SIZE(A_)    (sizeof(A_) / sizeof(*(A_)))
 
 #define MEMBER_TO_STRUCT_PTR(PTR_, TYPE_, MEMBER_)  \
 	(TYPE_*)((byte*)(PTR_) - offsetof(TYPE_, MEMBER_))
@@ -47,33 +41,6 @@
 
 //----------------------------------------------------------------------
 //@module Primitive Utilities
-
-typedef unsigned char byte;
-
-// void function pointer
-typedef void (*VoidFunc)();
-
-static inline void *if_null(void *p, void *d)
-{
-	return p ? p : d;
-}
-
-static inline const void *if_null_const(const void *p, const void *d)
-{
-	return p ? p : d;
-}
-
-
-// Type-safe min/max template
-#define DEFINE_MINMAX_FUNCS(TYPE_, PRE_) \
-	static inline TYPE_ PRE_##_max(TYPE_ a, TYPE_ b) { return a > b ? a : b; } \
-	static inline TYPE_ PRE_##_min(TYPE_ a, TYPE_ b) { return a < b ? a : b; }
-
-DEFINE_MINMAX_FUNCS(char, ch)
-DEFINE_MINMAX_FUNCS(int, int)
-DEFINE_MINMAX_FUNCS(unsigned, uint)
-DEFINE_MINMAX_FUNCS(double, fl)
-DEFINE_MINMAX_FUNCS(size_t, size)
 
 // Type-safe swap
 #define KR_SWAP_TEMPLATE(TYPE_, PRE_)  \
@@ -170,29 +137,19 @@ enum status {
 const char *status_string(enum status stat);
 
 
-struct source_location 
-{
-	const char *file;
-	unsigned    line;
-	const char *func;
-};
-
-#define CURRENT_LOCATION   (struct source_location){ .file=__FILE__, .line=__LINE__, .func=__func__ }
-
-void debug_print(FILE *out, enum status status, struct source_location source, const char *format, ...);
 
 #define WATCH_INT(Val_)  debug_print(stderr, STATUS_WATCH, CURRENT_LOCATION, STRINGIFY(Val_) " = %d\n", Val_)
 
 struct error 
 { 
-	struct  source_location  source;
+	struct  SourceLocation  source;
 	enum    status           status;
 	const   char             *message;
 };
 
 void error_fprint(FILE *out, const struct error *error);
 void error_fatal(const struct error *error);
-void assert_failure(struct source_location source, enum debug_level level, const char *msg);
+void assert_failure(struct SourceLocation source, enum debug_level level, const char *msg);
 
 #define PRECON(Condition_, Level_) \
 	do{ if (Condition_); else assert_failure(CURRENT_LOCATION, (Level_), #Condition_); } while(0)
@@ -202,12 +159,8 @@ void assert_failure(struct source_location source, enum debug_level level, const
 #define FAILURE(Status_, Message_)   \
 	error_fatal(&(struct error){ .source=CURRENT_LOCATION, .status=(Status_), .message=(Message_) })
 
-#define TEST_CASE(TEST_NAME_)  void TestCase_##TEST_NAME_(void)
-#define TEST(CONDITION_)       test_assert((CONDITION_), CURRENT_LOCATION, "'" #CONDITION_ "'")
-void test_assert(bool condition, struct source_location source, const char *msg);
-
 #define CHECK(I_, LEN_)  check_index((I_), (LEN_), CURRENT_LOCATION)
-int check_index(int i, int length, struct source_location dbg);
+int check_index(int i, int length, struct SourceLocation dbg);
 
 
 struct except_frame 
@@ -218,8 +171,8 @@ struct except_frame
 
 #define  EXCEPT_BEGIN(Xf_)  setjmp((Xf_).env)
 void except_throw_error(struct except_frame *frame, struct error *error);
-void except_throw(struct except_frame *frame, enum status status, struct source_location dbi);
-void except_try(struct except_frame *frame, enum status status, struct source_location dbi);
+void except_throw(struct except_frame *frame, enum status status, struct SourceLocation dbi);
+void except_try(struct except_frame *frame, enum status status, struct SourceLocation dbi);
 void except_dispose(struct except_frame *frame);
 
 #define  EXCEPT_TRY  0
@@ -229,19 +182,19 @@ void except_dispose(struct except_frame *frame);
 
 bool size_t_mult_overflows(size_t a, size_t b);
 bool size_t_add_overflows(size_t a, size_t b);
-size_t try_size_mult(size_t a, size_t b, struct except_frame *xf, struct source_location loc);
-size_t try_size_add(size_t a, size_t b, struct except_frame *xf, struct source_location loc);
+size_t try_size_mult(size_t a, size_t b, struct except_frame *xf, struct SourceLocation loc);
+size_t try_size_add(size_t a, size_t b, struct except_frame *xf, struct SourceLocation loc);
 
 bool   int_mult_overflows(int a, int b);
-int    try_int_mult(int a, int b, struct except_frame *xf, struct source_location loc);
+int    try_int_mult(int a, int b, struct except_frame *xf, struct SourceLocation loc);
 
 bool ptrdiff_to_int_overflows(ptrdiff_t d);
-int try_ptrdiff_to_int(ptrdiff_t d, struct except_frame *xf, struct source_location loc);
+int try_ptrdiff_to_int(ptrdiff_t d, struct except_frame *xf, struct SourceLocation loc);
 
 //----------------------------------------------------------------------
 // Memory tools
 
-void *try_malloc(size_t size, struct except_frame *xf, struct source_location source);
+void *try_malloc(size_t size, struct except_frame *xf, struct SourceLocation source);
 void *fam_alloc(size_t head_size, size_t elem_size, size_t array_length, struct except_frame *xf);
 
 
@@ -292,7 +245,7 @@ SPAN_TEMPLATE(char, char_span)
 SPAN_TEMPLATE(char, strand)
 SPAN_TEMPLATE(int, int_span)
 SPAN_TEMPLATE(double, dub_span)
-SPAN_TEMPLATE(byte, byte_span)
+SPAN_TEMPLATE(Byte, byte_span)
 
 
 //----------------------------------------------------------------------
