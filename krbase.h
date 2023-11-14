@@ -36,8 +36,14 @@ int    int_in_range(int n, int low, int hi);
 
 double float_min(double a, double b);
 double float_max(double a, double b);
+double float_clamp(double n, double low, double hi);
+double float_in_range(double n, double low, double hi);
+double float_equals(double a, double b, double epsilon);
 
-void *ptr_and(void *p, void *alt);
+double lerp(double a, double b, double t);
+
+void       *ptr_and(void *p, void *alt);
 const void *const_ptr_and(const void *p, const void *d);
+
 
 #endif

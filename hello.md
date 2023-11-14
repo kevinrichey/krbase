@@ -1,40 +1,53 @@
 % Kevin Richey's C Library
 
-Create a C library to make it easier, safer, more fun to code. 
-
-# Issues & Todo
-
-string_reserve() doesn't resize properly when bigger size is less than 2x current size.
-
+C base library to make it easier, safer, more fun to code. 
 
 # Outline
+
+- Unit tests (TEST_CASE, TEST)
+- Utility macros (CONCAT, STRINGIFY, ARRAY_LENGTH, etc)
+- Custom types (Byte, VoidFunc)
+- Debug info (SourceLocation, debug_print())
+- Numeric utils (min, max, and, clamp, in_range, etc).
+- lerp 
+
+## Todo
+
+- hash
+- Random generators & functions, shuffle 
+
+- vector, interval, range
+- enum utils (first, last, count, etc).
+- stand (string begin/end pointer range)
+
+- Data structures
+	- String type
+	- Dynamic array
+	- Hash/associative array
+
+- Functional programming
+	- monads, option, any, none/empty/nothing 
 
 - Build Config
 	- Build mode: test, debug, release
 	- Versioning
 - Instrumentation & Debugging
+	- status codes
 	- Assertions
 	- Unit testing
-	- Error handling
 	- Exceptions
 	- Tracing & logging
 	- Memory debugging
 - Signal handling
 - Configuration
-	- Command line args
+	- Command-line args
 	- Config files
 	- Environment variables
-- Documentation
-- Concurrency & Parallelism
-	- Forking
-	- Event-driven FSM
-- Networking, Inter-Process Communication
-- Security
-	- Encryption
-	- Authentication & Authorization
-- Localization
+- Documentation generation
 - Storage, de/serialization
 - Code generation & meta-programming tools
+- Security, Encryption, Authentication & Authorization
+- Localization
 
 ## Things Every C Programmer Needs to Know
 
@@ -47,56 +60,23 @@ string_reserve() doesn't resize properly when bigger size is less than 2x curren
 - Undefined behavior
 - Preprocessor
 
-Data structures
+# Style Guide
 
-- Dynamic arrays
-- stacks, queues
-- tables (associative arrays)
-- strings
-- vector (tuple)
-- chain (linked list)
-- unit testing
-
-Algos
-
-- list comprehension
-- collection operations
-- random, shuffle, noise
-
-Low-level concepts
-
-- error handling
-- assertions / contracts
-- memory management
-- preproc tools
-
-Application Concepts
-
-- tracing
-- logging
-- configuration
-
-Error handling strategy
-
-- low-level: return codes
-
-# Guidelines
+## General Guidelines
 
 - Standard C17, avoid compiler extensions, ignore C++ compat
 - Keep it C, don't try to imitate other languages
 - Use "modern" C features
 - Don't pre-over-optimize! (gets in the way, and you're not that good)
 
-# Style Guide
-
 ## Naming Conventions
 
-Variables, parameters, struct, union, enum, members
-: Lower case with underscores: `lower_snake_case`.
-: Use array notation (`type varname[]`) for passing arrays.
-
-typedefs
+Types - structs, unions, enums, typedefs
 : `PascalCase`
+
+Variables, parameters, struct & union members
+: Lower case with underscores: `lower_snake_case`.
+: Use array notation (`type varname[]`) for passing array parameters.
 
 Constants, Enumerations, Preproc symbols
 : Upper case with underscores.
@@ -107,7 +87,6 @@ Functions
 
 Preprocessor macros
 : Upper case with underscores: `MACRO_CASE()`
-: Macros made to look like functions may be `lowercase_underscore()`
 : Parameters are upper case with trailing underscore: `VAR_`
 
 Global Constants
@@ -127,10 +106,9 @@ For example: int_max() and fl_min().
 
 - char - ch
 - int - int
-- double - fl
+- double - fl, dec
 - bool - bool
 - string - str
-- array - arr
 - pointer - p
 - number/length/count - n
 - file pointer - fp
@@ -456,10 +434,10 @@ Information about specific error.
 - Category on/off (null handler)
 - Rotation, archiving, cleanup
 
-# Basic Types 
+# Compound Types 
 
 - span - pair of pointers to front & back of elements
-- range - start, stop, step
+- interval - min, max pair
 - vector - fixed-length, named & random access
 - array  - size, flex array member
 

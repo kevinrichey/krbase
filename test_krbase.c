@@ -1,3 +1,4 @@
+#include "krbase.h"
 #include "test.h"
 
 TEST_CASE(this_test_always_fails)
@@ -53,6 +54,15 @@ TEST_CASE(float_functions)
 {
 	TEST(float_min(-0.125, 3.14) == -0.125);
 	TEST(float_max(0, 10) == 10);
+
+	TEST(float_clamp( 1.5, 1.0, 2.0) == 1.5);
+	TEST(float_clamp(-0.5, 1.0, 2.0) == 1.0);
+	TEST(float_clamp( 3.0, 1.0, 2.0) == 2.0);
+	// Test extreme ranges of float
+
+	TEST( float_in_range( 55, 1, 99));
+	TEST(!float_in_range(  0, 1, 99));
+	TEST(!float_in_range(100, 1, 99));
 }
 
 TEST_CASE(ptr_and_returns_pointer_or_alternate)
@@ -67,5 +77,21 @@ TEST_CASE(ptr_and_returns_pointer_or_alternate)
 	const char *const_alt_ptr = "const hello";
 	TEST(const_ptr_and(const_ok_ptr, const_alt_ptr) == const_ok_ptr);
 	TEST(const_ptr_and(NULL, const_alt_ptr) == const_alt_ptr);
+}
+
+TEST_CASE(lerp_interpolation)
+{
+	TEST(lerp(1.0, 6.0, 0.5) == 3.5);
+	TEST(lerp(1.0, 6.0, 0.0) == 1.0);
+	TEST(lerp(1.0, 6.0, 1.0) == 6.0);
+}
+
+TEST_CASE(float_epsilon_compare)
+{
+	double a = 9.2;
+	double b = 0.000001;
+
+	TEST(!float_equals(a, b, 0.0));
+	TEST( float_equals(a, 9.3-0.1, 0.00001));
 }
 
