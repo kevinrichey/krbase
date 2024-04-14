@@ -5,17 +5,21 @@ CWARNFLAGS = -Wall \
 			 -Wunsupported \
 			 -Wwrite-strings \
 			 -Wimplicit-function-declaration \
+			 -Werror \
 			 -Wdiscarded-qualifiers
 
-CFLAGS = -g -D DEBUG -bt8 -Werror $(CWARNFLAGS)
+CFLAGS = -std=c11 -g -b -bt8 -D DEBUG $(CWARNFLAGS)
 
 CFILES = krbase.c 
 HFILES = $(CFILES:.c=.h)
 #UTESTS = $(wildcard test_*.c)
 UTESTS = test_krbase.c
 
-test: $(CFILES) $(HFILES) $(UTESTS) test.c testcases.h testcases.inc
+test: $(CFILES) $(HFILES) $(UTESTS) test.c testcases.h testcases.inc tags
 	$(CC) $(CFLAGS) $(CFILES) $(UTESTS) test.c -run
+
+tags: $(CFILES) $(HFILES) $(UTESTS) test.c
+	ctags -R
 
 maze: $(CFILES) $(HFILES) maze.c 
 	$(CC) $(CFLAGS) $(CFILES) maze.c -o maze

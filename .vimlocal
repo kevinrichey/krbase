@@ -2,6 +2,9 @@
 " C Code Standards
 "======================
 
+highlight ColorColumn ctermbg=235 
+set colorcolumn=80
+
 " Navigation
 "=============
 
@@ -16,16 +19,16 @@ set switchbuf=useopen             " Switch to open buffers
 "
 " Press F3 followed by one of the following keys:
 "
-cscope add cscope.out
-silent! unmap <F3>
-nnoremap <F3>s :cscope find s <C-R><C-W><CR>|  " - s: C symbol
-nnoremap <F3>a :cscope find a <C-R><C-W><CR>|  " - a: Symbol is assigned a value
-nnoremap <F3>g :cscope find g <C-R><C-W><CR>|  " - g: This declaration
-nnoremap <F3>d :cscope find d <C-R><C-W><CR>|  " - d: Functions called by this function
-nnoremap <F3>c :cscope find c <C-R><C-W><CR>|  " - c: Functions calling this function
-nnoremap <F3>t :cscope find t <C-R><C-W><CR>|  " - t: This text string
-nnoremap <F3>f :cscope find f @#<CR>|          " - f: This file
-nnoremap <F3>i :cscope find i @#<CR>|          " - i: Files #including this file
+"cscope add cscope.out
+"silent! unmap <F3>
+"nnoremap <F3>s :cscope find s <C-R><C-W><CR>|  " - s: C symbol
+"nnoremap <F3>a :cscope find a <C-R><C-W><CR>|  " - a: Symbol is assigned a value
+"nnoremap <F3>g :cscope find g <C-R><C-W><CR>|  " - g: This declaration
+"nnoremap <F3>d :cscope find d <C-R><C-W><CR>|  " - d: Functions called by this function
+"nnoremap <F3>c :cscope find c <C-R><C-W><CR>|  " - c: Functions calling this function
+"nnoremap <F3>t :cscope find t <C-R><C-W><CR>|  " - t: This text string
+"nnoremap <F3>f :cscope find f @#<CR>|          " - f: This file
+"nnoremap <F3>i :cscope find i @#<CR>|          " - i: Files #including this file
 
 "
 " Compiling, Testing, Debugging
@@ -40,7 +43,6 @@ nnoremap <Leader>u  :make run_test<CR><CR>
 " C Snippets
 " ========================================
 
-nnoremap <Leader>main  :-1read $HOME/.vim/snippets/main.c<CR>jo
 nnoremap <Leader>vaarg   :-1read $HOME/.vim/snippets/vaarg.c<CR>
 
 " vim:ft=vim:

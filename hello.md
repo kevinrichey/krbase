@@ -2,102 +2,100 @@
 
 C base library to make it easier, safer, more fun to code. 
 
-# Outline
+# Todo
 
-- Unit tests (TEST_CASE, TEST)
-- Utility macros (CONCAT, STRINGIFY, ARRAY_LENGTH, etc)
-- Custom types (Byte, VoidFunc)
-- Debug info (SourceLocation, debug_print())
-- Numeric utils (min, max, and, clamp, in_range, etc).
-- lerp 
-
-## Todo
-
+- vector, range
+- enums (first, last, count, to-string).
 - hash
-- Random generators & functions, shuffle 
+- random generator, shuffle 
+- strand (string begin/end pointer range)
+- signed size & index types
 
-- vector, interval, range
-- enum utils (first, last, count, etc).
-- stand (string begin/end pointer range)
+- functors/monads (option/maybe/nullible, any, either/status/error)
+- closures & partial application
 
-- Data structures
-	- String type
-	- Dynamic array
-	- Hash/associative array
+- status codes
+- exceptions
+	
+- arrays (fat pointer, index from end, checked accessors) 
+- memory arena allocator
+- memory error handler & debugger (debug tracking, leak checker, overflow checker)
 
-- Functional programming
-	- monads, option, any, none/empty/nothing 
+- String type
+- Dynamic array
+- Table (associative array)
 
-- Build Config
-	- Build mode: test, debug, release
-	- Versioning
-- Instrumentation & Debugging
-	- status codes
-	- Assertions
-	- Unit testing
-	- Exceptions
-	- Tracing & logging
-	- Memory debugging
+- Versioning
 - Signal handling
 - Configuration
 	- Command-line args
 	- Config files
 	- Environment variables
-- Documentation generation
+- Docstrings, Docblocks 
 - Storage, de/serialization
 - Code generation & meta-programming tools
 - Security, Encryption, Authentication & Authorization
 - Localization
 
-## Things Every C Programmer Needs to Know
-
-- Translation units
-- Linkage: internal & external, static & external keywords
-- Scope:  file/translation unit,function, block, function proto
-- Storage class & duration
-- Namespaces: tags, members, labels, identifiers
-- Pointers
-- Undefined behavior
-- Preprocessor
-
 # Style Guide
+## C Guidelines & Idioms
 
-## General Guidelines
+- Standard C: avoid compiler extensions, ignore C++
+- Keep it C: don't imitate other languages, don't add sugar.
+- Don't pre-optimize. Aim for clarity first. 
+- Prefer basic C primitives: int, double, char, bool. 
+- Prefer double for numeric data. 
+- Use unsigned *only* for modulus arithmetic and bit operations. 
+- Use signed size and index types. 
+- Wrap statement macros in `do{ ... }while(0)`.
+- Wrap macro parameters in parens.
+- Postfix macro params with an underscore to avoid name collisions. 
+- Initialize struct objects with `= { 0 };`
+- Use struct designated initializers: `{ .m1 = x, .m2 = y };`
+- Goto for clean-up code sections. 
+- End all enumeration lists with a COUNT. 
+- Use enumerations for array designated initializers: `{ [ENUM_A] = a, [ENUM_B] = b };`
+- Goes-To Operator: `while (x --> 0)`, iteration stops when x equals 0.
+- Bang Bang Operator: `x += !!length()`, two logical not operators force integer to 0 or 1.
+- Push Onto Pointer: `*p++ = value`, set value to an element and advance the to the next.
+- Pop Off Pointer: `x = *--p`, get value and move back to previous element. 
+- Set compiler -Wimplicit-fallthrough to check for missing breaks.
+- Do not use variable-length arrays. 
+- Watch for numeric overflow.
+- Bounds check all array and pointer access. 
+- [X Macros](https://www.drdobbs.com/the-new-c-x-macros/184401387)
+- [Overloading Functions in C](http://locklessinc.com/articles/overloading/)
 
-- Standard C17, avoid compiler extensions, ignore C++ compat
-- Keep it C, don't try to imitate other languages
-- Use "modern" C features
-- Don't pre-over-optimize! (gets in the way, and you're not that good)
+## Formatting
+
+- Indent with tabs.
+- Tab stop 4 columns.
+- Align with spaces following tab indentation.
+- Function, struct, union braces in column 0.
+- Single space between control keyword (if, for, etc.) and parens.
+- Single statements on next line, indented, no braces.
+- Open brace on same line, once space after close parens.
+- Close brace on separate line, same column as keyword.
 
 ## Naming Conventions
 
 Types - structs, unions, enums, typedefs
 : `PascalCase`
 
-Variables, parameters, struct & union members
-: Lower case with underscores: `lower_snake_case`.
+Values - variables, parameters, functions, struct & union members
+: `lower_snake_case`.
 : Use array notation (`type varname[]`) for passing array parameters.
 
-Constants, Enumerations, Preproc symbols
-: Upper case with underscores.
+Constants, Enumerations, Preprocessor symbols & macros
+: `UPPER_SNAKE_CASE`
 : Enumerations prefixed by module or enum type name.
-
-Functions
-: Lower case with underscores: `function_name()`
-
-Preprocessor macros
-: Upper case with underscores: `MACRO_CASE()`
-: Parameters are upper case with trailing underscore: `VAR_`
-
-Global Constants
-: Upper case with underscores: `MODULE_CONSTANT_NAME`
+: Macro parameters are upper case with trailing underscore: `VAR_`
 
 Modules
 : Types and functions that work together. 
-: Module names are UpperCamelCase and used as a namespace prefix for the types and functions.
-: Functions in a module are named as `ModuleName_function_name()`.
-: Module enums are named as `ModuleName_EnumName`.
-: Enum members are `ModuleName_EnumName_MemberName`.
+: Module names are UpperCamelCase.
+: Module abbreviations are 3 to 4 letters uppercase. 
+: Functions names in a module are prefixed with module abbreviation, as `MOD_function()`.
 
 ## Function and Type Abbreviations
 
@@ -115,7 +113,6 @@ For example: int_max() and fl_min().
 - variable arguments - va
 - function pointer - fp
 - unsigned - prefix 'u', as in 'uint'
-
 
 ## Matching Pairs
 
@@ -141,100 +138,98 @@ For example: int_max() and fl_min().
 
 See also [Max Truxa's Antonym List](https://gist.github.com/maxtruxa/b2ca551e42d3aead2b3d)
 
-## Common Function Name Meanings
+## Standard Names & Operations
 
-- initialize - put object into a known default usable state.
+Object Existence
 
+- make:      Construct and return an initalized struct by value.
+- create:    Bring new object into existence on heap.
+- destroy:   Put an end to an object's existence.
+- init:      Set existing object to a known usable state.
+- copy:      Create a duplicate object (deep copy).
 
-## Formatting
+Dimensions
 
-- Indent with tabs.
-- Tab stop 4 columns.
-- Align with spaces following tab indentation.
-- Function, struct, union braces in column 0.
+- length:    number of elements
+- capacity:  available space
+- size:      number of bytes / char
+- empty:     length is zero, no elements to get or remove
+- full:      length == capacity, cannot add more elements
 
-## Control Statement Formatting
+Sequences & Containers
 
-if, for, do, while, switch, etc
+- peek:     see next item without removing
+- add:      new element in next available empty location
+- get:      access element at key
+- put:      replace element at key with new item
+- insert:   add element at key, shift up
+- delete:   remove element at key, shift down
 
-- Single space between keyword and open parens.
-- Single statements on next line, indented, no braces.
-- Block open brace on same line, once space after close parens.
-- Close brace on separate line, same column as keyword.
+- find:      search for element's key by value
+- replace:   overwrite (first/some/all) elements by value
+- remove:    delete (first/some/all) elements by value 
 
-## C Idioms, Guildeline, Tips
+- first:     element at beginning
+- last:      element before end
+- slice:     sub-set of elements by begin & end keys
 
-Prefer basic C primitives
-: int, double, char, bool
-: Use unsigned only for overflow & bit operations
+Random access
 
-Preprocessor Macros
-: - Wrap statement macros in `do{ ... }while(0)`.
-: - Wrap macro parameters in parens.
-: - Ensure variables declared within macros have unique names. Eg. use a prefix.
-: - Use `_Bool` inside macros so user doesn't need to include stdbool.h.
-: - [X Macros](https://www.drdobbs.com/the-new-c-x-macros/184401387)
-: - [Overloading Functions in C](http://locklessinc.com/articles/overloading/)
+- First index at 0. 
+- Negative indices count from the end, with -1 being the last element.
+- check(i) returns the absolute index. If *i* is negative, it is converted to the positive position from 0. If *i* is out of range, triggers an assertion.
 
-Structs
-: Typedef struct types: `typedef struct name { ... } name;`
-: Initialize struct objects: `struct_type var_name = { 0 };`
-: Use designated initializers: `struct_type var_name = { .m1 = x, .m2 = y };`
+Ordering
 
-Goto 
-: - `goto` is not evil.
-: - Use `goto` to exit early from compound statement blocks. Target label shall be in outer scope below the block.
-: - Jump to clean-up code for early exit from a function. Label for the clean-up code should be named "finally:".
-: - Avoid jumping to labels above the goto or in inaccesible scopes.
-: - Prefer using `break` from loops.
+- sort
+- reverse
+- shuffle
 
-Enumerations
-: Special Enum Members:
-:  - First: equal to first enum in range (usually 0).
-:  - Last:  equal to last enum in range.
-:  - End:   equal to last + 1.
-:  - Count: number of enums, usually equal to End-First, can be used to allocate an array.
+Iterator Properties
 
-Arrays
-: Use enum values for designated array Initializers
-:   `type_name  array_name[] = { [ENUM_A] = a, [ENUM_B] = b };`
+- start   -  Beginning position
+- stop    -  Ending position, past last element 
+- step     - direction & number
 
-Goes-To Operator
-: `while (x --> 0)`
-: Combination of unary postfix decrment and greater-than: -- >
-: Compares x to 0 and then decrements it. Iteration stops when x equals 0.
+Iterator State
 
-Bang Bang Operator
-: `x += !!length_of_thing()`
-: Two logical not operators. Forces an integer into zero or one.
-: If an expression is any non-zero value, !! returns 1, otherwise 0.
-: This example increments x iif `length_of_thing()` returns non-zero.
+- position - curent index, ID, or location within the range
+- complete - *position* equals *stop*, no remaining elements
+- pending  - begun and not completed
+- peek     - Current element, fails if done.
 
-Push Onto Pointer
-: `*p++ = value`
-: Pointer de-reference assignment and pointer unary post increment.
-: Precondition: *p* points to element in array[n] where n < array length.
-: If *p* is pointer to the first unused element of an array, 
-: assign *value* to the element 
-: advance the pointer to the next unused element.
+Iterator Operations
 
-Pop Off Pointer
-: `x = *--p`
-: Pointer unary prefix decrement and assignment to pointer dereference.
-: Precondition: *p* must point to element array[n] where n > 0 and n <= array length.
-: If *p* is pointer to the first unused element of an array,
-: and the previous element contains a value,
-: move pointer back to the last used element,
-: assign the element value to x.
+- begin()    - Start itertion from first element of the *container* or *sequence*.
+- next()     - advance to next element, no-op if *complete*.
+- end()      - move to *stop*
 
-Avoid Switch
-: Prefer if-else-if over switch.
-: Set -Wimplicit-fallthrough to warn about missing breaks.
+Collection Pipeline Operations
 
-Avoid Variable-Length Arrays
-: Used fixed-length or malloc'd arrays.
-: Set -Wvla option to detect VLAs.
+- copy
+- concat
+- diff (new list = x : x not in [set])
+- intersect (new list = x : x in [set])
+- union (new list = x : x in [old] and x in [new])
+- distinct/unique
+- filter (new list = x : p(x) is true), aka select
+- reject (new list = x : p(x) is false)
+- group-by 
+- map (new list = f(x), x in old)
+- reduce
+- slice
+- sort(comp)
 
+## Things Every C Programmer Should Know
+
+- Translation units
+- Linkage: internal & external, static & external keywords
+- Scope:  file/translation unit,function, block, function proto
+- Storage class & duration
+- Namespaces: tags, members, labels, identifiers
+- Pointers
+- Undefined behavior
+- Preprocessor
 
 # Build Modes
 
@@ -246,49 +241,9 @@ Enum, global constant, pre-proc symbols for current build mode.
 
 Select build mode at compile time with define symbols.
 
-# Unit testing
-
-- Test case isolation
-- Test discovery & execution
-- Testing for data alignment
-- Handle errors & assertions as test failures
-- Fixture setup & tear down
-
-## Test Output
-
-Success or Failure
-
-Test Failure
-: `FILE.c:LINE: Test FUNCTION failed: CONDITION`
-
-Statistics (# tests, # failures)
-
-Process returns 0 on all success, non-zero on any failures.
-
-### Components
-
-- test_assert(condition, file, line, fmt, ...)
-- test_assert_eq_T("a", a, "b", b, file, line, fmt, ...)
-- test_failure(file, line, fmt, ...)
-
 # Debug Categories
 
-Types of errors.
-
-- Input
-	- Bad data
-	- User input
-	- Malicious
-- System
-	- Failed malloc
-	- File open/acces
-	- OS service failure
-- Defects
-	- Programmer error, "bugs"
-
-
-
-- Terminal
+- Fatal
 - Assertion
 	- Precondition
 	- Postcondition
@@ -319,49 +274,52 @@ Types of errors.
 - Bad input
 - Test
 
+# Unit Testing
+- Handle errors & assertions as test failures
+- Uncaught exceptions are test failures.
+- Testing for data alignment
+- TEST_EQ(), TEST_STREQ()
+
 # Assertions
-
-- Detect failed assertion
-- Collect debug info: source line, assertion, message, error code
-- Trace/log assertion failure details.
-- Display user error message
-- abruptly terminate program
+- throwing failure
+- write to log
 - enable/disable asserts by level
-- call custom assert handler
-
-Other options
-
 - trigger breakpoint in debugger
-- test failure in unit test mode
 
-## Assertion Names & Types
-
-- require
-- ensure
+## Assertion Types
+- precondition, prereq, require
+- postcondition, ensure
 - expect
 - check
-- precondition
-- prereq
-- postcondition
 - invariant
 - given
 - depend-on
 - assume
 
+# Pointer Safety
+- Bounds checking
+- Lack-and-key (dangling pointer detection)
+- Over-allocate boundaries with special values
+- Reference counting
+
+## Fat Pointer
+- key value
+- size/length
+
+## Memory Headers
+- lock value
+- ref counter
+- size
+
+	struct MemHeader {
+		uint32 lock;
+		int refcount;
+		int size;
+		SourceLocation source;
+	}
 
 # Error Handling 
-
-Fault
-: Root cause of the error. The bug or defect in code.
-
-Error
-: Deviation of program state from a known and correct state, caused by a Fault.
-
-Failure
-: Observably incorrect behavior or output caused by an Error.
-
-
-- do nothing, ignore, off/disabled
+- ignore, do nothing, off/disabled
 - trace/log a message
 - pause, prompt user
 - return error code
@@ -370,9 +328,7 @@ Failure
 - breakpoint
 - raise signal
 
-
-## Status codes
-
+# Error Codes
 - OK, no error
 - Error, general
 - Math overflow
@@ -390,14 +346,6 @@ Operations
 
 - status to string
 
-## Error Info
-
-Information about specific error.
-
-- Debug info: file & line
-- Status code
-- Message
-
 # Memory Integrity
 
 - Check bad inputs (null/bad pointer, zero/negative size)
@@ -409,8 +357,8 @@ Information about specific error.
 # Tracing & Logging
 
 - Logging is tracing to a file
-- Delimited output for easy parsing
-- Thread-safe
+- Structured output for easy parsing
+- Thread-safe?
 
 ## What to Log
 
@@ -435,11 +383,9 @@ Information about specific error.
 - Rotation, archiving, cleanup
 
 # Compound Types 
-
-- span - pair of pointers to front & back of elements
-- interval - min, max pair
 - vector - fixed-length, named & random access
-- array  - size, flex array member
+- span - pair of pointers to front & back of elements
+- slice, strip, strand, ?
 
 # string & strand
 
@@ -543,97 +489,6 @@ Generic dynamic 2D array of elements.
 - after(p)  - return position in column right of *p*
 - includes(p)  - true if position is within the grid
 
-
-# Standard Operations
-
-## Object Existence
-
-- create:    Bring new object into existence on heap.
-- destroy:   Put an end to an object's existence.
-- init:      Set existing object to a usable starting state.
-- copy:      Create a duplicate object (deep copy).
-
-## Dimensions
-
-- length:    number of elements
-- size:      max number of elements a container may hold.
-- empty:     length is zero, no elements to get or remove
-- nonempty:  length is at least 1
-- full:      length equals size, cannot add more elements
-- unfilled:  length is less than size, one/more elements can be added
-
-## Sequences & Containers
-
-- peek:     see next item without removing
-- add:      new element in next available empty location
-- get:      access element at key
-- put:      replace element at key with new item
-- insert:   add element at key, shift up
-- delete:   remove element at key, shift down
-
-- find:      search for element's key by value
-- replace:   overwrite (first/some/all) elements by value
-- remove:    delete (first/some/all) elements by value 
-
-- first:     element at beginning
-- last:      element before end
-- slice:     sub-set of elements by begin & end keys
-
-## Random access
-
-- First index at 0. 
-- Negative indices count from the end, with -1 being the last element.
-- check(i) returns the absolute index. If *i* is negative, it is converted to the positive position from 0. If *i* is out of range, triggers an assertion.
-
-## Ordering
-
-- sort
-- reverse
-- shuffle
-
-## Iterator
-
-Properties
-
-- start   -  Beginning position
-- stop    -  Ending position, past last element 
-- step     - direction & number
-
-State
-
-- position - curent index, ID, or location within the range
-- complete - *position* equals *stop*, no remaining elements
-- pending  - begun and not completed
-- peek     - Current element, fails if done.
-
-Operations
-
-- begin()    - Start itertion from first element of the *container* or *sequence*.
-- next()     - advance to next element, no-op if *complete*.
-- end()      - move to *stop*
-
-Common inits
-
-- first(n):  start=0, step=1, count=n
-- last(n):   start=-1, step=-1, count=n
-
-## Collection Pipeline Operations
-
-operations -> new list/array
-
-- copy
-- concat
-- diff (new list = x : x not in [set])
-- intersect (new list = x : x in [set])
-- union (new list = x : x in [old] and x in [new])
-- distinct/unique
-- filter (new list = x : p(x) is true), aka select
-- reject (new list = x : p(x) is false)
-- group-by 
-- map (new list = f(x), x in old)
-- reduce
-- slice
-- sort(comp)
 
 # Configuration
 
