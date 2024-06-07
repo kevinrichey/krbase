@@ -116,7 +116,7 @@ int check_index(int len, int i, struct SourceLocation source)
 nuspan num_slice(nuspan span, int first, int last)
 {
 	return (nuspan){
-		.p = span.p + check_index(span.length, first, SRCLOC),
+		.data = span.data + check_index(span.length, first, SRCLOC),
 		.length = check_index(span.length, last, SRCLOC) - first + 1
 	};
 }
@@ -126,7 +126,7 @@ strand str_slice(strand span, int first, int last)
 	first = check_index(span.length, first, SRCLOC);
 	last  = check_index(span.length, last, SRCLOC);
 	return (strand){
-		.p = span.p + first, 
+		.data = span.data + first, 
 		.length = last - first + 1
 	};
 }

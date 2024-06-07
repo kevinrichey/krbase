@@ -291,8 +291,8 @@ TEST_CASE(slice_returns_partial_span)
 
 	nuspan s1 = num_slice(a, 3, -2);
 	TEST( s1.length == 5 );
-	TEST( s1.p[0] == 9.232 );
-	TEST( s1.p[4] == 6.101 );
+	TEST( s1.data[0] == 9.232 );
+	TEST( s1.data[4] == 6.101 );
 
 	nuspan s2 = num_slice(a, 4, 7);
 	TEST( s2.length == 4 );
@@ -327,7 +327,7 @@ struct string string_create(const strand from)
 {
 	static memkey lock = 123u;
 
-	int size = sizeof(*from.p) * from.length;
+	int size = sizeof(*from.data) * from.length;
 
 	struct string str = {
 		.key = lock++,
@@ -336,7 +336,7 @@ struct string string_create(const strand from)
 	str.base->lock = str.key;
 	str.base->refs = 1;
 	str.base->length = from.length;
-	memcpy((char*)str.base->str, from.p, size);
+	memcpy((char*)str.base->str, from.data, size);
 
 	return str; 
 }

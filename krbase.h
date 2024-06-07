@@ -81,15 +81,15 @@ int check_index(int len, int i, struct SourceLocation source);
 //----------------------------------------------------------------------
 // Span
 
-#define SPAN(T_)  struct { T_* p; int length; }
-#define SPAN_INIT(A_)   { .p=(A_), .length=ARRAY_LENGTH(A_) }
+#define SPAN(T_)  struct { T_* data; int length; }
+#define SPAN_INIT(A_)   { .data=(A_), .length=ARRAY_LENGTH(A_) }
 
 typedef SPAN(const char) strand;
-#define $(A_)   (strand){ .p=(A_), .length=ARRAY_LENGTH(A_)-1 }
+#define $(A_)   (strand){ .data=(A_), .length=ARRAY_LENGTH(A_)-1 }
 strand str_slice(strand span, int first, int last); 
 
 typedef SPAN(double)  nuspan;
-#define $N(...)   (nuspan){ .p=( (double[]){__VA_ARGS__}), .length=VA_NARGS(__VA_ARGS__) };
+#define $N(...)   (nuspan){ .data=( (double[]){__VA_ARGS__}), .length=VA_NARGS(__VA_ARGS__) };
 nuspan num_slice(nuspan span, int first, int last); 
 
 //----------------------------------------------------------------------
