@@ -1,4 +1,4 @@
-#include "krbase.h"
+#include "krprim.h"
 #include "test.h"
 #include <math.h>
 #include <float.h>
@@ -109,7 +109,7 @@ TEST_CASE(String_equals_empty_null_)
 TEST_CASE(capture_debug_context_info)
 {
 	SourceLine dbi = SRC_HERE;
-	TEST(!strcmp(dbi.file_name.data, "test_krbase.c"));
+	TEST(!strcmp(dbi.file_name.data, "test_krprim.c"));
 	TEST(dbi.line_num == (__LINE__-2));
 }
 

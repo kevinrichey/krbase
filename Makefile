@@ -10,10 +10,10 @@ CWARNFLAGS = -Wall \
 
 CFLAGS = -lm -std=c11 -b -bt8 -D DEBUG $(CWARNFLAGS)
 
-CFILES = krbase.c 
+CFILES = krprim.c 
 HFILES = $(CFILES:.c=.h)
 #UTESTS = $(wildcard test_*.c)
-UTESTS = test_krbase.c
+UTESTS = test_krprim.c
 
 
 test: $(CFILES) $(HFILES) $(UTESTS) test.c testcases.h testcases.inc tags

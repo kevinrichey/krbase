@@ -1,4 +1,4 @@
-#include "krbase.h"
+#include "krprim.h"
 #include <math.h>
 #include <float.h>
 #include <signal.h>

@@ -1,7 +1,7 @@
 #ifndef KR_TEST_H_INCLUDED
 #define KR_TEST_H_INCLUDED
 
-#include "krbase.h"
+#include "krprim.h"
 
 #define TEST_CASE(TEST_NAME_)  void TestCase_##TEST_NAME_(void)
 #define TEST(CONDITION_)       test_assert((CONDITION_), SRC_HERE, "'" #CONDITION_ "'")
