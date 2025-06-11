@@ -23,7 +23,7 @@ struct
 }
 test_stats = {0};
 
-void test_assert(bool condition, struct SourceLocation source, const char *msg)
+void test_assert(bool condition, SourceLine source, const char *msg)
 {
 	++test_stats.test_count;
 	if (!condition)

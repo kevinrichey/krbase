@@ -1,20 +1,49 @@
 #include "krbase.h"
 #include <math.h>
 #include <float.h>
+#include <signal.h>
+
+
+//----------------------------------------------------------------------
+// Strings
+
+bool String_equals(String a, String b)
+{
+	return 
+		(!a.data && !b.data) ||
+		(a.length == b.length) && 
+		!strncmp(a.data, b.data, a.length);
+}
+
+void String_fprint(String s, FILE *out)
+{
+	require(s.data && s.length);
+	require(out);
+	while (s.length--)  fputc(*s.data++, out); 
+}
+
+int int_swap(int *a, int *b)
+{
+	int t = *a;
+	*a = *b;
+	*b = t;
+	return t;
+}
 
 //----------------------------------------------------------------------
 // Debugging
 
-void debug_vprint(FILE *out, struct SourceLocation source, const char *format, va_list args)
+void debug_vprint(FILE *out, SourceLine source, const char *format, va_list args)
 {
 	out = ptr_and(out, stderr);
-	fprintf(out, "%s:%d: ", source.file_name, source.line_num);
+	String_fprint(source.file_name, out);
+	fprintf(out, ":%d: ", source.line_num);
 	if (format)
 		vfprintf(out, format, args);
 	fputc('\n', out);
 }
 
-void debug_print(FILE *out, struct SourceLocation source, const char *format, ...)
+void debug_print(FILE *out, SourceLine source, const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
@@ -22,16 +51,23 @@ void debug_print(FILE *out, struct SourceLocation source, const char *format, ..
 	va_end(args);
 }
 
-bool debug_abort(void* out, struct SourceLocation source, const char* format, ...)
+
+bool crash(SourceLine source, const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
-	debug_vprint(out, source, format, args);
+	debug_vprint(stderr, source, format, args);
 	va_end(args);
+
+	String_fprint($s("Begin backtrace.\n"), stderr);
+	tcc_backtrace("");
+	String_fprint($s("End backtrace.\n"), stderr);
 
 	abort();
-	return false; // To satisfy compiler warnings. 
+	return false; 
 }
+
+
 //----------------------------------------------------------------------
 // Math Stuff
 
@@ -56,57 +92,15 @@ void *ptr_and(void *p, void *alt)
 	return p ? p : alt;
 }
 
-const void *const_ptr_and(const void *p, const void *d)
-{
-	return p ? p : d;
-}
 
 //----------------------------------------------------------------------
 // Assertions
 
-struct AssertHandler default_assert_handler = { .fail = debug_abort };
-struct AssertHandler *handler_top = &default_assert_handler;
-void AssertHandler_push(struct AssertHandler *handler)
+int check(int i, int len)
 {
-	handler->back = handler_top;
-	handler_top = handler;
-}
-void AssertHandler_pop(void)
-{
-	if (handler_top)
-		handler_top = handler_top->back;
-	if (!handler_top)
-		handler_top = &default_assert_handler;
-}
-bool fail(const char *m, struct SourceLocation loc)
-{
-	return handler_top->fail(handler_top->bag, loc, m);
-}
-bool assert_equal(const char* an, int av, const char* bn, int bv, struct SourceLocation loc)
-{
-	if (av != bv)
-	{
-		return handler_top->fail(handler_top->bag, loc, 
-		                         "ASSERT Failed: %s(%d) == %s(%d)",
-								 an, av, bn, bv);
-	}
-	return true;
-}
-bool assert_streq(const char* a, const char* b, struct SourceLocation loc)
-{
-	if (!strcmp(a,b)) {
-		return handler_top->fail(handler_top->bag, loc, "ASSERT Failed: \"%s\" == \"%s\"", a, b);
-	}
-	return true;
-}
-int check_index(int len, int i, struct SourceLocation source)
-{
-	i += len * (i < 0);
-
-	if (i < 0  ||  i >= len)
-		handler_top->fail(handler_top->bag, source, "Array index %d out of bounds [%d,%d).", i, 0, len);
-
-	return i;
+	int r = i + len * (i < 0);
+	precond((0 <= r  &&  r < len), "Array index %d out of bounds [0,%d).", i, len);
+	return r;
 }
 
 
@@ -116,19 +110,40 @@ int check_index(int len, int i, struct SourceLocation source)
 nuspan num_slice(nuspan span, int first, int last)
 {
 	return (nuspan){
-		.data = span.data + check_index(span.length, first, SRCLOC),
-		.length = check_index(span.length, last, SRCLOC) - first + 1
+		.data = span.data + check(first, span.length),
+		.length = check(last, span.length) - first + 1
 	};
 }
 
-strand str_slice(strand span, int first, int last) 
+String str_slice(String str, int from, int to) 
 {
-	first = check_index(span.length, first, SRCLOC);
-	last  = check_index(span.length, last, SRCLOC);
-	return (strand){
-		.data = span.data + first, 
-		.length = last - first + 1
+	from = check(from, str.length);
+	to  = check(to, str.length);
+
+	if (from > to) 
+		int_swap(&from, &to);
+
+	return (String){
+		.data = str.data + from, 
+		.length = to - from + 1
 	};
+}
+
+String str_first(String s, int n)
+{
+	require(n >= 0);
+	require(n <= s.length);
+	s.length = n;
+	return s;
+}
+
+String str_last(String s, int n)
+{
+	require(n >= 0);
+	require(n <= s.length);
+	s.data += (s.length - n);
+	s.length = n;
+	return s;
 }
 
 const struct Interval R_positive = {  DBL_MIN,   INFINITY };
@@ -140,11 +155,10 @@ const struct Interval R_empty    = {  NAN,       NAN      };
 
 struct Interval interval(double left, double right)
 {
-	return 
-		(struct Interval) {
-			.left = fmin(left, right), 
-			.right = fmax(left, right)
-		};
+	return (struct Interval) {
+		.left  = fmin(left, right), 
+		.right = fmax(left, right)
+	};
 }
 bool includes(struct Interval invl, double n)
 {

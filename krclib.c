@@ -51,7 +51,7 @@ const char *status_string(enum status stat)
 	return status_names[stat];
 }
 
-void debug_print_abort(FILE *out, enum status status, struct SourceLocation source, const char *format, ...)
+void debug_print_abort(FILE *out, enum status status, SourceLine source, const char *format, ...)
 {
 	va_list args;
 	debug_vprint(out, source, format, args);
@@ -84,7 +84,7 @@ void error_fatal(const struct error *error)
 	abort();
 }
 
-int check_index(int i, int length, struct SourceLocation dbg)
+int check_index(int i, int length, SourceLine dbg)
 {
 	if (i < -length || i >= length) {
 		char buf[100] = "";
@@ -106,7 +106,7 @@ void except_throw_error(struct except_frame *frame, struct error *error)
 	longjmp(frame->env, (int)error->status);
 }
 
-void except_throw(struct except_frame *frame, enum status status, struct SourceLocation source)
+void except_throw(struct except_frame *frame, enum status status, SourceLine source)
 {
 	struct error *error = malloc(sizeof(struct error));
 	if (!error)
@@ -120,7 +120,7 @@ void except_throw(struct except_frame *frame, enum status status, struct SourceL
 	except_throw_error(frame, error);
 }
 
-void except_try(struct except_frame *frame, enum status status, struct SourceLocation source)
+void except_try(struct except_frame *frame, enum status status, SourceLine source)
 {
 	if (status != STATUS_OK)
 		except_throw(frame, status, source);
@@ -145,7 +145,7 @@ bool size_t_add_overflows(size_t a, size_t b)
     return a > SIZE_MAX - b;
 }
 
-size_t try_size_mult(size_t a, size_t b, struct except_frame *xf, struct SourceLocation loc)
+size_t try_size_mult(size_t a, size_t b, struct except_frame *xf, SourceLine loc)
 {
     if (size_t_mult_overflows(a, b))
 		except_throw(xf, STATUS_MATH_OVERFLOW, loc);
@@ -153,7 +153,7 @@ size_t try_size_mult(size_t a, size_t b, struct except_frame *xf, struct SourceL
 	return a * b;
 }
 
-size_t try_size_add(size_t a, size_t b, struct except_frame *xf, struct SourceLocation loc)
+size_t try_size_add(size_t a, size_t b, struct except_frame *xf, SourceLine loc)
 {
     if (size_t_add_overflows(a, b))
 		except_throw(xf, STATUS_MATH_OVERFLOW, loc);
@@ -176,7 +176,7 @@ bool int_mult_overflows(int a, int b)
 		return b < INT_MAX / a;
 }
 
-int try_int_mult(int a, int b, struct except_frame *xf, struct SourceLocation loc)
+int try_int_mult(int a, int b, struct except_frame *xf, SourceLine loc)
 {
 	if (int_mult_overflows(a, b))
 		except_throw(xf, STATUS_MATH_OVERFLOW, loc);
@@ -189,14 +189,14 @@ bool ptrdiff_to_int_overflows(ptrdiff_t d)
 	return (d > (ptrdiff_t)INT_MAX) || (d < (ptrdiff_t)-INT_MAX);
 }
 
-int try_ptrdiff_to_int(ptrdiff_t d, struct except_frame *xf, struct SourceLocation loc)
+int try_ptrdiff_to_int(ptrdiff_t d, struct except_frame *xf, SourceLine loc)
 {
 	if (ptrdiff_to_int_overflows(d))
 		except_throw(xf, STATUS_MATH_OVERFLOW, loc);
 
 	return (int)d;
 }
-void *try_malloc(size_t size, struct except_frame *xf, struct SourceLocation source)
+void *try_malloc(size_t size, struct except_frame *xf, SourceLine source)
 {
 	void *mem = malloc(size);
 	if (!mem)

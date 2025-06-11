@@ -8,15 +8,22 @@ CWARNFLAGS = -Wall \
 			 -Werror \
 			 -Wdiscarded-qualifiers
 
-CFLAGS = -std=c11 -g -b -bt8 -D DEBUG $(CWARNFLAGS)
+CFLAGS = -lm -std=c11 -b -bt8 -D DEBUG $(CWARNFLAGS)
 
 CFILES = krbase.c 
 HFILES = $(CFILES:.c=.h)
 #UTESTS = $(wildcard test_*.c)
 UTESTS = test_krbase.c
 
+
 test: $(CFILES) $(HFILES) $(UTESTS) test.c testcases.h testcases.inc tags
 	$(CC) $(CFLAGS) $(CFILES) $(UTESTS) test.c -run
+
+runtest: make_test
+	./test
+
+make_test: $(CFILES) $(HFILES) $(UTESTS) test.c testcases.h testcases.inc tags
+	$(CC) $(CFLAGS) $(CFILES) $(UTESTS)  test.c -o test
 
 tags: $(CFILES) $(HFILES) $(UTESTS) test.c
 	ctags -R

@@ -20,23 +20,12 @@
   EnumName_##_LAST  = EnumName_##_END - 1, \
   EnumName_##_FIRST = 0
 
-#define VA_NARGS_N(P0, P1, P2, P3, P4, P5, P6, P7, P8, P9, PA, PB, PC, PD, PE, PF, PN, ...) PN
-#define VA_NARGS(...) VA_NARGS_N(__VA_ARGS__, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
-#define VA_PARAM_0(_0, ...)  _0
-#define VA_PARAM_1(_0, _1, ...)  _1
-#define VA_PARAM_2(_0, _1, _2, ...)  _2
-#define VA_PARAM_3(_0, _1, _2, _3, ...)  _3
-#define VA_PARAM_4(_0, _1, _2, _3, _4, ...)  _4
-#define VA_PARAM_5(_0, _1, _2, _3, _4, _5, ...)  _5
-#define VA_PARAM_6(_0, _1, _2, _3, _4, _5, _6, ...)  _6
-#define VA_PARAM_7(_0, _1, _2, _3, _4, _5, _6, _7, ...)  _7
 
 
 #define MEMBER_TO_STRUCT_PTR(PTR_, TYPE_, MEMBER_)  \
 	(TYPE_*)((byte*)(PTR_) - offsetof(TYPE_, MEMBER_))
 
 #define FAMSIZE(OBJ_, FAM_, LENGTH_)  (sizeof((OBJ_)) + sizeof(*(OBJ_).FAM_) * (LENGTH_))
-#define NUM_STR_LEN(T_)  (3*sizeof(T_)+2)
 
 
 //----------------------------------------------------------------------

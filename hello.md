@@ -38,21 +38,33 @@ C base library to make it easier, safer, more fun to code.
 - Localization
 
 # Style Guide
+## Laws of Programming
+
+- "For every complex problem there is an answer that is clear, simple, and wrong." - H. L. Mencken
+- Every program has at least one bug, and at least one line of unnecessary code. 
+- [90-90 Rule](https://en.wikipedia.org/wiki/Ninety%E2%80%93ninety_rule): "The first 90 percent of the code accounts for the first 90 percent of the development time. The remaining 10 percent of the code accounts for the other 90 percent of the development time." - Tom Cargill, Bell Labs
+- [Conway's Law](https://en.wikipedia.org/wiki/Conway's_law): "organizations which design systems (in the broad sense used here) are constrained to produce designs which are copies of the communication structures of these organizations." - Melvin E. Conway, How Do Committees Invent? (1968)
+- [Wirth's Law](https://en.wikipe(dia.org/wiki/Wirth's_law): Software is getting slower more rapidly than hardware is becoming faster.  - Niklaus Wirth, his "A Plea for Lean Software". (1995) 
+- [Knuth's optimization principle](https://en.wikipedia.org/wiki/Program_optimization#When_to_optimize): "We should forget about small efficiencies, say about 97% of the time: premature optimization is the root of all evil. Yet we should not pass up our opportunities in that critical 3%" - Donald Knuth, "Structured Programming with go to Statements". ACM Computing Surveys. (1974)
+- Kernighan's Law: "Everyone knows that debugging is twice as hard as writing a program in the first place. So if you’re as clever as you can be when you write it, how will you ever debug it?" - Brian Kernighan, The Elements of Programming Style, 2nd Edition 2nd Edition (1974)
+- [Greenspun's tenth rule of programming](https://en.wikipedia.org/wiki/Greenspun%27s_tenth_rule): Any sufficiently complicated C or Fortran program contains an ad hoc, informally-specified, bug-ridden, slow implementation of half of Common Lisp.
+
+
+## Principals
+
+- Keep it C: avoid compiler extensions, don't add sugar.
+- Clarity first. Don't pre-optimize. 
+- Prefer basic C primitives: int, double, char, bool. 
+- Use unsigned only for modulus arithmetic and bit operations. 
+- Use signed size and index types. 
+
 ## C Guidelines & Idioms
 
-- Standard C: avoid compiler extensions, ignore C++
-- Keep it C: don't imitate other languages, don't add sugar.
-- Don't pre-optimize. Aim for clarity first. 
-- Prefer basic C primitives: int, double, char, bool. 
-- Prefer double for numeric data. 
-- Use unsigned *only* for modulus arithmetic and bit operations. 
-- Use signed size and index types. 
 - Wrap statement macros in `do{ ... }while(0)`.
 - Wrap macro parameters in parens.
 - Postfix macro params with an underscore to avoid name collisions. 
 - Initialize struct objects with `= { 0 };`
 - Use struct designated initializers: `{ .m1 = x, .m2 = y };`
-- Goto for clean-up code sections. 
 - End all enumeration lists with a COUNT. 
 - Use enumerations for array designated initializers: `{ [ENUM_A] = a, [ENUM_B] = b };`
 - Goes-To Operator: `while (x --> 0)`, iteration stops when x equals 0.
@@ -68,10 +80,10 @@ C base library to make it easier, safer, more fun to code.
 
 ## Formatting
 
-- Indent with tabs.
-- Tab stop 4 columns.
+- Indent with tabs. Tab stop 4 columns.
 - Align with spaces following tab indentation.
-- Function, struct, union braces in column 0.
+- Function open braces in column 0.
+- Struct, union, enum open braces after declaration.
 - Single space between control keyword (if, for, etc.) and parens.
 - Single statements on next line, indented, no braces.
 - Open brace on same line, once space after close parens.
@@ -79,23 +91,11 @@ C base library to make it easier, safer, more fun to code.
 
 ## Naming Conventions
 
-Types - structs, unions, enums, typedefs
-: `PascalCase`
-
-Values - variables, parameters, functions, struct & union members
-: `lower_snake_case`.
-: Use array notation (`type varname[]`) for passing array parameters.
-
-Constants, Enumerations, Preprocessor symbols & macros
-: `UPPER_SNAKE_CASE`
-: Enumerations prefixed by module or enum type name.
-: Macro parameters are upper case with trailing underscore: `VAR_`
-
-Modules
-: Types and functions that work together. 
-: Module names are UpperCamelCase.
-: Module abbreviations are 3 to 4 letters uppercase. 
-: Functions names in a module are prefixed with module abbreviation, as `MOD_function()`.
+- Identifiers and tags use `lower_snake_case`.
+- Typedefs in `PascalCase`.
+- Constants, Enumerations, Preprocessor symbols in `UPPER_SNAKE_CASE`.
+- Enumerations prefixed by module or enum type name.
+- Macro parameters are upper case with trailing underscore: `VAR_`
 
 ## Function and Type Abbreviations
 
@@ -109,7 +109,6 @@ For example: int_max() and fl_min().
 - string - str
 - pointer - p
 - number/length/count - n
-- file pointer - fp
 - variable arguments - va
 - function pointer - fp
 - unsigned - prefix 'u', as in 'uint'
@@ -142,16 +141,16 @@ See also [Max Truxa's Antonym List](https://gist.github.com/maxtruxa/b2ca551e42d
 
 Object Existence
 
-- make:      Construct and return an initalized struct by value.
-- create:    Bring new object into existence on heap.
-- destroy:   Put an end to an object's existence.
-- init:      Set existing object to a known usable state.
-- copy:      Create a duplicate object (deep copy).
+- make:     Construct and return an initalized struct by value.
+- create:   Bring new object into existence on heap.
+- destroy:  Put an end to an object's existence.
+- init:     Set existing object to a known usable state.
+- copy:     Make/create a new object that is deep-copied from an existing object.
 
 Dimensions
 
 - length:    number of elements
-- capacity:  available space
+- capacity:  total available space
 - size:      number of bytes / char
 - empty:     length is zero, no elements to get or remove
 - full:      length == capacity, cannot add more elements
@@ -162,8 +161,8 @@ Sequences & Containers
 - add:      new element in next available empty location
 - get:      access element at key
 - put:      replace element at key with new item
-- insert:   add element at key, shift up
-- delete:   remove element at key, shift down
+- ins:      add element at key, shift up
+- del:      remove element at key, shift down
 
 - find:      search for element's key by value
 - replace:   overwrite (first/some/all) elements by value
@@ -240,6 +239,14 @@ Collection Pipeline Operations
 Enum, global constant, pre-proc symbols for current build mode.
 
 Select build mode at compile time with define symbols.
+
+# GDB Reference
+
+- run: Start program.
+- file FILENAME: load binary.
+- l / list: list source.
+- bt: backtrace
+- restart 0: restart the current program. 
 
 # Debug Categories
 
