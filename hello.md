@@ -4,24 +4,19 @@ C base library to make it easier, safer, more fun to code.
 
 # Todo
 
-- vector, range
 - enums (first, last, count, to-string).
 - hash
 - random generator, shuffle 
 - strand (string begin/end pointer range)
-- signed size & index types
-
 - functors/monads (option/maybe/nullible, any, either/status/error)
 - closures & partial application
-
 - status codes
 - exceptions
-	
 - arrays (fat pointer, index from end, checked accessors) 
 - memory arena allocator
 - memory error handler & debugger (debug tracking, leak checker, overflow checker)
+- math overflow handling
 
-- String type
 - Dynamic array
 - Table (associative array)
 
@@ -104,7 +99,7 @@ For example: int_max() and fl_min().
 
 - char - ch
 - int - int
-- double - fl, dec
+- double - num
 - bool - bool
 - string - str
 - pointer - p
@@ -224,7 +219,7 @@ Collection Pipeline Operations
 - Translation units
 - Linkage: internal & external, static & external keywords
 - Scope:  file/translation unit,function, block, function proto
-- Storage class & duration
+- Storage class & duration: auto, static, extern, 
 - Namespaces: tags, members, labels, identifiers
 - Pointers
 - Undefined behavior
@@ -238,7 +233,7 @@ Collection Pipeline Operations
 
 Enum, global constant, pre-proc symbols for current build mode.
 
-Select build mode at compile time with define symbols.
+Select build mode at compile time. 
 
 # GDB Reference
 
@@ -303,11 +298,16 @@ Select build mode at compile time with define symbols.
 - depend-on
 - assume
 
-# Pointer Safety
+# Pointer Safety & Memory Integrity
+
+- Init pointers with special value
 - Bounds checking
-- Lack-and-key (dangling pointer detection)
-- Over-allocate boundaries with special values
+- Lock-and-key (dangling pointer detection)
+- Over-allocate boundaries, init with special values, check for overflows.
 - Reference counting
+- Check bad inputs (null/bad pointer, zero/negative size)
+- Initialize memory with special value
+- Track memory usage (pointer, size, file/line at allocation)
 
 ## Fat Pointer
 - key value
@@ -326,16 +326,19 @@ Select build mode at compile time with define symbols.
 	}
 
 # Error Handling 
+
 - ignore, do nothing, off/disabled
 - trace/log a message
 - pause, prompt user
 - return error code
 - exception
-- halt program
-- breakpoint
+- abort, halt program
+- debug, breakpoint
 - raise signal
+- custom error function
 
 # Error Codes
+
 - OK, no error
 - Error, general
 - Math overflow
@@ -345,7 +348,6 @@ Select build mode at compile time with define symbols.
 - Allocation failure
 - Not found
 - Test case failure
-- Assertion failure
 - File/disk error
 - Bad user input
 
@@ -353,13 +355,21 @@ Operations
 
 - status to string
 
-# Memory Integrity
 
-- Check bad inputs (null/bad pointer, zero/negative size)
-- Initialize memory with special value
-- Init pointers with special value
-- Over-allocate and check for overflows
-- Track memory usage (pointer, size, file/line at allocation)
+# Arena Allocator
+
+[null program: Arena allocator tips and tricks](https://nullprogram.com/blog/2023/09/27/)
+
+Dependencies:
+
+- Error handling (out of space error). 
+	- Abort
+	- Exceptions
+		- Error codes, error info context
+	- Error return code, monad
+	- Custom error handler function
+- Numeric overflow detection (for safely computing array sizes). 
+
 
 # Tracing & Logging
 
@@ -389,8 +399,14 @@ Operations
 - Category on/off (null handler)
 - Rotation, archiving, cleanup
 
+# Functors & Monads
+
+[Fabulous adventures in coding: Monads](https://ericlippert.com/2013/02/21/monads-part-one/)
+
+
 # Compound Types 
-- vector - fixed-length, named & random access
+- Interval - min & max numerical range. 
+- Vector - fixed-length, named & random access
 - span - pair of pointers to front & back of elements
 - slice, strip, strand, ?
 

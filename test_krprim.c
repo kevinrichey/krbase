@@ -2,17 +2,18 @@
 #include "test.h"
 #include <math.h>
 #include <float.h>
-#include <setjmp.h>
 #include <stdint.h>
 #include <stddef.h>
-#include <assert.h>
 
 TEST_CASE(this_test_always_fails)
 {
 	//TEST(false);
 }
 
-TEST_CASE(helper_macros)
+//----------------------------------------------------------------------
+// Macros
+
+TEST_CASE(macro_tests)
 {
 #define TEST_CONCAT_LONG_TOKEN  true
 	TEST( CONCAT(TEST_CONCAT_, LONG_TOKEN) );
@@ -29,128 +30,33 @@ TEST_CASE(helper_macros)
 	TEST( !strcmp(STRINGIFY_EXPAND(EXPAND_THIS_TOKEN), token_expanded) );
 
 	int a[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-	TEST( arraylen(a) == 10 );
+	TEST( lengthof(a) == 10 );
 
-	TEST( arraylen("xyzzy") == 6 );
+	TEST( lengthof("xyzzy") == 6 );
 
 	int nargs = 5;
 	TEST( VA_NARGS(1,2,'a',5.5,"hi") == nargs );
 }
 
-TEST_CASE(String_slice)
-{
-	//             0123456789
-	String s = $s("Hello, World!");
-	//                -987654321
-	TEST( s.length == 13 );
-
-	String t = str_slice(s, 3, 7);
-	TEST( t.length == 5 );
-	TEST( String_equals(t, $s("lo, W")) );
-
-	// Assert fails!
-//	str_slice(s, 0, 14);
-//	str_slice(s, -20, 12);
-
-	String u = str_slice(s, 8, 2);
-	TEST( u.length == 7 );
-	TEST( String_equals(u, $s("llo, Wo")) );
-
-	TEST( String_equals( str_slice(s, 9, -8), $s(", Wor")) );
-	TEST( String_equals( str_slice(s, -2, -8), $s(", World")) );
-
-	String v = str_slice(s, -3, s.length-1);
-	TEST( v.length == 3 );
-	TEST( String_equals(v, $s("ld!")) );
-	TEST( String_equals( str_slice(s,5,-5), $s(", Wo") ) );
-
-	String w = str_first(s, 5);
-	TEST( w.length == 5 );
-	TEST( String_equals(w, $s("Hello")) );
-	TEST( str_first(s,0).length == 0 );
-	TEST( String_equals( str_first(s,13), $s("Hello, World!") ) );
-
-	String x = str_last(s, 6);
-	TEST( x.length == 6); 
-	TEST( String_equals(x, $s("World!")) );
-	TEST( str_last(s,0).length == 0);
-	TEST( String_equals( str_last(s,13), $s("Hello, World!") ) );
-}
-
-TEST_CASE(String_equals)
-{
-	char hello_array[] = "hello";
-	char world_array[] = "world";
-
-	String hello = $s(hello_array);
-	String world = $s(world_array);
-
-	String a = $s("hello");
-	String b = $s("world");
-
-	TEST( String_equals(a, hello) );
-	TEST( String_equals(a, a) );
-	TEST( String_equals(b, world) );
-	TEST(!String_equals(a, world) );
-	TEST(!String_equals(b, hello) );
-}
-
-TEST_CASE(String_equals_empty_null_)
-{
-	String a_null = {0};
-	String b_null = {0};
-	TEST( String_equals(a_null,b_null) );
-
-	String c_empty = $s("");
-	String d_empty = $s("");
-	TEST( String_equals(c_empty,d_empty) );
-}
+//----------------------------------------------------------------------
+// Debugging & Assertions
 
 TEST_CASE(capture_debug_context_info)
 {
 	SourceLine dbi = SRC_HERE;
-	TEST(!strcmp(dbi.file_name.data, "test_krprim.c"));
+	TEST(!strcmp(dbi.file_name, "test_krprim.c"));
 	TEST(dbi.line_num == (__LINE__-2));
 }
-
-TEST_CASE(int_functions)
-{
-	TEST(int_min(0, 10) ==  0);
-	TEST(int_max(0, 10) == 10);
-	TEST( in_range( 55, 1, 99));
-	TEST(!in_range(  0, 1, 99));
-	TEST(!in_range(100, 1, 99));
-}
-
-TEST_CASE(ptr_and_returns_pointer_or_alternate)
-{
-	char ok_p[] = "hello";
-	char alt_p[] = "world";
-	TEST(ptr_and(ok_p, alt_p) == ok_p);
-	TEST(ptr_and(NULL, alt_p) == alt_p);
-	TEST(ptr_and(NULL, NULL)  == NULL);
-}
-
-TEST_CASE(dec_epsilon_compare)
-{
-	double a = 9.2;
-	double b = 0.000001;
-
-	TEST(!feq(a, b, 0.0));
-	TEST(!feq(a, 9.3-0.1, 0.0));
-	TEST( feq(a, 9.3-0.1, 0.00001));
-}
-
-//----------------------------------------------------------------------
-// Assertions
 
 TEST_CASE(test_assertions)
 {
 	char errmsg[101] = "";
 
 	int x = 1;
-	require(x == 1);
-	//require(x == 2);
+	assert(x == 1);
+
+	// This assert fails
+	//assert(x == 2);
 }
 
 TEST_CASE(check_index_out_of_bounds)
@@ -169,11 +75,182 @@ TEST_CASE(check_index_out_of_bounds)
 }
 
 //----------------------------------------------------------------------
+// String
+
+TEST_CASE(String_default_state)
+{
+	String s = {0};
+
+	TEST( s.length == 0 );
+	TEST( Str_eq(s, Str("")) );
+	TEST( Str_empty(s) );
+
+	TEST( Str_empty(Str("")) );
+}
+
+TEST_CASE(String_does_not_include_null)
+{
+	String c = Str("This is a literal String.");
+	TEST( c.length == 25 );
+
+	String d = Str( (Utf8[]){"This is a char array."} );
+	TEST( d.length == 21 );
+
+	TEST( Str("How long is this?").length == 17 );
+}
+
+TEST_CASE(String_slice)
+{
+	//             0123456789
+	String s = Str("Hello, World!");
+	//                -987654321
+	TEST( s.length == 13 );
+
+	String t = Str_slice(s, 3, 7);
+	TEST( t.length == 5 );
+	TEST( String_equals(t, Str("lo, W")) );
+
+	// Assert fails!
+//	Str_slice(s, 0, 14);
+//	Str_slice(s, -20, 12);
+
+	String u = Str_slice(s, 8, 2);
+	TEST( u.length == 7 );
+	TEST( String_equals(u, Str("llo, Wo")) );
+
+	TEST( String_equals( Str_slice(s, 9, -8), Str(", Wor")) );
+	TEST( String_equals( Str_slice(s, -2, -8), Str(", World")) );
+
+	String v = Str_slice(s, -3, s.length-1);
+	TEST( v.length == 3 );
+	TEST( String_equals(v, Str("ld!")) );
+	TEST( String_equals( Str_slice(s,5,-5), Str(", Wo") ) );
+
+	String w = Str_first(s, 5);
+	TEST( w.length == 5 );
+	TEST( String_equals(w, Str("Hello")) );
+	TEST( Str_first(s,0).length == 0 );
+	TEST( String_equals( Str_first(s,13), Str("Hello, World!") ) );
+
+	String x = Str_last(s, 6);
+	TEST( x.length == 6); 
+	TEST( String_equals(x, Str("World!")) );
+	TEST( Str_last(s,0).length == 0);
+	TEST( String_equals( Str_last(s,13), Str("Hello, World!") ) );
+}
+
+TEST_CASE(String_equals)
+{
+	char hello_array[] = "hello";
+	char world_array[] = "world";
+
+	String hello = Str(hello_array);
+	String world = Str(world_array);
+
+	String a = Str("hello");
+	String b = Str("world");
+
+	TEST( String_equals(a, hello) );
+	TEST( String_equals(a, a) );
+	TEST( String_equals(b, world) );
+	TEST(!String_equals(a, world) );
+	TEST(!String_equals(b, hello) );
+}
+
+TEST_CASE(String_equals_empty_null_)
+{
+	String a_null = {0};
+	String b_null = {0};
+	TEST( String_equals(a_null,b_null) );
+
+	String c_empty = Str("");
+	String d_empty = Str("");
+	TEST( String_equals(c_empty,d_empty) );
+}
+
+//----------------------------------------------------------------------
+// Error Handling 
+
+TEST_CASE(Status_to_string_test)
+{
+	TEST( Str_eq(Status_string(STAT_OK),    Str("STAT_OK")) );
+	TEST( Str_eq(Status_string(STAT_ERROR), Str("STAT_ERROR")) );
+}
+
+static bool fail_throw(Exception *ex, SourceLine loc)
+{
+	throw(ex, STAT_ERROR, Str("throw up"), loc);
+	return false;
+}
+
+TEST_CASE(assertion_throws_exception)
+{
+	Exception ex = {0};
+
+	switch (EX_BEGIN(ex))
+	{
+		case EX_TRY:
+			TEST( fail_throw(&ex, SRC_HERE) );
+			TEST(!"Exception should have thrown!");
+			break;
+
+		case STAT_ERROR:
+			// We should get here
+			TEST( ex.status == STAT_ERROR );
+			TEST( Str_eq(ex.message, Str("throw up")) );
+			TEST( Str_eq(String_init(ex.location.file_name), Str("test_krprim.c")) );
+			TEST( ex.location.line_num == __LINE__-9 );
+			break;
+
+		default:
+			TEST(!"Wrong exception code");
+	}
+
+	// This crashes with "Unhandled Exception"
+	//throw(NULL, STAT_ERROR, Str("oops"), SRC_HERE);
+}
+
+//----------------------------------------------------------------------
+// Numbers
+
+TEST_CASE(int_functions)
+{
+	TEST(int_min(0, 10) ==  0);
+	TEST(int_max(0, 10) == 10);
+
+	TEST( in_range( 55,  1, 99));
+	TEST(!in_range(  0,  1, 99));
+	TEST(!in_range(100,  1, 99));
+}
+
+TEST_CASE(num_equals_with_epsilon)
+{
+	double a = 9.2;
+	double b = 0.000001;
+
+	TEST(!num_eq(a, b, 0.0));
+	TEST(!num_eq(a, 9.3-0.1, 0.0));
+	TEST( num_eq(a, 9.3-0.1, 0.00001));
+}
+
+//----------------------------------------------------------------------
+// Pointer Stuff
+
+TEST_CASE(ptr_and_returns_pointer_or_alternate)
+{
+	char ok_p[] = "hello";
+	char alt_p[] = "world";
+	TEST(ptr_and(ok_p, alt_p) == ok_p);
+	TEST(ptr_and(NULL, alt_p) == alt_p);
+	TEST(ptr_and(NULL, NULL)  == NULL);
+}
+
+//----------------------------------------------------------------------
 // Intervals & Vectors
 
 TEST_CASE(closed_intervals)
 {
-	struct Interval itvl = { 1.0, 2.0 };
+	Interval itvl = { 1.0, 2.0 };
 	TEST( includes(itvl, 1.0) );
 	TEST( includes(itvl, 2.0) );
 	TEST( includes(itvl, 1.2) );
@@ -186,23 +263,23 @@ TEST_CASE(closed_intervals)
 
 TEST_CASE(intervals_left_less_than_right)
 {
-	struct Interval invl = interval(5.5, 6.6);
+	Interval invl = interval(5.5, 6.6);
 	TEST(invl.left <= invl.right);
 
-	struct Interval invl2 = interval(99.0, -1.0);
+	Interval invl2 = interval(99.0, -1.0);
 	TEST(invl2.left <= invl2.right);
 }
 
 TEST_CASE(right_unbounded_intervals)
 {
-	struct Interval r_inf = { 99.0, INFINITY };
+	Interval r_inf = { 99.0, INFINITY };
 	TEST( includes(r_inf, DBL_MAX) );
 	TEST(!includes(r_inf, -DBL_MAX) );
 }
 
 TEST_CASE(left_unbounded_intervals)
 {
-	struct Interval l_inf = { -INFINITY, 999.9 };
+	Interval l_inf = { -INFINITY, 999.9 };
 	TEST( includes(l_inf, -DBL_MAX) );
 	TEST(!includes(l_inf, DBL_MAX) );
 }
@@ -289,7 +366,7 @@ TEST_CASE(linear_interpolation)
 
 TEST_CASE(vectors)
 {
-	VectorXY v1 = { 1.5, 100.25 };
+	VecXY v1 = { 1.5, 100.25 };
 	TEST( v1.v[0] == 1.5 );
 	TEST( v1.v[1] == 100.25 );
 
@@ -305,17 +382,6 @@ TEST_CASE(create_span_from_literal)
 	TEST( n2.length == 6 );
 }
 
-TEST_CASE(strand_span_does_not_include_null)
-{
-	String c = s("This is a literal String.");
-	TEST( c.length == 25 );
-
-	String d = s( (char[]){"This is a char array."} );
-	TEST( d.length == 21 );
-
-	TEST( s("How long is this?").length == 17 );
-}
-
 TEST_CASE(slice_returns_partial_span)
 {
 	nuspan a = $N(5.342, 3.234, 7.274, 9.232, 1.623, 2.031, 4.0, 6.101, 8.731);
@@ -329,12 +395,54 @@ TEST_CASE(slice_returns_partial_span)
 	nuspan s2 = num_slice(a, 4, 7);
 	TEST( s2.length == 4 );
 
-	TEST( str_slice( s("This String is 29 chars long."), -24, 16).length == 12 );
+	TEST( Str_slice( Str("This String is 29 chars long."), -24, 16).length == 12 );
 }
 
 
 //=============================================================================
 // Experimental Stuff 
+
+
+//-----------------------------------------------------------------------------
+// Arenas
+
+TEST_CASE(Arena_allocator_empty)
+{
+	Arena arena = {0};
+
+	TEST( Arena_cap(arena) == 0 );
+
+}
+
+TEST_CASE(Arena_allocator)
+{
+	Byte storage[1<<10];
+	Arena arena = { storage, storage+lengthof(storage) };
+
+	Ispan is = Vspan_cast(new(&arena, int, 100), Ispan);
+
+	// This will crash
+//	new(&arena, int, 256);
+}
+
+TEST_CASE(Arena_allocator_throws)
+{
+	Exception ex = {0};
+	Byte storage[1<<10];
+	Arena arena = { storage, storage+lengthof(storage), &ex };
+
+	switch (EX_BEGIN(ex)) {
+		case EX_TRY:
+			alloc(&arena, 8, 4, 1<<10, 0, SRC_HERE); // alloc too much space
+			TEST(!"Exception was not thrown.");
+			break;
+		case STAT_OUT_OF_MEM:
+			printf("Here!\n");
+			break;
+		default:
+			TEST(!"Wrong exception type");
+	}
+}
 
 
 //-----------------------------------------------------------------------------
@@ -374,14 +482,14 @@ struct DynArrayBase* dyn_private_inc(struct DynArrayBase *a)
 
 struct DynArrayBase* dyn_private_base(const struct DynArray da)
 {
-	require( da.key == da.base->lock );
+	assert( da.key == da.base->lock );
 	return da.base;
 }
 
 void *dyn_private_item(const struct DynArrayBase *base, int i)
 {
 	if (i < 0)  i += base->end;
-	require(0 <= i && i < base->end);
+	assert(0 <= i && i < base->end);
 	return (Byte*)base->data + base->item_size * i; 
 }
 
@@ -479,58 +587,6 @@ TEST_CASE(dynamic_array_tests)
 }
 
 
-
-
-
-enum Status
-{
-	STAT_OK,
-	STAT_ASSERT_FAILURE,
-};
-struct Exception 
-{
-	volatile struct { jmp_buf env; };
-	enum    Status          status;
-	const   char*           message;
-	SourceLine              location;
-};
-void ex_throw(struct Exception *e, enum Status status, const char *message, SourceLine loc)
-{
-	if (e)
-	{
-		e->status   = status;
-		e->message  = message;
-		e->location = loc;
-		longjmp(e->env, status);
-	}
-}
-#define  EX_BEGIN(Xf_)  setjmp((Xf_).env)
-#define  EX_TRY  0
-#define  EX_THROW(Ep_, S_, Mp_)  ex_throw((Ep_), (S_), (Mp_),  SRC_HERE)
-
-
-static bool fail_throw(void *exception, SourceLine loc, const char *m, ...)
-{
-	EX_THROW(exception, STAT_ASSERT_FAILURE, m);
-	return false;
-}
-TEST_CASE(assertion_throws_exception)
-{
-	struct Exception ex = {0};
-
-	switch (EX_BEGIN(ex))
-	{
-		case EX_TRY:
-			fail_throw(&ex, SRC_HERE, "throw up");
-			TEST(!"Exception should have thrown!");
-			break;
-		case STAT_ASSERT_FAILURE:
-			// Okay - we should be here
-			break;
-		default:
-			TEST(!"Wrong exception code");
-	}
-}
 
 double mult(double a, double b) { return a * b; }
 
